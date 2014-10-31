@@ -222,7 +222,7 @@ class AfpDialog_DiChEin(AfpDialog):
       self.setWx(panel, [460, 316, 100, 24], [460, 340, 100, 30]) # set Edit and Ok widgets
    
    ## attach data to dialog and invoke population of the graphic elements
-   # @param data - AfpCharter object to hold th data to be displayed
+   # @param data - AfpCharter object to hold the data to be displayed
    # @param KNr - if given data is ireset and nitialized with the address indicated by this number
    def attach_data(self, data, KNr = None):
       self.data = data
@@ -239,7 +239,7 @@ class AfpDialog_DiChEin(AfpDialog):
       data = {}
       if self.new: 
          data["Art"] =  self.choice_Art.GetStringSelection()
-      for entry in self.changetext:
+      for entry in self.changed_text:
          name, wert = self.Get_TextValue(entry)
          data[name] = wert
       for entry in self.choicevalues:
@@ -278,7 +278,7 @@ class AfpDialog_DiChEin(AfpDialog):
             self.zahl_data.store()
          self.new = False          
          self.Ok = True              
-      self.changetext = []   
+      self.changed_text = []   
       self.choicevalues = {}
       
  # handling routines
@@ -469,12 +469,12 @@ class AfpDialog_DiChEin(AfpDialog):
          preis = Afp_floatString(self.text_Preis.GetValue())
          newpreis = preis + diff
          self.text_Preis.SetValue(Afp_toString(newpreis))
-         if not "Preis" in self.changetext: self.changetext.append("Preis")
+         if not "Preis" in self.changed_text: self.changed_text.append("Preis")
          self.Pop_Extras()
       self.set_proPers()
       self.label_Extra.SetLabel(Afp_toString(newextra))
     
-   ## activate or deactivate changable widgets \n
+   ## activate or deactivate changeable widgets \n
    # this method also calls the parent method
    # @param ed_flag - flag if widgets have to be activated (True) or deactivated (False)
    # @param lock_data - flag if data has to be locked, used in parent method 
@@ -491,7 +491,7 @@ class AfpDialog_DiChEin(AfpDialog):
    def On_KillFocus(self,event):
       object = event.GetEventObject()
       name = object.GetName()
-      if not name in self.changetext: self.changetext.append(name)
+      if not name in self.changed_text: self.changed_text.append(name)
       if name == "Km": self.set_distance()
       if name == "Pers": self.set_extraPreis()
       if name == "Preis": self.set_proPers()
@@ -551,7 +551,7 @@ class AfpDialog_DiChEin(AfpDialog):
          self.data.set_value("KontaktNr",KNr)
          self.data.reload_selection("Kontakt")
          self.data.set_kontakt_name()
-         if not "Kontakt" in self.changetext: self.changetext.append("Kontakt")
+         if not "Kontakt" in self.changed_text: self.changed_text.append("Kontakt")
          self.Populate()         
          self.choice_Edit.SetSelection(1)
          self.Set_Editable(True)
@@ -737,7 +737,7 @@ class AfpDialog_DiMfEx(AfpDialog):
    def store_data(self):
       self.Ok = False
       data = {}
-      for entry in self.changetext:
+      for entry in self.changed_text:
          TextBox = self.FindWindowByName(entry)
          wert = TextBox.GetValue()
          name = self.textmap[entry].split(".")[0]
@@ -748,7 +748,7 @@ class AfpDialog_DiMfEx(AfpDialog):
          if self.new: data = self.complete_data(data)
          self.data.set_data_values(data, "FAHRTEX", self.index)
          self.Ok = True
-      self.changetext = []   
+      self.changed_text = []   
       self.choicevalues = {}  
    def complete_data(self, data):
       self.choicevalues = {}
@@ -846,7 +846,7 @@ class AfpDialog_DiMfEx(AfpDialog):
 
    def On_Loeschen(self,event):
       if self.debug: print "Event handler `On_Loeschen'", self.index
-      self.changetext = []
+      self.changed_text = []
       self.choicevalues = {} 
       if not self.new:
          info = self.data.get_value_rows("FAHRTEX","Info",self.index)
@@ -934,8 +934,8 @@ class AfpDialog_DiMfInfo(AfpDialog):
    def store_data(self):
       self.Ok = False
       data = {}
-      print self.changetext
-      for entry in self.changetext:
+      print self.changed_text
+      for entry in self.changed_text:
          TextBox = self.FindWindowByName(entry)
          wert = TextBox.GetValue()
          name = self.textmap[entry]
@@ -949,7 +949,7 @@ class AfpDialog_DiMfInfo(AfpDialog):
          if self.new: data = self.complete_data(data)
          self.data.set_data_values(data, "FAHRTI", self.index)
          self.Ok = True
-      self.changetext = []   
+      self.changed_text = []   
       self.choice_changed = False  
    def set_choicevalues(self, data):
       selfahrt = self.choice_Richtung.GetCurrentSelection()
@@ -1015,7 +1015,7 @@ class AfpDialog_DiMfInfo(AfpDialog):
 
    def On_Loeschen(self,event):
       if self.debug: print "Event handler `On_Loeschen'", self.index
-      self.changetext = []
+      self.changed_text = []
       self.choicevalues = {} 
       self.data.delete_row("FAHRTI", self.index)
       self.store_data()

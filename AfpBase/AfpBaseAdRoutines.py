@@ -149,3 +149,4 @@ class AfpAdresse(AfpSelectionList):
       vorname = self.get_string_value("Vorname")
       name = self.get_string_value("Name")
       return vorname[0].lower() + name[:2].lower()
+      

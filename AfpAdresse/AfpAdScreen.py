@@ -49,6 +49,8 @@ from AfpBase.AfpBaseAdDialog import AfpLoad_DiAdEin_fromSb, AfpLoad_AdAusw
 
 ## Class_Adresse shows Window Adresse and handles interactions
 class AfpAdScreen(AfpScreen):
+   ## initialize AfpAdScreen, graphic objects are created here
+   # @param debug - flag for debug info
    def __init__(self, debug = None):
       AfpScreen.__init__(self,None, -1, "")
       self.typ = "Adresse"
@@ -59,19 +61,6 @@ class AfpAdScreen(AfpScreen):
       self.archiv_colnames = [["Datum","Art","Ablage","Fach","Bem."],["ReiseNr","Datum","Zielort","Anmeldung","Preis"],["Zustand","Datum","Zielort","FahrtNr","Preis"],["RechNr","Datum","Text","Preis","Zahlung"],["RechNr","Datum","Text","Preis","Zahlung"],["Merkmal","Text","-","-","-"],["Name","Vorname","Strasse","Ort","Telefon"]]
       self.archiv_colname = self.archiv_colnames[0]
       self.archiv_id = []
-        
-      # Menu Bar
-      #self.Form_Adresse_menubar = wx.MenuBar()
-      #wxglade_tmp_menu = wx.Menu()
-      #self.MAdresse = wx.MenuItem(wxglade_tmp_menu, wx.NewId(), "Adresse", "", wx.ITEM_CHECK)
-      #wxglade_tmp_menu.AppendItem(self.MAdresse)
-      #self.MTouristik = wx.MenuItem(wxglade_tmp_menu, wx.NewId(), "Touristik", "", wx.ITEM_CHECK)
-      #wxglade_tmp_menu.AppendItem(self.MTouristik)
-      #self.Form_Adresse_menubar.Append(wxglade_tmp_menu, "Bildschirm")
-      #wxglade_tmp_menu = wx.Menu()
-      #self.Form_Adresse_menubar.Append(wxglade_tmp_menu, "item2")
-      #self.SetMenuBar(self.Form_Adresse_menubar)
-      # Menu Bar end
       # self properties
       self.SetTitle("BusAfp Adresse")
       self.SetSize((800, 600))
@@ -82,25 +71,25 @@ class AfpAdScreen(AfpScreen):
       panel = self.panel
       
       # BUTTON
-      self.button_Ende = wx.Button(panel, -1, label="Be&enden", pos=(692,470), size=(72,50), name="Ende")
+      self.button_Ende = wx.Button(panel, -1, label="Be&enden", pos=(692,470), size=(77,50), name="Ende")
       self.Bind(wx.EVT_BUTTON, self.On_Ende, self.button_Ende)
 
-      self.button_Auswahl = wx.Button(panel, -1, label="Aus&wahl", pos=(692,50), size=(72,50), name="BAuswahl")
+      self.button_Auswahl = wx.Button(panel, -1, label="Aus&wahl", pos=(692,50), size=(77,50), name="BAuswahl")
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_AuswErw, self.button_Auswahl)
         
-      self.button_Doppelt = wx.Button(panel, -1, label="Do&ppelte", pos=(692,338), size=(72,50), name="Doppelt")
+      self.button_Doppelt = wx.Button(panel, -1, label="Do&ppelte", pos=(692,338), size=(77,50), name="Doppelt")
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_Doppelt, self.button_Doppelt)
         
-      self.button_Listen = wx.Button(panel, -1, label="&Listen", pos=(692,405), size=(72,50), name="Listen")
+      self.button_Listen = wx.Button(panel, -1, label="&Listen", pos=(692,405), size=(77,50), name="Listen")
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_Listen, self.button_Listen)
 
       self.button_BAdresse = wx.Button(panel, -1, label="A&dresse:", pos=(34,55), size=(115,20), name="BAdresse")
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_AendF, self.button_BAdresse)
 
-      self.button_Voll = wx.Button(panel, -1, label="&Volltext", pos=(692,116), size=(72,50), name="BVoll")
+      self.button_Voll = wx.Button(panel, -1, label="&Volltext", pos=(692,116), size=(77,50), name="BVoll")
       self.Bind(wx.EVT_BUTTON, self.On_Ad_Volltext, self.button_Voll)
         
-      self.button_CommandButton31 = wx.Button(panel, -1, label="&Dokument", pos=(692,256), size=(72,50), name="BDokument")
+      self.button_CommandButton31 = wx.Button(panel, -1, label="&Dokument", pos=(692,256), size=(77,50), name="BDokument")
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_Doku, self.button_CommandButton31)
         
       # COMBOBOX
@@ -152,7 +141,6 @@ class AfpAdScreen(AfpScreen):
       self.text_MerkT_Archiv = wx.TextCtrl(panel, -1,value="", pos=(689,18), size=(80,18), style=0, name="MerkT_Archiv")
 
       # OPTIONBUTTON
-      #self.radio_Status = wx.RadioBox(panel, -1, label="Status", pos=(377,16), size=(77,18), choices=["Passiv", "Aktiv", "Neutral", "Markiert", "Inaktiv"], majorDimension=0, style=wx.RA_SPECIFY_ROWS, name="RStatus")
       self.choice_Status = wx.Choice(panel, -1, pos=(377,52), size=(77,18), choices=["Passiv", "Aktiv", "Neutral", "Markiert", "Inaktiv"],  name="RStatus")
       self.choice_Status.SetSelection(0)
       self.Bind(wx.EVT_CHOICE, self.On_CStatus, self.choice_Status)
@@ -188,12 +176,7 @@ class AfpAdScreen(AfpScreen):
       #self.Bind(wx.EVT_MENU, self.On_MAdresse, self.MAdresse)
       #self.Bind(wx.EVT_MENU, self.On_MTouristik, self.MTouristik)
       
-   # Eventhandler BUTTON
-   def On_Ende(self,event):
-      if self.debug: print "AfpAdScreen Event handler `On_Ende'!"
-      self.Close()
-      event.Skip()
-
+   ## Eventhandler BUTTON - select other address, either direkt of via attribut
    def On_Adresse_AuswErw(self,event):
       if self.debug: print "Event handler `On_Adresse_AuswErw'!"
       self.sb.set_debug()
@@ -222,16 +205,15 @@ class AfpAdScreen(AfpScreen):
          self.Populate()
       self.sb.unset_debug()
       event.Skip()
-
+   ## Eventhandler BUTTON - resolve duplicate addresses - not implemented yet!
    def On_Adresse_Doppelt(self,event):
       print "Event handler `On_Adresse_Doppelt' not implemented!"
       event.Skip()
-
+   ## Eventhandler BUTTON - show different lists, not implemented yet!
    def On_Adresse_Listen(self,event):
       print "Event handler `On_Adresse_Listen' not implemented!"
-      AfpReq_Information(self.globals)
       event.Skip()
-
+   ## Eventhandler BUTTON - change address
    def On_Adresse_AendF(self,event):
       if self.debug: print "AfpAdScreen Event handler `On_Adresse_AendF'"
       AfpLoad_DiAdEin_fromSb(self.globals, self.sb)
@@ -301,21 +283,13 @@ class AfpAdScreen(AfpScreen):
       print "Event handler `On_MTouristik' not implemented!"
       event.Skip()
       
-   # Eventhandler Keyboard
-   def On_KeyDown(self, event):
-      keycode = event.GetKeyCode()
-      if self.debug: print "AfpAdScreen Event handler `On_KeyDown'", keycode
-      next = 0
-      if keycode == wx.WXK_LEFT: next = -1
-      if keycode == wx.WXK_RIGHT: next = 1
-      if next: self.CurrentData(next)
-      event.Skip()
-     
+   ## set right status-choice for this address
    def Pop_choice_status(self):
       stat = self.sb.get_value("Kennung.ADRESSE")
       choice = self.choicemap[stat]
       self.choice_Status.SetSelection(choice)
       if self.debug: print "AfpAdScreen Population routine`Pop_choice_status'", choice
+   ## populate attribut filter with entries from database table
    def Pop_Filter_Merk(self):
       if self.debug:  print "AfpAdScreen Population routine`Pop_Filter_Merk'"      
       rows = self.mysql.select_strings("Attribut","KundenNr = 0","ADRESATT")
@@ -337,7 +311,7 @@ class AfpAdScreen(AfpScreen):
       #print "set_current_record",self.sb_master, KNr
       self.Pop_choice_status()
       return  
-   ## set initial record to be shown, when screen opens th first time
+   ## set initial record to be shown, when screen opens the first time
    #overwritten from AfpScreen) 
    # @param origin - string where to find initial data
    def set_initial_record(self, origin = None):

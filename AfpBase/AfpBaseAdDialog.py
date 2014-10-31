@@ -150,25 +150,19 @@ def AfpLoad_AdAttAusw(globals, attribut, value = ""):
       result = AfpLoad_AdAusw(globals, Datei, Index, value, where, attribut)
       return result
 
-## Class AfpDialog_DiAdEin display dialog to show and manipulate Adressen-data and handles interactions
-class AfpDialog_DiAdEin(wx.Dialog):
+## Class AfpDialog_DiAdEin display dialog to show and manipulate Adressen-data and handles interactions \n
+# this class is not yet devired from AfpDialog, this has to be done
+class AfpDialog_DiAdEin(AfpDialog):
    def __init__(self, *args, **kw):
-      super(AfpDialog_DiAdEin, self).__init__(*args, **kw) 
-      self.Ok = False
-      self.data = None
-      self.debug = False
-      self.new = False
-      self.textmap = {}
-      self.changelist = []
-      self.change_Merk = False
-      self.readonlycolor = self.GetBackgroundColour()
-      #self.readonlycolor = (225,225,225)
-      self.editcolor = (255,255,255)
-      
-      self.InitWx()
+      self.change_data = False
+      self.choicevalues = {}
+      AfpDialog.__init__(self,None, -1, "")
+      self.lock_data = True
       self.SetSize((452,447))
       self.SetTitle("Adresse")
       
+   ## initialize wx widgets of dialog  \n
+   # 
    def InitWx(self):
       panel = wx.Panel(self, -1)
       self.label_T_Vorname_Adresse = wx.StaticText(panel, -1, label="&Vorname:", pos=(14,28), size=(62,18), name="T_Vorname_Adresse")
@@ -213,7 +207,7 @@ class AfpDialog_DiAdEin(wx.Dialog):
       self.label_T_Geb_Adresse = wx.StaticText(panel, -1, label="&Geb:", pos=(22,338), size=(54,18), name="T_Geb_Adresse")
       self.text_Geb_Adresse = wx.TextCtrl(panel, -1, value="", pos=(80,336), size=(78,22), style=0, name="Geb_Adresse")
       self.text_Geb_Adresse.Bind(wx.EVT_KILL_FOCUS, self.On_Adresse_Geb)
-      self.textmap["Geb_Adresse"] = "Geburtstag.ADRESSE"
+      self.vtextmap["Geb_Adresse"] = "Geburtstag.ADRESSE"
 
       self.button_Merk = wx.Button(panel, -1, label="Mer&kmale", pos=(78,370), size=(80,36), name="Merk")
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_Merk, self.button_Merk)
@@ -226,13 +220,16 @@ class AfpDialog_DiAdEin(wx.Dialog):
       
       self.label_Anrede = wx.StaticText(panel, -1, label="Anre&de:", pos=(8,6), size=(62,18), name="Anrede")
       self.choice_Anrede = wx.Choice(panel, -1,  pos=(80,5), size=(60,20),  choices=["Du", "Sie"],  name="CAnrede")
+      self.choicemap["CAnrede"] = "Anrede.ADRESSE"
       self.choice_anrede_sel = None
       self.Bind(wx.EVT_CHOICE, self.On_CAnrede, self.choice_Anrede)      
       self.label_Geschlecht = wx.StaticText(panel, -1, label="&Geschlecht:", pos=(200,6), size=(80,18), name="Geschlecht")      
       self.choice_Geschlecht = wx.Choice(panel, -1,  pos=(290,5), size=(50,20),  choices=["W","N","M"],  name="CGeschlecht")
+      self.choicemap["CGeschlecht"] = "Geschlecht.ADRESSE"
       self.choice_geschlecht_sel =None
       self.Bind(wx.EVT_CHOICE, self.On_CGeschlecht, self.choice_Geschlecht)
       self.choice_Status = wx.Choice(panel, -1,  pos=(280,338), size=(154,20),  choices=["Passiv", "Aktiv", "Neutral", "Markiert", "Inaktiv"],  name="CStatus")
+      self.choicemap["CStatus"] = "Kennung.ADRESSE"
       self.choice_status_sel =None
       self.Bind(wx.EVT_CHOICE, self.On_CStatus, self.choice_Status)
       #self.choice_Edit = wx.Choice(panel, -1, pos=(356,26), size=(80,36), choices=["Lesen", "Ändern"],  name="CEdit")
@@ -242,108 +239,50 @@ class AfpDialog_DiAdEin(wx.Dialog):
 
    ## attach to database and populate widgets
    def attach_data(self, Adresse, name = None):
-      self.data = Adresse
-      self.debug = self.data.is_debug()
-      self.new = self.data.is_new()
-      if self.new: self.choice_Edit.SetSelection(1)
-      else: self.Populate()
+      self.new = Adresse.is_new()     
       if name: 
          self.text_Name_Adresse.SetValue(name)
-         self.changelist.append(self.text_Name_Adresse.GetName())
-      self.Set_Editable(self.new, True)
+         self.changed_text.append(self.text_Name_Adresse.GetName())
+      AfpDialog.attach_data(self, Adresse, self.new)
    def store_database(self):
       self.Ok = False
       data = {}
-      for entry in self.changelist:
-         TextBox = self.FindWindowByName(entry)
-         wert = TextBox.GetValue()
-         name = self.textmap[entry].split(".")[0]
+      for entry in self.changed_text:
+         name, wert = self.Get_TextValue(entry)
          data[name] = wert
-      if self.choice_anrede_sel or self.new:
-         if not self.choice_anrede_sel: self.On_CAnrede()
-         data["Anrede"] = self.choice_anrede_sel
-      if self.choice_geschlecht_sel or self.new:
-         if not self.choice_geschlecht_sel: self.On_CGeschlecht()
-         data["Geschlecht"] = self.choice_geschlecht_sel
-      if self.choice_status_sel or self.new:
-         if not self.choice_status_sel: self.On_CStatus()
-         choice = AfpAdresse_StatusReMap(self.choice_status_sel)  
-         data["Kennung"] = choice
+      for entry in self.choicevalues:
+         name = entry.split(".")[0]
+         data[name] = self.choicevalues[entry]
       if self.new and len(data) > 1:
          self.data.set_data_values(data)
          self.Ok = True
-      elif data or self.change_Merk:
+      elif data or self.change_data:
          if data: self.data.set_data_values(data)
          self.Ok = True
       if self.Ok:
          self.data.store()
          self.new = False               
-      self.changelist = []
-   def get_Ok(self):
-      return self.Ok
-   # Population routines for dialog and widgets
-   def Populate(self):
-      self.Pop_text()
-      self.Pop_choice()
-   def Pop_text(self):
-      # print self.textmap
-      for entry in self.textmap:
-         TextBox = self.FindWindowByName(entry)
-         value = self.data.get_string_value(self.textmap[entry])
-         TextBox.SetValue(value)
-         #TextBox.SetValue(value.decode('iso8859_15'))
+      self.changed_text = []
+   
    def Pop_choice(self):
-      # set Anrede
-      anrede = self.data.get_value("Anrede")
-      self.choice_Anrede.SetStringSelection(anrede)
-      self.choice_anrede_sel = None
-      # set Geschlecht
-      g = self.data.get_value("Geschlecht")
-      self.choice_Geschlecht.SetStringSelection(g)
-      self.choice_geschlecht_sel = None
-      # set status
-      stat = self.data.get_value("Kennung")
-      choice_map = AfpAdresse_StatusMap()
-      print choice_map
-      print stat, type(stat)
-      #stat = int(stat)
-      #print stat, type(stat)
-      choice = choice_map[stat]
-      self.choice_status_sel = None
-      self.choice_Status.SetSelection(choice)
-   def Set_Editable(self, ed_flag, initial = False):
-      for entry in self.textmap:
-         TextBox = self.FindWindowByName(entry)
-         TextBox.SetEditable(ed_flag)
-         if ed_flag:  TextBox.SetBackgroundColour(self.editcolor)
-         else: TextBox.SetBackgroundColour(self.readonlycolor)
-      if ed_flag: 
-         self.choice_Anrede.Enable(True)
-         self.choice_Geschlecht.Enable(True)
-         self.choice_Status.Enable(True)
-      else:  
-         self.choice_Anrede.Enable(False)
-         self.choice_Geschlecht.Enable(False)
-         self.choice_Status.Enable(False)
-         self.Populate()
-      if not initial:
-         if ed_flag:
-            if not self.new: self.data.lock_data()
-         else: 
-            if not self.new: self.data.unlock_data()
-            self.changelist = []
+     for entry in self.choicemap:
+         Choice= self.FindWindowByName(entry)
+         if entry == "CStatus":         
+            stat = self.data.get_value(self.choicemap[entry])
+            cset = AfpAdresse_StatusMap()[stat]
+            Choice.SetSelection(cset) 
+         else:
+            value = self.data.get_string_value(self.choicemap[entry])
+            Choice.SetStringSelection(value)
 
    def On_CAnrede(self,event = None):
-      select = self.choice_Anrede.GetCurrentSelection()
-      self.choice_anrede_sel = self.choice_Anrede.GetString(select)   
+      self.choicevalues["Anrede.ADRESSE"] = self.choice_Anrede.GetStringSelection()   
       if event: event.Skip()  
    def On_CGeschlecht(self,event = None):
-      select = self.choice_Geschlecht.GetCurrentSelection()
-      self.choice_geschlecht_sel = self.choice_Geschlecht.GetString(select)
+      self.choicevalues["Geschlecht.ADRESSE"] = self.choice_Geschlecht.GetStringSelection()   
       if event: event.Skip()  
    def On_CStatus(self,event= None ):
-      select = self.choice_Status.GetCurrentSelection()
-      self.choice_status_sel = select   
+      self.choicevalues["Kennung.ADRESSE"] = AfpAdresse_StatusReMap(self.choice_Status.GetCurrentSelection())
       if event: event.Skip()  
    def On_CEdit(self,event):
       select = self.choice_Edit.GetCurrentSelection()
@@ -354,7 +293,7 @@ class AfpDialog_DiAdEin(wx.Dialog):
    def On_KillFocus(self,event):
       object = event.GetEventObject()
       name= object.GetName()
-      if not name in self.changelist: self.changelist.append(name)
+      if not name in self.changed_text: self.changed_text.append(name)
    def On_Adresse_Geb(self,event):
       if self.debug: print "Event handler `On_Adresse_Geb'"
       gtag = self.text_Geb_Adresse.GetValue()
@@ -364,12 +303,12 @@ class AfpDialog_DiAdEin(wx.Dialog):
       event.Skip()
    def On_Adresse_Merk(self,event):
       if self.debug: print "Event handler `On_Adresse_Merk'"
-      #if len(self.changelist): self.store_database()
+      #if len(self.changed_text): self.store_database()
       changed = AfpLoad_DiAdEin_SubMrk(self.data)
       if changed:      
          self.choice_Edit.SetSelection(1)
          self.Set_Editable(True)
-         self.change_Merk = True
+         self.change_data = True
       event.Skip()
    def On_Adresse_Auswahl(self,event):
       print "Event handler `On_Adresse_Auswahl' not implemented!"
@@ -389,7 +328,9 @@ class AfpDialog_DiAdEin(wx.Dialog):
       event.Skip()
       self.Destroy()
   
-# loader routines for dialog DiAdEin  
+## loader routines for dialog DiAdEin 
+# @param Adresse - AfpAdresse holding data
+# @param name - name to be set in dialog
 def AfpLoad_DiAdEin(Adresse, name = None):
    DiAdEin = AfpDialog_DiAdEin(None)
    DiAdEin.attach_data(Adresse, name)
@@ -397,11 +338,18 @@ def AfpLoad_DiAdEin(Adresse, name = None):
    Ok = DiAdEin.get_Ok()
    DiAdEin.Destroy()
    return Ok   
+## loader routines for dialog DiAdEin with AfpSuperbase input
+# @param globals - global variables including database connection
+# @param sb - AfpSuperbase object to extract actuel adressdata from
+# @param name - name to be set in dialog
 def AfpLoad_DiAdEin_fromSb(globals, sb, name = None):
    Adresse = AfpAdresse(globals, None, sb, sb.debug)
    ken = Adresse.get_value("Kennung.ADRESSE")
    print "AfpLoad_DiAdEin_fromSb", ken, type(ken)
    return AfpLoad_DiAdEin(Adresse, name)
+## loader routines for dialog DiAdEin with ident number (KundenNr) input
+# @param globals - global variables including database connection
+# @param KNr - address ident number (KundenNr)
 def AfpLoad_DiAdEin_fromKNr(globals, KNr):
    Adresse = AfpAdresse(globals, KNr, None, globals.debug)
    ken = Adresse.get_value("Kennung.ADRESSE")
@@ -414,7 +362,7 @@ class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
       self.data = None
       self.debug = False
       self.textmap = {}
-      self.changetext = []
+      self.changed_text = []
       self.changelist = {}
       self.changedlists = False
       self.readonlycolor = self.GetBackgroundColour()
@@ -504,7 +452,7 @@ class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
       self.use_changedlists = ed_flag
    def has_changed(self):
       if self.use_changedlists:
-         return (self.changetext or self.changelist)
+         return (self.changed_text or self.changelist)
       else:
          return False
 
@@ -512,7 +460,7 @@ class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
    def On_KillFocus(self,event):
       object = event.GetEventObject()
       name = object.GetName()
-      if not name in self.changetext: self.changetext.append(name)
+      if not name in self.changed_text: self.changed_text.append(name)
    def On_DClick_Attribut(self,event):
       if self.debug: print "Event handler `On_DClick_Attribut'"
       index = self.list_attribut.GetSelections()[0]

@@ -194,17 +194,18 @@ class AfpChScreen(AfpScreen):
       #self.Bind(wx.EVT_MENU, self.On_MAdresse, self.MAdresse)
       #self.Bind(wx.EVT_MENU, self.On_MTouristik, self.MTouristik)
       if self.debug: print "AfpChScreen Konstruktor"
-   # convinience routines
+   ## generate AfpCharter object from the present screen
    def get_charter(self):
       return  AfpCharter(self.globals, None, self.sb, self.sb.debug, False)
       
-   # Eventhandler BUTTON
+   ## Eventhandler BUTTON - change address
    def On_Adresse_aendern(self,event):
       if self.debug: print "Event handler `On_Adresse_aendern'"
       changed = AfpLoad_DiAdEin_fromSb(self.globals, self.sb)
       if changed: self.Reload()
       event.Skip()
-
+      
+   ## Eventhandler BUTTON - payment
    def On_Fahrt_ZahlungF(self,event):
       if self.debug: print "Event handler `On_Fahrt_ZahlungF'"
       Charter = self.get_charter()
@@ -216,6 +217,7 @@ class AfpChScreen(AfpScreen):
             self.Reload()
       event.Skip()
 
+   ## Eventhandler BUTTON - selection
    def On_Fahrt_AuswF(self,event):
       if self.debug: print "Event handler `On_Fahrt_AuswF'!"
       self.sb.set_debug()
@@ -233,6 +235,7 @@ class AfpChScreen(AfpScreen):
       self.sb.unset_debug()
       event.Skip()
 
+   ## Eventhandler BUTTON - document generation
    def On_Fahrt_Ausgabe(self,event):
       if self.debug and event: print "Event handler `On_Fahrt_Ausgabe'"
       Charter = self.get_charter()
@@ -243,6 +246,7 @@ class AfpChScreen(AfpScreen):
          self.Reload()
          event.Skip()
 
+   ## Eventhandler BUTTON - charter operation
    def On_Fahrt_EinF(self,event):
       if self.debug: print "Event handler `On_Fahrt_EinF'"
       Charter = self.get_charter()
@@ -279,6 +283,7 @@ class AfpChScreen(AfpScreen):
          AfpReq_Info("'" + zustand + "' für eine Mietfahrt,".decode("UTF-8") , "es ist kein Einsatz möglich!".decode("UTF-8"))
       event.Skip()
 
+   ## Eventhandler BUTTON - new charter entry
    def On_Fahrt_neu(self,event):   
       if self.debug: print "AfpChScreen Event handler `On_Fahrt_neu'"
       name = self.sb.get_string_value("Name.ADRESSE")
@@ -296,6 +301,7 @@ class AfpChScreen(AfpScreen):
             self.Reload()
       event.Skip()  
    
+   ## Eventhandler BUTTON - change charter
    def On_Fahrt_aendern(self,event):
       #self.sb.set_debug()      
       if self.debug: print "AfpChScreen Event handler `On_Fahrt_aendern'"
@@ -308,7 +314,7 @@ class AfpChScreen(AfpScreen):
       #self.sb.unset_debug()
       event.Skip()
 
-   # Eventhandler COMBOBOX
+   ## Eventhandler COMBOBOX - filter
    def On_Anmiet_Filter(self,event):
       value = self.combo_Filter.GetValue()
       if self.debug: print "AfpChScreen Event handler `On_Anmiet_Filter'", value      
@@ -325,6 +331,7 @@ class AfpChScreen(AfpScreen):
       self.CurrentData()
       event.Skip()
       
+   ## Eventhandler COMBOBOX - sort index
    def On_Anmiet_Index(self,event):
       value = self.combo_Sortierung.GetValue()
       if self.debug: print "Event handler `On_Anmiet_Index()'",value
@@ -335,7 +342,7 @@ class AfpChScreen(AfpScreen):
       self.CurrentData()
       event.Skip()
       
-   # Eventhandler ListBox
+   ## Eventhandler ListBox - double click ListBox 'Archiv'
    def On_DClick_Archiv(self, event):
       if self.debug: print "Event handler `On_DClick_Archiv'", event
       rows = self.list_id["Archiv"]
@@ -351,15 +358,18 @@ class AfpChScreen(AfpScreen):
                   Afp_startFile(filename, self.globals, self.debug, True)
       event.Skip()
       
-  # Eventhandler MENU
+  ## Eventhandler MENU - address menu - not yet implemented!
    def On_MAdresse(self, event):
       print "Event handler `On_MAdresse' not implemented!"
       event.Skip()
 
+  ## Eventhandler MENU - touristk menu - not yet implemented!
    def On_MTouristik(self, event):
       print "Event handler `On_MTouristik' not implemented!"
       event.Skip()
 
+   ## set database to show indicated charter
+   # @param FNr - number of charter (FahrtNummer)
    def load_direct(self, FNr):
       value = self.combo_Sortierung.GetValue()
       index = self.indexmap[value]     
@@ -370,12 +380,17 @@ class AfpChScreen(AfpScreen):
   # routines to be overwritten
    def load_additional_globals(self):
       self.globals.set_value(None, None, "Einsatz")
+   ## set current record to be displayed 
+   # (overwritten from AfpScreen) 
    def set_current_record(self):
       FNr = self.sb.get_value("FahrtNr")
       KNr = self.sb.get_value("KundenNr")
       print "AfpChScreen.set_current_record()", FNr,KNr
       self.sb.select_key(KNr,"KundenNr","ADRESSE")
       return   
+   ## set initial record to be shown, when screen opens the first time
+   #overwritten from AfpScreen) 
+   # @param origin - string where to find initial data
    def set_initial_record(self, origin = None):
       FNr = 0
       #self.sb.set_debug()      
@@ -391,8 +406,14 @@ class AfpChScreen(AfpScreen):
       return
    def get_no_keydown(self):
       return []
+   ## get names of database tables to be opened for this screen
+   # (overwritten from AfpScreen)
    def get_dateinamen(self):
       return ["FAHRTEN","FAHRTI","FAHRTEX","FAHRTVOR","ADRESSE","ARCHIV"]
+   ## get rows to populate lists \n
+   # default - empty, to be overwritten if grids are to be displayed on screen \n
+   # possible selection criterias have to be separated by a "None" value
+   # @param typ - name of list to be populated 
    def get_list_rows(self, typ):
       rows = []
       FahrtNr =  self.sb.get_value("FahrtNr")     
@@ -416,6 +437,9 @@ class AfpChScreen(AfpScreen):
             if row[2]: preis *= Afp_intString(row[2])
             rows.append(Afp_toString(preis) + " " + row[1] )
       return rows
+   ## get grid rows to populate grids \n
+   # (overwritten from AfpScreen) 
+   # @param typ - name of grid to be populated
    def get_grid_rows(self, typ):
       rows = []
       FahrtNr =  self.sb.get_value("FahrtNr")     

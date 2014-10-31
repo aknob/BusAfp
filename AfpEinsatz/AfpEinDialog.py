@@ -219,8 +219,8 @@ class AfpDialog_DiEinsatz(AfpDialog):
    def store_database(self):
       self.Ok = False
       data = {}
-      #print "store_database()", self.changetext
-      for entry in self.changetext:
+      #print "store_database()", self.changed_text
+      for entry in self.changed_text:
          name, wert = self.Get_TextValue(entry)
          data[name] = wert
          #print name, wert
@@ -243,7 +243,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
          self.data.store()
          self.new = False          
          self.Ok = True              
-      self.changetext = []   
+      self.changed_text = []   
       self.choicevalues = {}
          
    def data_is_fremd(self):
@@ -293,13 +293,13 @@ class AfpDialog_DiEinsatz(AfpDialog):
       typDat = typ + "Dat" 
       TextBox = self.FindWindowByName(typDat)
       TextBox.SetValue(Afp_toString(time.date())) 
-      if not typDat in self.changetext: self.changetext.append(typDat)
+      if not typDat in self.changed_text: self.changed_text.append(typDat)
       if time.time():
          typZeit = typ + "Zeit"      
          TextBox = self.FindWindowByName(typZeit)
          TextBox.SetValue(Afp_toString(time.time())) 
          self.times[typ] = time
-         if not typZeit in self.changetext: self.changetext.append(typZeit)
+         if not typZeit in self.changed_text: self.changed_text.append(typZeit)
    def typ_hasTime(self, typ):
       typZeit = typ + "Zeit"
       TextBox = self.FindWindowByName(typZeit)
@@ -312,7 +312,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
       if self.is_editable(): 
          object = event.GetEventObject()
          name = object.GetName()
-         if not name in self.changetext: self.changetext.append(name)  
+         if not name in self.changed_text: self.changed_text.append(name)  
          if "Zeit" in name: typ = name[:-4]
          else: typ = name[:-3]
          #print "ENTER:", name, typ      
@@ -601,7 +601,7 @@ class AfpDialog_DiFahrer(AfpDialog):
    def store_data(self):
       self.Ok = False
       data = {}
-      for entry in self.changetext:
+      for entry in self.changed_text:
          name, wert = self.Get_TextValue(entry)
          data[name] = wert
       if data or self.new:
@@ -612,7 +612,7 @@ class AfpDialog_DiFahrer(AfpDialog):
             self.data.set_row_to_selection_values(self.selection, self.index)
          self.Ok = True
          print "set FAHRER:",self.data.selections["FAHRER"].data
-      self.changetext = []   
+      self.changed_text = []   
       self.choicevalues = {}  
  
    def Set_Editable(self, ed_flag, lock_data = None):
@@ -676,7 +676,7 @@ class AfpDialog_DiFahrer(AfpDialog):
    def set_changed(self, name, object = None):
       if name is None and object:
          name = object.GetName()
-      if not name in self.changetext: self.changetext.append(name)
+      if not name in self.changed_text: self.changed_text.append(name)
    def set_gesamt_zeit(self, tage, abZeit, bisZeit):
       if tage is None: tage = 0
       ab = Afp_toTimedelta(abZeit)

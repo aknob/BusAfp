@@ -383,7 +383,7 @@ class AfpDialog(wx.Dialog):
       self.choicemap = {}
       self.listmap = []
       self.conditioned_display = {}
-      self.changetext = []
+      self.changed_text = []
       self.readonlycolor = self.GetBackgroundColour()
       self.editcolor = (255,255,255)
       self.InitWx()
@@ -524,7 +524,7 @@ class AfpDialog(wx.Dialog):
       if self.is_editable():
          object = event.GetEventObject()
          name = object.GetName()
-         if not name in self.changetext: self.changetext.append(name)      
+         if not name in self.changed_text: self.changed_text.append(name)      
    def On_CEdit(self,event):
       editable = self.is_editable()
       if not editable: self.Populate()
@@ -1173,6 +1173,10 @@ class AfpScreen(wx.Frame):
       self.panel = wx.Panel(self, -1, style = wx.WANTS_CHARS) 
         
    ## connect to database and populate widgets
+   # @param globals - global variables, including database connection
+   # @param sb - AfpSuperbase database object , if supplied, otherwise it is created
+   # @param origin - string from where to get data for initial record, 
+   # to allow syncronised display of screens (only works if 'sb' is given)
    def init_database(self, globals, sb, origin):
       self.create_menubar()
       self.globals = globals
@@ -1213,7 +1217,9 @@ class AfpScreen(wx.Frame):
       self.set_initial_record(origin)
       self.set_current_record()
       self.Populate()
-      
+    
+   ## create menubar an add common items \n
+   # menubar implementation has only be done to this point, specific Afp-modul menues are not yet implemented
    def create_menubar(self):
       self.menubar = wx.MenuBar()
       tmp_menu = wx.Menu()
@@ -1247,11 +1253,12 @@ class AfpScreen(wx.Frame):
          for i in range(new_lgh, old_lgh):
             grid.DeleteRows(1)
       
-   # Eventhandler Menu
+   ## Eventhandler Menu - show info dialog box
    def On_ScreenInfo(self,event):
       if self.debug: print "AfpScreen Event handler `On_ScreenInfo'!"
       AfpReq_Information(self.globals)
       
+   ## Eventhandler Menu - switch between screen
    def On_Screenitem(self,event):
       if self.debug: print "AfpScreen Event handler `On_Screenitem'!"
       id = event.GetId()
@@ -1268,13 +1275,13 @@ class AfpScreen(wx.Frame):
          self.Close()
       event.Skip()
       
- # Eventhandler BUTTON
+ ## Eventhandler BUTTON - quit
    def On_Ende(self,event):
       if self.debug: print "AfpScreen Event handler `On_Ende'!"
       self.Close()
       event.Skip()
 
-   # Eventhandler Keyboard
+   ## Eventhandler Keyboard - handle key-down events
    def On_KeyDown(self, event):
       keycode = event.GetKeyCode()
       if self.debug: print "AfpScreen Event handler `On_KeyDown'", keycode
@@ -1349,10 +1356,13 @@ class AfpScreen(wx.Frame):
                   for col in range(0,max_col_lgh):
                      grid.SetCellValue(row, col,"")
    
+   ## reload current data to screen
    def Reload(self):
       self.sb.select_current()
       self.Populate()
          
+   ## set current screen data
+   # @param plus - indicator to step forwards, backwards or stay
    def CurrentData(self, plus = 0):
       if self.debug: print "AfpScreen.CurrentData", plus
       #self.sb.set_debug()
@@ -1365,19 +1375,37 @@ class AfpScreen(wx.Frame):
       self.Populate()
 
    # routines to be overwritten in explicit class
+   ## load additional global data for this Afp-modul
+   # default - empty, to be overwritten if needed
    def load_additional_globals(self): # only needed if globals for additonal moduls have to be loaded
       return
-   def set_current_record(self): # only needed if changes have to be diffused to other table
+    ## set current record to be displayed 
+   # default - empty, to be overwritten if changes have to be diffused to other the main database table
+   def set_current_record(self): 
       return   
+   ## set initial record to be shown, when screen opens the first time
+   # default - empty, should be overwritten to assure consistant data on frist screen
+   # @param origin - string where to find initial data
    def set_initial_record(self, origin = None):
       return
+   ## get identifier of graphical objects, 
+   # where the keydown event should not be catched
+   # default - empty, to be overwritten if needed
    def get_no_keydown(self):
       return []
+   ## get names of database tables to be opened for the screen
+   # default - empty, has to be overwritten
    def get_dateinamen(self):
       return []
+   ## get rows to populate lists \n
+   # default - empty, to be overwritten if grids are to be displayed on screen \n
+   # possible selection criterias have to be separated by a "None" value
+   # @param typ - name of list to be populated 
    def get_list_rows(self, typ):
-      # possible selection criterias separated by a "None" value
       return [] 
+   ## get grid rows to populate grids \n
+   # default - empty, to be overwritten if grids are to be displayed on screen
+   # @param typ - name of grid to be populated
    def get_grid_rows(self, typ):
       return []
 # End of class AfpScreen
