@@ -2,11 +2,17 @@
 # -*- coding: utf-8 -*-
 
 ## @package AfpBase.AfpDatabase.AfpSuperbase
-# AfpSuperbase module provides 'Superbase' like interface to a MySql database
-# it holds the calsses
-# - AfpSuperbase
-# - AfpSbDatei
+# AfpSuperbase module provides 'Superbase' like interface to a MySql database. \n
+# 'Superbase' was a database machine originally designed for Amiga and Atari machines in the late '80. \n
+# It was ported to the Windows 16-bit system in the '90 and died with XP. \n
+# This is the initial file of the 'BusAfp' project, as 'BusAfp' has been designed on 'Superbase' and started running in 1989. \n
+# As this file has been created during the feasibility study of the project no proper documentation is available up to now, only the
+# extern used methods of AfpSuperbase are documented - may be i'll find the time eventually. \n
+# \n
+# The AfpSuperbase module holds the classes:
 # - AfpSbIndex
+# - AfpSbDatei
+# - AfpSuperbase
 #
 #   History: \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
@@ -44,7 +50,7 @@ from AfpBase.AfpUtilities.AfpBaseUtilities import *
 
 ## provides information if the field is numeric
 # @param typ - type string of field description
-# @param pure - flag is dates should not be considered numeric
+# @param pure - flag if dates should not be considered numeric
 def AfpSb_isNumericType(typ, pure = False):
    if "int(" in typ:
       return True  
@@ -71,9 +77,9 @@ def AfpSb_genDict(keys, values):
   
 ## counts duplicate entries in rows
 # @param rows - array of arrays to be analized
-# @param direct - flag if python == has to be used to compare values
+# @param direct - flag if the python '==' has to be used to compare values (True) or the internal routine 'Afp_compareSql'
 # @param ind - same index for each row where values are compared
-# @param ref - reference value is in row  number ref
+# @param ref - reference value is in row  number 'ref'
 def AfpSb_countDuplicates(rows, direct, ind, ref = 0):
    count = -1
    ref_ind = -1
@@ -95,8 +101,20 @@ def AfpSb_countDuplicates(rows, direct, ind, ref = 0):
    # print prev,count,ref_ind
    return count,ref_ind
 
-## Index class to hold all values of current record retrieved form database
+## Index class to hold all values of current record (current row) of one table retrieved form database. \n
+# This class provides a unique order which works symmertic moving forward and backward through the tables. \n
+# This is problematic, as mysql does not provide such a thing especially on multiple identic index entries. \n
+# \n
+# In this class currently only the constructor is documented!
 class AfpSbIndex(object):
+   ## initialise index, load data from database table
+   # @param db - name of database
+   # @param dateiname - name of table to be used
+   # @param indexname - name this index of the table
+   # @param typename -  typestring of  this index 
+   # @param index_ind -  index in fieldlist where data for this database-index comes from
+   # @param db_cursor -  object (cursor) to point to database and allow queries
+   # @param debug - flag for debug info
    def  __init__(self, db, dateiname, Indexname, typename, index_ind, db_cursor, debug = False):
       # name of the index
       self.name = Indexname 
@@ -554,8 +572,16 @@ class AfpSbIndex(object):
       # print "SELECT KEY",wert,self.name
       self.select_keywert(wert)
       
-      
+## Table (Datei) class, to generate and hold all indices of a table, provide syncronation 
+# and handle locks and database access apart from reading from the table.  \n
+# \n
+# In this class currently only the constructor is documented!
 class AfpSbDatei(object):
+   ## initialise 'Datei' object
+   # @param db - name of database
+   # @param dateiname - name of table to be used
+   # @param db_cursor -  object (cursor) to point to database and allow queries
+   # @param debug - flag for debug info
    def  __init__(self, db, Dateiname, db_cursor, debug = False):
       self.db = db
       self.db_cursor = db_cursor
@@ -764,7 +790,11 @@ class AfpSbDatei(object):
       Index.clear_values()
       self.set_values(feldvalues, feldnamen, indexname)
       
+## This class provides the frontend of the database in a way 'Superbase' used to do. \n
 class AfpSuperbase(object):
+   ## initialise frontend, load data from database table
+   # @param globals - global variables including the database connection
+   # @param debug - flag for debug info
    def  __init__(self, globals, debug = False):
       self.globals = globals
       self.datei =  None
@@ -774,22 +804,29 @@ class AfpSuperbase(object):
       self.CurrentFile = None
       self.selections = None
       if self.debug: print "Superbase Konstruktor"
+   ## destructor
    def __del__(self):
       if self.debug: print "Superbase Destruktor"
+   ## method to switch debug on,
+   # to allow debugging from a certain point in the programflow
    def set_debug(self):
       self.debug = True
       print "AfpSuperbase: DEBUG flag set!"
       self.globals.get_mysql().set_debug()
       for dat in self.datei:
          dat.set_debug()
+   ## method to switch debug off again
    def unset_debug(self):
       self.debug = False
       print "AfpSuperbase: DEBUG flag removed!"
       self.globals.get_mysql().unset_debug()
       for dat in self.datei:
          dat.unset_debug()
+   ## hand over the used mysql database connection
    def get_mysql(self):
       return self.globals.get_mysql()
+   ## open connection to a certain table (Datei) and retrieve data for the different indices
+   # @param Dateiname - name of the table
    def open_datei(self, Dateiname):
       if self.datei == None:
          self.datei = [AfpSbDatei(self.globals.get_mysql().get_dbname(), Dateiname, self.globals.get_mysql().get_cursor(), self.debug)] 
@@ -805,8 +842,13 @@ class AfpSuperbase(object):
             self.dateiname.append(Dateiname)
             self.CurrentFile = self.datei[self.dats]
             self.dats += 1
+   ## return flag if table has been opened
+   # @param Dateiname - name of the table
    def is_open(self, Dateiname):
       return Dateiname in self.dateiname
+   ## return table 'Datei' object 
+   # @param dateiname - name of the table
+   # @param permanent - flag to mark this as the actuel table 'Datei' object
    def identify_file(self, dateiname=None, permanent=False):
       CurrentFile = self.CurrentFile
       if not(dateiname is None):
@@ -816,59 +858,116 @@ class AfpSuperbase(object):
       if permanent: 
          self.CurrentFile = CurrentFile
       return CurrentFile
+  ## return index object 
+   # @param indexname - name of the index
+   # @param dateiname - name of the table the index belongs to. None - actuel table is used
+   # @param permanent - flag to mark this as the actuel table 'Datei' object
    def identify_index(self, indexname=None, dateiname=None, permanent=False):
       CurrentFile = self.identify_file(dateiname, permanent)
       CurrentIndex = CurrentFile.set_index(indexname, permanent)
       return CurrentIndex
+   ## syncronise two or all indices to point to the same database entry
+   # @param syncronise - indexname to be syncronised. None - all indices of indicated table are syncronised
+   # @param dateiname - name of the table both indices belong to. None - actuel table is used
+   # @param reference - indexname of index which points to target database entry. None - current index of table is used
    def set_index(self, syncronise=None, dateiname=None, reference=None):
       if self.debug: print "SB: SET INDEX",syncronise,dateiname,reference
       CurrentFile = self.identify_file(dateiname)
       CurrentFile.sync_index(syncronise, reference)
+   ## set the actuel table 'Datei' object
+   # @param dateiname - name of the table
    def CurrentFileName(self, dateiname):
       if self.debug: print "SB: CurrentFileName",dateiname
       self.identify_file(dateiname, True)
+   ## set the actuel index object
+   # @param indexname - name of index
+   # @param dateiname - name of the table, index belongs to.
    def CurrentIndexName(self, indexname, dateiname=None):
       if self.debug: print "SB: CurrentIndexName", indexname, dateiname
       self.identify_index(indexname, dateiname, True)
+   ## set and reload the actuel or named index
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def select_current(self, indexname=None, dateiname=None):
       if self.debug: print "SB: SELECT CURRENT" 
       CurrentIndex = self.identify_index(indexname, dateiname)
       CurrentIndex.select_current()
+   ## set the actuel or named index to first database entry in order
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def select_first(self, indexname=None, dateiname=None):
       if self.debug: print "SB: SELECT FIRST"
       CurrentIndex = self.identify_index(indexname, dateiname)
       CurrentIndex.select_first()
+   ## set the actuel or named index to last database entry in order
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def select_last(self, indexname=None, dateiname=None):
       if self.debug: print "SB: SELECT LAST"
       CurrentIndex = self.identify_index(indexname, dateiname)
       CurrentIndex.select_last()
+   ## set the actuel or named index to previous database entry in order
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def select_previous(self, indexname=None, dateiname=None):
       if self.debug: print "SB: SELECT PREVIOUS", dateiname, indexname
       CurrentIndex = self.identify_index(indexname, dateiname)
       CurrentIndex.select_previous()
+   ## set the actuel or named index to next database entry in order
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def select_next(self, indexname=None, dateiname=None):
       if self.debug: print "SB: SELECT NEXT", dateiname, indexname
       CurrentIndex = self.identify_index(indexname, dateiname)
       CurrentIndex.select_next()
+   ## set the actuel or named index to first database entry which matches the indicated keyword, \n
+   # if no entry matching this keyword is found, index is set to next entry following in index order.
+   # @param wert - keyword for database entry searched
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def select_key(self, wert, indexname=None, dateiname=None):
       if self.debug: print "SB: SELECT KEY", wert, dateiname, indexname
       CurrentIndex = self.identify_index(indexname, dateiname)
       CurrentIndex.select_key(wert)     
+   ## set a filter on index, only database entries are accepted which match that filter, \n
+   # the filter is set permanently and has to be removed by the call of this method with an empty filter clause.
+   # @param where_clause - filter clause to be applied on index
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def select_where(self, where_clause, indexname=None, dateiname=None):
       CurrentIndex = self.identify_index(indexname, dateiname)
       CurrentIndex.select_where(where_clause) 
+   ## set a lock on the current database entry  or perform database transaction 
+   # @param typ - typ of lock/transaction:
+   # - "lesen": readlock
+   # - "sperren": writelock (update)
+   # - "alle": lock complete table
+   # - "neu": insert data in index into table
+   # - "speichern": execute update data in table
+   # - "loeschen": delete all data from table having the actuel index value
+   # - "freigeben": rollback
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def set_lock(self, typ, indexname=None, dateiname=None): 
       CurrentFile = self.identify_file(dateiname)
       CurrentFile.set_lock(typ, indexname) 
+   ## return flag if end of file is reached in indexorder
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def eof(self, indexname=None, dateiname=None):  
       CurrentIndex = self.identify_index(indexname, dateiname)       
       if self.debug: print "SB: EOF", CurrentIndex.eof() 
       return CurrentIndex.eof() 
+   ## return flag if end of file is NOT reached in indexorder
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def neof(self, indexname=None, dateiname=None):
       if self.eof(indexname, dateiname):
          return False
       else:
          return True
+   ## get value of a field in the actuel or indicated table
+   # @param DateiFeld - "column.table" of the actuel index (row)
    def get_value(self, DateiFeld=None):
       datei = self.CurrentFile
       feld = DateiFeld
@@ -879,6 +978,11 @@ class AfpSuperbase(object):
             datei = self.datei[self.dateiname.index(liste[1])]
       wert = datei.get_value(feld)  
       return wert
+   ## get a string of the value of a field in the actuel or indicated table, 
+   # @param DateiFeld - "column.table" of the actuel index (row)
+   # @param intern - flag for date representation: 
+   # - true - yyyy-mm-dd, 
+   # - false - dd.mm.yy
    def get_string_value(self, DateiFeld=None, intern = False):
       wert = self.get_value(DateiFeld)
       if intern:
@@ -886,6 +990,11 @@ class AfpSuperbase(object):
       else:
          string = Afp_toString(wert)
       return string
+   ## generate a AfpSQLTableSelection object from the current status \n
+   # used for interaction of the AfpSuperbase and the AfpSQL model
+   # @param dateiname - name of the table
+   # @param main_index - unique index for data extraction, None - use actuel index   
+   # @param debug - flag for debug info
    def gen_selection(self, dateiname, main_index = None, debug = False):
       if self.is_open(dateiname):
          datei = self.identify_file(dateiname)
@@ -897,12 +1006,25 @@ class AfpSuperbase(object):
          selection = AfpSQLTableSelection(mysql, dateiname, debug,  main_index, datei.feld)
          selection.load_datei_data(datei, select)
          return selection
+   ## modify data values in an index 
+   # @param feldnamen - list of column (field) names of this index (row)
+   # @param feldwerte - list of new values for this fileds  
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def set_values(self, feldnamen, feldwerte, indexname=None, dateiname=None):
       datei = self.identify_file(dateiname)
       datei.set_values(feldwerte, feldnamen, indexname)
+   ## modify data values in an index, clear all other values
+   # @param feldnamen - list of column (field) names of this index (row)
+   # @param feldwerte - list of new values for this fileds  
+   # @param indexname - name of index. None - the actuel index is used.
+   # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
    def set_new_values(self, feldnamen, feldwerte, indexname=None, dateiname=None):
       datei = self.identify_file(dateiname)
       datei.set_new_values(feldwerte, feldnamen, indexname)
+   ## set value of one field in the actuel or indicated table
+   # @param wert - new value of indicated field
+   # @param DateiFeld - "column.table" of the actuel index (row)
    def set_value(self, wert, DateiFeld = None):
       dateiname = None
       feldname = None
@@ -914,6 +1036,9 @@ class AfpSuperbase(object):
       if feldname is None: 
          feldname = datei.CurrentIndex.get_name()
       datei.set_values([wert],[feldname])
+   ## display data in console - for debug purpose only
+   # @param DateiFeld - list of "column.table" of the actuel index (row) \n
+   #  - None: display all data of the cuurent index in the curren table
    def view(self, DateiFeld=None):
       if DateiFeld is None:
          self.CurrentFile.CurrentIndex.print_values()

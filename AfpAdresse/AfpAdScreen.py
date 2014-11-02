@@ -218,16 +218,16 @@ class AfpAdScreen(AfpScreen):
       if self.debug: print "AfpAdScreen Event handler `On_Adresse_AendF'"
       AfpLoad_DiAdEin_fromSb(self.globals, self.sb)
       event.Skip()
-
+   ## Eventhandler BUTTON - invoke full text search over addresses an all attached data - not yet implemented
    def On_Ad_Volltext(self,event):
       print "Event handler `On_Ad_Volltext' not implemented!"
       event.Skip()
-        
+   ## Eventhandler BUTTON - invoke dokument generation - not yet implemented
    def On_Adresse_Doku(self,event):
       print "Event handler `On_Adresse_Doku' not implemented!"
       event.Skip()
         
-   # Eventhandler COMBOBOX
+   ## Eventhandler COMBOBOX - allow filter due to attributes
    def On_Filter_Merk(self,event): 
       value = self.combo_Filter_Merk.GetValue()
       if self.debug: print "AfpAdScreen Event handler `On_Filter_Merk'", self.sb_master, value      
@@ -262,23 +262,25 @@ class AfpAdScreen(AfpScreen):
            self.sb.select_next()
       self.CurrentData()
       event.Skip()
-        
+   ## Eventhandler COMBOBOX - fill grid 'Archiv' due to the new setting
    def On_Filter_Archiv(self,event):
       self.Pop_grid("Archiv")        
       if self.debug: print "AfpAdScreen Event handler `On_Filter_Archiv'"
       event.Skip()
-
-   # Eventhandler RADIOBOX
+   ## Eventhandler RADIOBOX - only implemented to reset selection due to databas entry
    def On_CStatus(self, event):
       self.Pop_choice_status()
       print "Event handler `On_CStatus' only implemented to reset selection!"
       event.Skip()
         
-   # Eventhandler MENU
+   ## Eventhandler MENU - address menu - not yet implemented! \n
+   # Probably not needed!
    def On_MAdresse(self, event):
       print "Event handler `On_MAdresse' not implemented!"
       event.Skip()
 
+   ## Eventhandler MENU - address menu - not yet implemented!
+   # Probably not needed!
    def On_MTouristik(self, event):
       print "Event handler `On_MTouristik' not implemented!"
       event.Skip()

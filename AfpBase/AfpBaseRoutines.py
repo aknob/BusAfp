@@ -132,8 +132,8 @@ def Afp_archivName(text, delimiter):
 ##  starts a programfile with the associated program
 # @param filename - name of file to be opened
 # @param globals - global variables to hold file associations
-# @debug - flag for debug messages
-# @noWait - flag if execution of python program should be continued direct after starting execution of file
+# @param debug - flag for debug messages
+# @param noWait - flag if execution of python program should be continued direct after starting execution of file
 def Afp_startFile(filename, globals=None, debug = False, noWait = False):
    if debug: print "Afp_startFile:",filename
    program = None

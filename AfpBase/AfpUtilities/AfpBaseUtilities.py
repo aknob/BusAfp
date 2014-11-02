@@ -69,8 +69,8 @@ def Afp_isTime(wert):
    return False
    
 ## numerical check +- eps
-# @value - value to be checked
-# @eps   -  value has to be numerical and abs(value) > eps 
+# @param value - value to be checked
+# @param eps   -  value has to be numerical and abs(value) > eps 
 def Afp_isEps(value, eps = 0.01):
    if Afp_isDate(value): return False
    if Afp_isNumeric(value):

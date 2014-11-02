@@ -100,7 +100,7 @@ class AfpFinTrans(AfpSelectionList):
    def __del__(self):    
       if self.debug: print "AfpFinTrans Destruktor"
    ## set identifier of statement of account (Auszug)
-   # @param auzug - identifier of statement of account (xxnnn - xx identifier of bankaccount, nnn number)
+   # @param auszug - identifier of statement of account (xxnnn - xx identifier of bankaccount, nnn number)
    # @param datum, - idate of statement of account 
    def set_auszug(self, auszug, datum):
       if auszug == self.get_value("Auszug.AUSZUG"): return
@@ -119,7 +119,7 @@ class AfpFinTrans(AfpSelectionList):
       self.set_value("Datum.AUSZUG", today)
       self.set_value("KtNr.AUSZUG", ktnr)
    ## set output to file instead of internal database (not yet implemented)
-   # @param handle - filehandle for output file
+   # @param fhandle - filehandle for output file
    def set_output_file(self, fhandle):
       self.file = fhandle
    ## set payment through indermediate account (payment has to be split)

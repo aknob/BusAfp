@@ -399,13 +399,16 @@ class AfpDialog(wx.Dialog):
       self.Bind(wx.EVT_BUTTON, self.On_Button_Ok, self.button_Ok)
       
   ## set up dialog widgets - to be overwritten in derived class
-   def initWx(self):
+   def InitWx(self):
       return
    ## execution in case the OK button ist hit - to be overwritten in derived class
    def execute_Ok(self):
       self.Ok = True
-      
-    # common routines, may be overwritten if needed  
+   
+   ## attaches data to this dialog, invokes population of widgets
+   # @param data - AfpSelectionList which holds data to be filled into dialog wodgets 
+   # @param new - flag if new database entry has to be created 
+   # @param editable - flag if dialogentries are editable when dialog pops up
    def attach_data(self, data, new = False, editable = False):
       self.data = data
       self.debug = self.data.debug
@@ -414,14 +417,20 @@ class AfpDialog(wx.Dialog):
       if edit: self.choice_Edit.SetSelection(1)
       if not self.new: self.Populate()
       self.Set_Editable(edit, False)
+   ## central routine which returns if dialog is meant to be editable
    def is_editable(self):
       editable = False
       if self.choice_Edit.GetCurrentSelection() == 1: editable = True
       return editable 
+   ## return the Ok flag to caller
    def get_Ok(self):
-      return self.Ok  
+      return self.Ok
+   ## return the attached (an possibly modified) data to caller 
    def get_data(self):
       return self.data
+   ## evaluate a simple condition ( [field1,value1] [==,!=] [field2,value2]) \n
+   # will return the result of this condition (True/False)
+   # @param condition - condition to be evaluated
    def evaluate_condition(self, condition):
       result = True
       sign = None
@@ -442,12 +451,13 @@ class AfpDialog(wx.Dialog):
             exec pyBefehl
             if self.debug: print "evaluate_condition:", condition, pyBefehl, result
       return result
-   # Population routines for dialog and widgets
+   ## common population routine for dialog and widgets
    def Populate(self):
       self.Pop_text()
       self.Pop_label()
       self.Pop_choice()
       self.Pop_lists()
+   ## population routine for textboxes
    def Pop_text(self):
       # covention: textmap holds the entryname to retrieve value from self.data
       for entry in self.textmap:
@@ -460,6 +470,7 @@ class AfpDialog(wx.Dialog):
          value = self.data.get_string_value(self.vtextmap[entry])
          #print self.textmap[entry], "=", value
          TextBox.SetValue(value)
+   ## population routine for labels
    def Pop_label(self):
       # covention: labelmap holds the entryname to retrieve value from self.data
       for entry in self.labelmap:
@@ -471,18 +482,21 @@ class AfpDialog(wx.Dialog):
             value = self.data.get_string_value(self.labelmap[entry])
             #print self.labelmap[entry], "=", value
             Label.SetLabel(value)
+   ## population routine for choices
    def Pop_choice(self):
      for entry in self.choicemap:
          Choice= self.FindWindowByName(entry)
          value = self.data.get_string_value(self.choicemap[entry])
          #print "Pop_choice:", self.choicemap[entry], "=", value
          Choice.SetStringSelection(value)
+   ## population routine for lists
    def Pop_lists(self):
       # as filling of lists may be more complicated, it is deligated into the appropriate routine
       for entry in self.listmap:
          Befehl = "self.Pop_" + entry + "()"
          #print Befehl
          exec Befehl
+   ## get value from textbox (needed for formating of dates)
    def Get_TextValue(self, entry):
       TextBox = self.FindWindowByName(entry)
       wert = TextBox.GetValue()
@@ -492,7 +506,9 @@ class AfpDialog(wx.Dialog):
       else:
          name = self.textmap[entry].split(".")[0]  
       return name, wert
-         
+   ## dis- or enable editing of dialog widgets
+   # @param ed_flag - flag to turn editing on or off
+   # @param lock_data - flag if invoking of dialog needs a lock on the database
    def Set_Editable(self, ed_flag, lock_data = None):
       if lock_data is None: lock_data = self.lock_data
       for entry in self.textmap:
@@ -511,6 +527,8 @@ class AfpDialog(wx.Dialog):
       for entry in self.listmap:
          list = self.FindWindowByName(entry)
          list.Enable(ed_flag)
+         if ed_flag: list.SetBackgroundColour(self.editcolor)
+         else: list.SetBackgroundColour(self.readonlycolor)    
       if not ed_flag:
          self.changelist = []
       if lock_data:
@@ -519,18 +537,20 @@ class AfpDialog(wx.Dialog):
          else: 
             if not self.new: self.data.unlock_data()
 
-      # common event handlers
+   ## common Eventhandler TEXTBOX - when leaving the textbox
    def On_KillFocus(self,event):
       if self.is_editable():
          object = event.GetEventObject()
          name = object.GetName()
-         if not name in self.changed_text: self.changed_text.append(name)      
+         if not name in self.changed_text: self.changed_text.append(name)    
+   ## Eventhandler CHOICE - handle event of the 'edit','read' od 'quit' choice
    def On_CEdit(self,event):
       editable = self.is_editable()
       if not editable: self.Populate()
       self.Set_Editable(editable)
       if self.choice_Edit.GetCurrentSelection() == 2: self.Destroy()
       event.Skip()
+   ## Eventhandler BUTTON - Ok button pushed
    def On_Button_Ok(self,event):
       if self.choice_Edit.GetSelection() == 1:
          self.execute_Ok()

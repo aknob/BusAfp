@@ -103,7 +103,7 @@ class AfpDialog_AdAusw(AfpDialog_DiAusw):
       Ok = AfpLoad_DiAdEin(Adresse, search)
       return Ok
 ## dialog for adress selection from attribut \n 
-# selects an entry of the adress table by choosinng from the adresatt table   
+# selects an entry of the adress table by choosing from the attribut (AdresAtt) table   
 class AfpDialog_AdAttAusw(AfpDialog_DiAusw):
    def __init__(self):
       AfpDialog_DiAusw.__init__(self,None, -1, "")
@@ -150,8 +150,7 @@ def AfpLoad_AdAttAusw(globals, attribut, value = ""):
       result = AfpLoad_AdAusw(globals, Datei, Index, value, where, attribut)
       return result
 
-## Class AfpDialog_DiAdEin display dialog to show and manipulate Adressen-data and handles interactions \n
-# this class is not yet devired from AfpDialog, this has to be done
+## Class AfpDialog_DiAdEin display dialog to show and manipulate address-data (Adresse) and handles interactions \n
 class AfpDialog_DiAdEin(AfpDialog):
    def __init__(self, *args, **kw):
       self.change_data = False
@@ -162,7 +161,7 @@ class AfpDialog_DiAdEin(AfpDialog):
       self.SetTitle("Adresse")
       
    ## initialize wx widgets of dialog  \n
-   # 
+   # calls setWx to handle Edit and Ok widgets and events
    def InitWx(self):
       panel = wx.Panel(self, -1)
       self.label_T_Vorname_Adresse = wx.StaticText(panel, -1, label="&Vorname:", pos=(14,28), size=(62,18), name="T_Vorname_Adresse")
@@ -213,29 +212,19 @@ class AfpDialog_DiAdEin(AfpDialog):
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_Merk, self.button_Merk)
       #self.button_Suchen = wx.Button(panel, -1, label="&Suchen", pos=(170,370), size=(80,36), name="Suchen")
       #self.Bind(wx.EVT_BUTTON, self.On_Adresse_Auswahl, self.button_Suchen)
-      #self.button_Abbruch = wx.Button(panel, -1, label="&Abbruch", pos=(264,370), size=(80,36), name="Abbruch")
-      #self.Bind(wx.EVT_BUTTON, self.On_Adresse_Abbruch, self.button_Abbruch)
-      self.button_Ok = wx.Button(panel, -1, label="&OK", pos=(356,370), size=(80,36), name="Ok")
-      self.Bind(wx.EVT_BUTTON, self.On_Adresse_Ok, self.button_Ok)
       
       self.label_Anrede = wx.StaticText(panel, -1, label="Anre&de:", pos=(8,6), size=(62,18), name="Anrede")
       self.choice_Anrede = wx.Choice(panel, -1,  pos=(80,5), size=(60,20),  choices=["Du", "Sie"],  name="CAnrede")
       self.choicemap["CAnrede"] = "Anrede.ADRESSE"
-      self.choice_anrede_sel = None
       self.Bind(wx.EVT_CHOICE, self.On_CAnrede, self.choice_Anrede)      
       self.label_Geschlecht = wx.StaticText(panel, -1, label="&Geschlecht:", pos=(200,6), size=(80,18), name="Geschlecht")      
       self.choice_Geschlecht = wx.Choice(panel, -1,  pos=(290,5), size=(50,20),  choices=["W","N","M"],  name="CGeschlecht")
       self.choicemap["CGeschlecht"] = "Geschlecht.ADRESSE"
-      self.choice_geschlecht_sel =None
       self.Bind(wx.EVT_CHOICE, self.On_CGeschlecht, self.choice_Geschlecht)
       self.choice_Status = wx.Choice(panel, -1,  pos=(280,338), size=(154,20),  choices=["Passiv", "Aktiv", "Neutral", "Markiert", "Inaktiv"],  name="CStatus")
       self.choicemap["CStatus"] = "Kennung.ADRESSE"
-      self.choice_status_sel =None
       self.Bind(wx.EVT_CHOICE, self.On_CStatus, self.choice_Status)
-      #self.choice_Edit = wx.Choice(panel, -1, pos=(356,26), size=(80,36), choices=["Lesen", "Ändern"],  name="CEdit")
-      self.choice_Edit = wx.Choice(panel, -1, pos=(264,370), size=(80,36), choices=["Lesen", "Ändern".decode("UTF-8"), "Abbruch"],  name="CEdit")
-      self.choice_Edit.SetSelection(0)
-      self.Bind(wx.EVT_CHOICE, self.On_CEdit, self.choice_Edit)
+      self.setWx(panel, [264, 370, 80, 36], [356, 370, 80, 36]) # set Edit and Ok widgets
 
    ## attach to database and populate widgets
    def attach_data(self, Adresse, name = None):
@@ -244,6 +233,10 @@ class AfpDialog_DiAdEin(AfpDialog):
          self.text_Name_Adresse.SetValue(name)
          self.changed_text.append(self.text_Name_Adresse.GetName())
       AfpDialog.attach_data(self, Adresse, self.new)
+   ## execution in case the OK button ist hit (overwritten from AfpDialog)
+   def execute_Ok(self):
+      self.store_database()
+   ## local routine to execute database storage
    def store_database(self):
       self.Ok = False
       data = {}
@@ -263,7 +256,7 @@ class AfpDialog_DiAdEin(AfpDialog):
          self.data.store()
          self.new = False               
       self.changed_text = []
-   
+   ## populate choice widgets ((overwritten from AfpDialog)
    def Pop_choice(self):
      for entry in self.choicemap:
          Choice= self.FindWindowByName(entry)
@@ -274,26 +267,20 @@ class AfpDialog_DiAdEin(AfpDialog):
          else:
             value = self.data.get_string_value(self.choicemap[entry])
             Choice.SetStringSelection(value)
-
+   
+   ## Eventhandler CHOICE - change form of address 'anrede'
    def On_CAnrede(self,event = None):
       self.choicevalues["Anrede.ADRESSE"] = self.choice_Anrede.GetStringSelection()   
       if event: event.Skip()  
+   ## Eventhandler CHOICE - change gender 'geschlecht'
    def On_CGeschlecht(self,event = None):
       self.choicevalues["Geschlecht.ADRESSE"] = self.choice_Geschlecht.GetStringSelection()   
       if event: event.Skip()  
+   ## Eventhandler CHOICE - change internal status flag
    def On_CStatus(self,event= None ):
       self.choicevalues["Kennung.ADRESSE"] = AfpAdresse_StatusReMap(self.choice_Status.GetCurrentSelection())
       if event: event.Skip()  
-   def On_CEdit(self,event):
-      select = self.choice_Edit.GetCurrentSelection()
-      editable = False
-      if select == 1: editable = True
-      self.Set_Editable(editable)
-      if select == 2: self.On_Adresse_Abbruch(event)
-   def On_KillFocus(self,event):
-      object = event.GetEventObject()
-      name= object.GetName()
-      if not name in self.changed_text: self.changed_text.append(name)
+   ## Eventhandler date TEXTBOX - change birthday
    def On_Adresse_Geb(self,event):
       if self.debug: print "Event handler `On_Adresse_Geb'"
       gtag = self.text_Geb_Adresse.GetValue()
@@ -301,6 +288,7 @@ class AfpDialog_DiAdEin(AfpDialog):
       self.text_Geb_Adresse.SetValue(gtag)
       self.On_KillFocus(event)
       event.Skip()
+   ## Eventhandler BUTTON - invoke dialog to change attributes
    def On_Adresse_Merk(self,event):
       if self.debug: print "Event handler `On_Adresse_Merk'"
       #if len(self.changed_text): self.store_database()
@@ -310,23 +298,6 @@ class AfpDialog_DiAdEin(AfpDialog):
          self.Set_Editable(True)
          self.change_data = True
       event.Skip()
-   def On_Adresse_Auswahl(self,event):
-      print "Event handler `On_Adresse_Auswahl' not implemented!"
-      self.status = "select"
-      event.Skip()
-   def On_Adresse_Abbruch(self,event):
-      if self.debug: print "Event handler `On_Adresse_Abbruch'"
-      self.Ok = False
-      event.Skip()
-      self.Destroy()
-   def On_Adresse_Ok(self,event):
-      if self.choice_Edit.GetSelection() == 1:
-         self.store_database()
-         if self.debug: print "Event handler `On_Adresse_Ok' save, neu:", self.new,"Ok:",self.Ok 
-      else: 
-         if self.debug: print "Event handler `On_Adresse_Ok' quit!"
-      event.Skip()
-      self.Destroy()
   
 ## loader routines for dialog DiAdEin 
 # @param Adresse - AfpAdresse holding data
@@ -356,32 +327,27 @@ def AfpLoad_DiAdEin_fromKNr(globals, KNr):
    print "AfpLoad_DiAdEin_fromKNr",  ken, type(ken)
    return AfpLoad_DiAdEin(Adresse)
    
-class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
+## Class for attribut sub-dialog , it displays dialog to show and manipulate attribut-data (AdresAtt) and handles interactions \n
+class AfpDialog_DiAdEin_SubMrk(AfpDialog):
    def __init__(self, *args, **kw):
-      super(AfpDialog_DiAdEin_SubMrk, self).__init__(*args, **kw) 
-      self.data = None
-      self.debug = False
-      self.textmap = {}
-      self.changed_text = []
       self.changelist = {}
       self.changedlists = False
-      self.readonlycolor = self.GetBackgroundColour()
-      self.editcolor = (255,255,255)
-      
-      self.InitWx()
-      #self.SetSize((358,192))
+      AfpDialog.__init__(self,None, -1, "")
       self.SetSize((358,225))
       self.SetTitle("Adressenmerkmale")
 
+   ## initialize wx widgets of dialog  \n
+   # calls setWx to handle Edit and Ok widgets and events
    def InitWx(self):
       panel = wx.Panel(self, -1)
-   #FOUND: DialogListBox "Ad_Attribute", conversion not implemented due to lack of syntax analysis!
       self.list_attribut = wx.ListBox(panel, -1, pos=(8,2) , size=(170, 80), name="Attribut")
+      self.listmap.append("Attribut")
       self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_DClick_Attribut, self.list_attribut)
-      self.changelist["ADRESATT"] = []
+      self.changelist["Attribut"] = []
       self.button_Ad_Attribut = wx.Button(panel, -1, label="Mer&kmal", pos=(8,86), size=(100,32), name="Ad_Attribut")
       self.Bind(wx.EVT_BUTTON, self.On_Ad_Merkmal, self.button_Ad_Attribut)      
       self.list_verbindung = wx.ListBox(panel, -1, pos=(180,2) , size=(170, 80), name="Verbindung")
+      self.listmap.append("Verbindung")
       self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_DClick_Verbindung, self.list_verbindung)
       self.changelist["Verbindung"] = []
       self.button_Ad_Attr_Verbind = wx.Button(panel, -1, label="&Verbindung", pos=(250,86), size=(100,32), name="Ad_Attr_Verbind")
@@ -391,41 +357,18 @@ class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
       self.text_Ad_Attr_Bem.Bind(wx.EVT_KILL_FOCUS, self.On_KillFocus)
       self.button_Ad_Attr_Bemerk = wx.Button(panel, -1, label="&Bemerkung", pos=(8,158), size=(100,32), name="Ad_Attr_Bemerk")
       self.Bind(wx.EVT_BUTTON, self.On_Ad_Bem, self.button_Ad_Attr_Bemerk)
-   #FOUND: DialogListBox "Ad_Attr_Verb", conversion not implemented due to lack of syntax analysis!
-      self.choice_Edit = wx.Choice(panel, -1, pos=(129,158), size=(100,32), choices=["Lesen", "Ändern".decode("UTF-8"), "Abbruch"], style=0, name="CEdit")
-      self.choice_Edit.SetSelection(0)
-      self.Bind(wx.EVT_CHOICE, self.On_CEdit, self.choice_Edit)
-      self.button_Ok = wx.Button(panel, -1, label="&Ok", pos=(250,158), size=(100,32), name="Ok")
-      self.Bind(wx.EVT_BUTTON, self.On_AdAttr_Ok, self.button_Ok)
+      self.setWx(panel, [129, 158, 100, 32], [250, 158, 100, 32]) # set Edit and Ok widgets
 
-   # attach to data and populate widgets
-   def attach_data(self, Adresse):
-      self.data = Adresse
-      self.debug = self.data.debug
-      self.Populate()
-      self.Set_Editable(False)
-
-   # Population routines for dialog and widgets
-   def Populate(self):
-      self.Pop_text()
-      self.Pop_lists()
-   def Pop_text(self):
-      #print self.textmap
-      for entry in self.textmap:
-         TextBox = self.FindWindowByName(entry)
-         value = self.data.get_string_value(self.textmap[entry])
-         TextBox.SetValue(value.decode('iso8859_15'))
-   def Pop_lists(self):
-      self.Pop_list_attribut()
-      self.Pop_list_verbindung()
-   def Pop_list_attribut(self):
+   ## Population routine for attribut list
+   def Pop_Attribut(self):
       rows = self.data.get_value_rows("ADRESATT", "Attribut,AttText")
       liste = []
       for row in rows:
          liste.append(row[0] + " " + row[1])
       self.list_attribut.Clear()
       self.list_attribut.InsertItems(liste, 0)
-   def Pop_list_verbindung(self):
+   ## Population routine for connected adresses list
+   def Pop_Verbindung(self):
       rows = self.data.get_value_rows("Bez", "Vorname,Name")
       liste = []
       for row in rows:
@@ -434,33 +377,21 @@ class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
       self.list_verbindung.Clear()
       self.list_verbindung.InsertItems(liste, 0)
 
+   ## overwritten from AfpDialog, because also buttons are dis/enabled
    def Set_Editable(self, ed_flag):
-      for entry in self.textmap:
-         TextBox = self.FindWindowByName(entry)
-         TextBox.SetEditable(ed_flag)
-         if ed_flag: TextBox.SetBackgroundColour(self.editcolor)
-         else: TextBox.SetBackgroundColour(self.readonlycolor)
-      if ed_flag: 
-         self.list_attribut.SetBackgroundColour(self.editcolor)
-         self.list_verbindung.SetBackgroundColour(self.editcolor)
-      else:  
-         self.list_attribut.SetBackgroundColour(self.readonlycolor)         
-         self.list_verbindung.SetBackgroundColour(self.readonlycolor)  
+      AfpDialog.Set_Editable(self, ed_flag)
       self.button_Ad_Attribut.Enable(ed_flag)
       self.button_Ad_Attr_Verbind.Enable(ed_flag)
       self.button_Ad_Attr_Bemerk.Enable(ed_flag)
       self.use_changedlists = ed_flag
+   ## return if content has changed
    def has_changed(self):
       if self.use_changedlists:
          return (self.changed_text or self.changelist)
       else:
          return False
 
-   # Event Handlers 
-   def On_KillFocus(self,event):
-      object = event.GetEventObject()
-      name = object.GetName()
-      if not name in self.changed_text: self.changed_text.append(name)
+   ## Eventhandler LIST - double click in attribut list
    def On_DClick_Attribut(self,event):
       if self.debug: print "Event handler `On_DClick_Attribut'"
       index = self.list_attribut.GetSelections()[0]
@@ -471,9 +402,10 @@ class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
          if Ok:
             mani = [index, None]
             selection.manipulate_data([mani])
-            self.changelist["ADRESATT"].append(mani)
+            self.changelist["Attribut"].append(mani)
             self.Pop_list_attribut()
       event.Skip()  
+   ## Eventhandler LIST - double click in connected addresses list
    def On_DClick_Verbindung(self,event):
       if self.debug: print "Event handler `On_DClick_Verbindung'"
       index = self.list_verbindung.GetSelections()[0]
@@ -487,7 +419,7 @@ class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
             self.changelist["Verbindung"].append(mani)
             self.Pop_list_verbindung()
       event.Skip()  
-   
+   ## Eventhandler BUTTON - add new entry to attribut list   
    def On_Ad_Merkmal(self,event):
       if self.debug: print "Event handler `On_Ad_Merkmal'!"
       row = AfpSel_AdgetMrkRow(self.data)
@@ -495,10 +427,10 @@ class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
       if row:
          mani = [-1, row]
          self.data.get_selection("ADRESATT").manipulate_data([mani])
-         self.changelist["ADRESATT"].append(mani)
+         self.changelist["Attribut"].append(mani)
          self.Pop_list_attribut()
       event.Skip()
-
+   ## Eventhandler BUTTON - add new entry to connected addresses list   
    def On_Ad_Verbindung(self,event):
       if self.debug: print "Event handler `On_Ad_Verbindung'"
       name = self.data.get_value("Name")
@@ -513,34 +445,15 @@ class AfpDialog_DiAdEin_SubMrk(wx.Dialog):
          self.Pop_list_verbindung()
          # print KNr
       event.Skip()
-
+   ## Eventhandler BUTTON - add extern file for remaks \n
+   # not yet implemented! \n
+   # Possibly not needed anymore, as textfields nowerdays can store a lot of information!
    def On_Ad_Bem(self,event):
       print "Event handler `On_Ad_Bem' not implemented!"
       event.Skip()
 
-   def On_CEdit(self,event):
-      editable = (self.choice_Edit.GetCurrentSelection() == 1) 
-      if not editable: self.changed = False
-      self.list_attribut.DeselectAll()
-      self.Set_Editable(editable)
-      event.Skip()
-      if self.choice_Edit.GetCurrentSelection() == 2:
-         self.On_cancel()
-   def On_cancel(self):
-      if self.has_changed():
-         self.data.delete_selection("ADRESATT")
-         self.data.delete_selection("Bez")
-      self.Destroy()
-         
-   def On_AdAttr_Ok(self,event):
-      if self.debug: print "Event handler `On_AdAttr_Ok'"
-      event.Skip()      
-      if not self.choice_Edit.GetCurrentSelection() == 1:
-         self.On_cancel()
-      else:
-         self.Destroy()          
- 
-# loader routine for dialog DiAdMrk
+## loader routine for attribut sub-dialog
+# @param Adresse - AfpAdresse object to hold the data to be displayed or modified
 def AfpLoad_DiAdEin_SubMrk(Adresse):
    DiAdMrk = AfpDialog_DiAdEin_SubMrk(None)
    DiAdMrk.attach_data(Adresse)
