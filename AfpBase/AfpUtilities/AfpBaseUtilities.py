@@ -78,7 +78,9 @@ def Afp_isEps(value, eps = 0.01):
    else:
       return False
       
-   # array handling
+## extract values from array (list)
+# @param indices - indices of values to be extracted from array, None all entries are extracted
+# @param array- list of values
 def Afp_extractPureValues(indices, array):
    #print "Afp_extractPureValues:",indices, array
    if indices is None:

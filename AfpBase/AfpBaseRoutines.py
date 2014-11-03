@@ -596,10 +596,6 @@ class AfpSelectionList(object):
       mani = [row, value_row]
       print "AfpSelectionList.set_row_to_selection_values:", mani
       selection.manipulate_data([mani])
-   # store manipulated values of individual TableSelection in database
-   def store_data_direct(self, changed_data, name = None):
-      selection = self.get_selection(name)
-      selection.store_data_direct(changed_data)
    # store complete TableSelectionList
    def store(self):
       #print "AfpTableSelectionList.store()", self.mainselection

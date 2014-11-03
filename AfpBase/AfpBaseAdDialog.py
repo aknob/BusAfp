@@ -284,7 +284,7 @@ class AfpDialog_DiAdEin(AfpDialog):
    def On_Adresse_Geb(self,event):
       if self.debug: print "Event handler `On_Adresse_Geb'"
       gtag = self.text_Geb_Adresse.GetValue()
-      gtag =  Afp_ChDatum(gtag)
+      gtag =  Afp_ChDatum(gtag, True)
       self.text_Geb_Adresse.SetValue(gtag)
       self.On_KillFocus(event)
       event.Skip()

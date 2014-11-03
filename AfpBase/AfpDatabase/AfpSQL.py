@@ -5,7 +5,7 @@
 # AfpSQL module provides the connection to the MySql Interface,
 # it holds the calsses
 # - AfpSQL
-# - AfpSelectionTable
+# - AfpSQLTableSelection
 #
 #   History: \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
@@ -40,7 +40,8 @@ from AfpBase.AfpUtilities import *
 from AfpBase.AfpUtilities.AfpBaseUtilities import *
 from AfpBase.AfpUtilities.AfpStringUtilities import *
  
-##   provides a low level interface to MySql
+##   provides a low level interface to MySql \n
+# mostly not used directliy, interaction takes place through the AfpSQLTableSelection objects
 class AfpSQL(object):
    ## constructor
    # @param dbhost, dbuser, dbword, dbname - host, user, password for connection, name of databse
@@ -81,21 +82,32 @@ class AfpSQL(object):
          print "ERROR %d in MySQL connection: %s" % (e.args[0], e.args[1])
          sys.exit (1)
       return connection 
+   ## return debug flag
    def get_debug(self):
       return self.debug
+   ## return database name
    def get_dbname(self):
       return self.dbname
+   ## return database cursor
    def get_cursor(self):
       return self.db_cursor   
+   ## return last used mysql select clause
    def get_select_clause(self):
       return self.select_clause
+   ## return database version
    def get_version(self):
       Befehl = "SELECT VERSION()"
       if self.debug: print Befehl
       self.db_cursor.execute (Befehl)     
       rows = self.db_cursor.fetchall ()
       return rows[0][0]
-   ## extract rows from database
+   ## extract different parts of the mysql select clause for  database access \n
+   # returns a list holding:
+   # - feld_clause: part of the clause indicating the desired columns of the tables
+   # - dat_clause: part of the clause indicatindg the involved tables
+   # - where_clause: part of the clause indicating the needed filter on the tables
+   # - order_clause: part of the clause indicating the wanted order
+   # - limit_clause: part of the clause setting the range of the query
    # @param feldnamen -  "*" for all fields or "field.table[.alias][, ...]" alias - of the concatination of fields
    # @param select         -  "field.table (>,<,>=,<=,==) value"
    # @param dateinamen  - "table[,...]" 
@@ -163,10 +175,28 @@ class AfpSQL(object):
       if not link is None: 
          where_clause += " and (" + Afp_SbToDbName(link, dateien) + ")"
       return [feld_clause, dat_clause, where_clause, order_clause, limit_clause]
+   ## selects entries from the database \n
+   # returns the selected value rows converted in strings
+   # @param feldnamen -  "*" for all fields or "field.table[.alias][, ...]" alias - of the concatination of fields
+   # @param select         -  "field.table (>,<,>=,<=,==) value"
+   # @param dateinamen  - "table[,...]" 
+   # @param order          - "[column]" name of column
+   # @param limit           - "[offset,number]" offset to select root, maximal number of rows extracted
+   # @param  where         -  "[field1.table1 (>,<,>=,<=,==) (field2.table2,value)[(and,or) ...]]"
+   # @param link            - "[field1.table1 == field2.table2 [and ...]]"
    def select_strings(self, feldnamen, select, dateinamen, order = None, limit = None, where=None, link=None):
       rows = self.select( feldnamen, select, dateinamen, order, limit, where, link)
       string_rows = Afp_ArraytoString(rows)
       return string_rows
+   ## selects entries from the database \n
+   # returns the selected value rows.
+   # @param feldnamen -  "*" for all fields or "field.table[.alias][, ...]" alias - of the concatination of fields
+   # @param select         -  "field.table (>,<,>=,<=,==) value"
+   # @param dateinamen  - "table[,...]" 
+   # @param order          - "[column]" name of column
+   # @param limit           - "[offset,number]" offset to select root, maximal number of rows extracted
+   # @param  where         -  "[field1.table1 (>,<,>=,<=,==) (field2.table2,value)[(and,or) ...]]"
+   # @param link            - "[field1.table1 == field2.table2 [and ...]]"
    def select(self, feldnamen, select, dateinamen, order = None, limit = None, where=None, link=None):      
       #if self.debug: print "AfpSQL.select:", feldnamen, select, dateinamen, order, limit, where, link
       clauses = self.extract_clauses(feldnamen, select, dateinamen, order, limit, where, link)
@@ -179,21 +209,36 @@ class AfpSQL(object):
       rows = self.db_cursor.fetchall ()
       self.select_clause= Befehl
       return rows
+   ## set a lock on the database table
+   # @param datei - name of the table
+   # @param select - select clause for locked database entries
    def lock(self, datei, select):
       Befehl = "SELECT * FROM "  + self.dbname + "." + datei + " WHERE "  + select + " LOCK IN SHARE MODE;"
       self.db_cursor.execute(Befehl)
       if self.debug: print Befehl
+   ## remove the lock from the table, rollback to database status befor the lock was set
    def unlock(self):
       Befehl = "ROLLBACK;"
       self.db_cursor.execute(Befehl)
       if self.debug: print Befehl
+   ## return the las inserted database id
    def get_last_inserted_id(self):
       return self.db_lastrowid
+   ## write data to database, if select is set use 'update' \n
+   # for tables with a primary key
+   # @param datei - name of table
+   # @param felder - list of column names in table, where data is written to 
+   # @param data - list of data rows, each written to the columns indicated above (nomally one row is delivered)
+   # @param select - select clause for database entries to be updated (normally points to a unique entry)
    def write_unique(self, datei, felder, data, select):
       if select is None:
          self.write_insert(datei, felder, data)
       else:
          self.write_update(datei, felder, data, select)
+   ## insert data into database
+   # @param select_clause - select clause for database entries 
+   # @param felder - list of column names in table, where data is written to 
+   # @param data - list of data rows, each written to the columns indicated above (nomally one row is delivered)
    def write_no_unique(self, select_clause, felder, data):
       split_clause = select_clause.split(" FROM ")
       if len(split_clause) == 2:
@@ -203,6 +248,8 @@ class AfpSQL(object):
          if len(dateien) > 1 : print "AfpSQL.write_no_unique: multiple tables not yet possible!"
          datei = dateien[0].split(" ")[0]
          self.write_insert(datei, felder, data)
+   ## delete data from database
+   # @param select_where - select clause for database entries to be deleted 
    def write_delete(self, select_where):
      # delete data from database
       Befehl = "DELETE FROM " + select_where
@@ -210,6 +257,13 @@ class AfpSQL(object):
       res = self.db_cursor.execute (Befehl)     
       self.db_cursor.execute("COMMIT;")
       if self.debug: print  "Deleted Rows:",res
+   ## update data in database, \n
+   # for tables with a primary key
+   # @param datei - name of table
+   # @param felder - list of column names in table, where data is written to 
+   # @param data - list of data rows, each written to the columns indicated above (nomally one row is delivered)
+   # @param select - select clause for database entries to be updated (normally points to a unique entry)
+   # @param no_commit - omit COMMIT statement at the end of this routine (if more database interactions should be done in one step)
    def write_update(self, datei, felder, data, select, no_commit= False):
       Befehl = None
       flen = len(felder)
@@ -222,6 +276,10 @@ class AfpSQL(object):
          if self.debug: print Befehl
          self.db_cursor.execute (Befehl, data)
          if not no_commit: self.db_cursor.execute("COMMIT;")      
+   ## insert data in database, 
+   # @param datei - name of table
+   # @param felder - list of column names in table, where data is written to 
+   # @param data - list of data rows, each written to the columns indicated above
    def write_insert(self, datei, felder, data):
       Befehl = None      
       flen = len(felder)   
@@ -240,7 +298,12 @@ class AfpSQL(object):
 
 ## handles SQL-selections for one table
 class AfpSQLTableSelection(object):
-   # handles SQL-selections for one table
+   ## initializes the object 
+   # @param mysql - AfpSql object to handle database actions
+   # @param tablename - name of table this is responsible for
+   # @param debug - flag for debug output
+   # @param unique_feldname - name of identifying column, if primary key exsists, otherwise None
+   # @param feldnamen - names of columns, if not given they will be retrieved from database
    def  __init__(self, mysql, tablename, debug = False, unique_feldname = None, feldnamen = None):
       self.mysql = mysql      
       self.tablename = tablename
@@ -261,10 +324,14 @@ class AfpSQLTableSelection(object):
          rows = db_cursor.fetchall ()
          for row in rows:
             self.feldnamen.append(row[0])
+   ## destructor
    def __del__(self):
       if self.debug: print "AfpSQLTableSelection Destruktor", self.tablename
+   ## return an initialized copy of this TableSelection
    def create_initialized_copy(self):
       return AfpSQLTableSelection(self.mysql, self.tablename, self.debug, self.unique_feldname, self.feldnamen)
+   ## returns if this TableSelection has been altered since last load or write
+   # @param feld - if given it will be checked if this column has been changed
    def has_changed(self, feld = None):
       changed = False
       if self.manipulation:
@@ -279,6 +346,8 @@ class AfpSQLTableSelection(object):
                   if feld in values: changed = True
       elif self.new: changed = True
       return changed
+   ## returns if given column has been set to last inserted id
+   # @param feldname - name of column
    def is_last_inserted_id(self, feldname):
       flag = False
       if feldname in self.feldnamen:
@@ -286,11 +355,15 @@ class AfpSQLTableSelection(object):
          if self.last_inserted_id and self.data[0][index] == self.last_inserted_id:
             flag = True
       return flag
+   ## sets given column  to last inserted id
+   # @param feldname - name of column
+   # @param row - index of row in this TableSelection
    def set_last_inserted_id(self, feldname, row = 0):
       if self.last_inserted_id and feldname in self.feldnamen:
          index = self.feldnamen.index(feldname)
          self.data[row][index] = self.last_inserted_id
          print "set_last_inserted_id:", self.last_inserted_id, self.data[row][index], self.data
+   ## sets the data column in last row to indicated select criteria
    def set_select_criteria(self):
       # feld [<>=] integer
       if self.select:
@@ -299,24 +372,39 @@ class AfpSQLTableSelection(object):
          value = int(split[2])
          last_index = self.get_data_length() - 1
          self.set_value(feldname, value, last_index)
+   ## load data into TableSelection according to given select clause
+   # @param select - select clause to identify desierd data
+   # @param order - if given desired order of output rows
    def load_data(self, select, order = None):
       self.select = select
       self.data = map(list, self.mysql.select("*",self.select, self.tablename, order))
       self.select_clause = self.mysql.get_select_clause()
-      self.manipulation = []   
+      self.manipulation = []  
+   ## reload data from database according to last load
    def reload_data(self):
       if self.select: self.load_data(self.select)
+   ## load data from given AfpSbDatei
+   # @param datei - name of table
+   # @param select - select clause for this  AfpSbDatei entry
    def load_datei_data(self, datei, select):  
       self.select = select
       self.data = map(list, [datei.get_values()])
-      self.manipulation = []      
+      self.manipulation = []    
+   ## attach input to data property
+   # @param data - data to be attched
+   # @param select - select clause for this  data
    def set_data(self, data, select=None):
       self.select = select      
       self.data = map(list, data) 
+   ## attach empty data
+   # @param empty - flag if data should be comletely empty (true) or if one empty row should be inserted (false)
+   # @param no_criteria - flag if selection criteria should be spread into new row (false) or not (trus)
    def new_data(self, empty = False, no_criteria = False):
       self.new = True
       self.data = []
       if not empty: self.add_data_row(no_criteria)
+   ## add empy data row to data
+   # @param no_criteria - flag if selection criteria should be spread into new row (false) or not (trus)
    def add_data_row(self, no_criteria = False):
       data = []
       for feld in self.feldnamen:
@@ -324,17 +412,21 @@ class AfpSQLTableSelection(object):
       self.data.append(data)
       if not no_criteria: self.set_select_criteria()
       return self.get_data_length() - 1
+   ## delete indicated row
+   # @param row - index of row to be deleted
    def delete_row(self, row = 0):
       if row >= 0 and row < self.get_data_length():
          mani = [row, None]
          self.manipulate_data([mani])
+   ## log manipulation of data
+   # @param changes - indicator of changes made \n
+   # \n
+   # changes = [rowindex, values]: \n
+   # - delete:  values  = None
+   # - replace: values = {feld1: value1, ... }
+   # - replace: values = [value1, value2, ...] , len == len(self.feldnamen)
+   # - insert: rowindex  == -1 and  values = [value1, value2, ...] , len == len(self.feldnamen)
    def manipulate_data(self, changes):
-      # changes = [rowindex, values]
-      # delete:  values  = None
-      # replace: values = {feld1: value1, ... }
-      #                         = [value1, value2, ...] , len == len(self.feldnamen)
-      # insert: rowindex  == -1
-      #            values = [value1, value2, ...] , len == len(self.feldnamen)
       for entry in changes:
          print "AfpSQLTableSelection manipulate_data:", entry
          index = entry[0]
@@ -362,18 +454,26 @@ class AfpSQLTableSelection(object):
          else:
             print "ERROR: AfpSQLTableSelection.manipulate_data incorrect values"
          self.manipulation.append([action, index, values])
+   ## return length of data list
    def get_data_length(self):
       return len(self.data)
+   ## return name of responsible table
    def get_tablename(self):
       return self.tablename
+   ## return list of column names
    def get_feldnamen(self):
       return self.feldnamen  
+   ## return indices of given entries in the column name list
+   # @param felder - column names separates by a colon (,)
    def get_feldindices(self, felder):
       split = felder.split(",")
       indices = []
       for feld in split:
          indices.append(self.feldnamen.index(feld))
       return indices
+   ## retrieve values of indicated columns
+   # @param felder - if a colon separated list is given, the appropriate values are returned. None - all values are returned
+   # @param row - index of row where values are extracted from. row < 0 values are extracte from all rows
    def get_values(self, felder = None, row = -1):
       # felder == None: complete data, resp. row
       # felder == 'Name1, Name2, ...': data of columns Name1, Name2, ..., resp. only indicated row
@@ -398,6 +498,8 @@ class AfpSQLTableSelection(object):
                   result.append(Afp_extractPureValues(index,self.data[row]))
       #print "AfpSQLTableSelection;",result
       return result
+   ## retrieve value of indicated column
+   # @param feld - column name of indicated column
    def get_value(self, feld):
       wert = None
       rows = self.get_values(feld)
@@ -412,19 +514,31 @@ class AfpSQLTableSelection(object):
       else:
          wert = rows
       return wert
+   ## retrieve string representation of value of indicated column
+   # @param feld - column name of indicated column
    def get_string_value(self, feld):
       string = Afp_toString(self.get_value(feld))
       return string
+   ## retrieve one string (line) for each row
+   # @param felder - colon separated list of column names
    def get_value_lines(self,  felder):
       lines = []
       rows = self.get_values(felder)
       for row in rows:
          lines.append(Afp_genLineOfArr(row))
       return lines
+   ## spread value of indicated column to all rows
+   # @param feldname - indicated column name
+   # @param value -  value to be filled in indicated column
    def spread_value(self, feldname, value):
       lgh = self.get_data_length()
       for row in range(0,lgh):
          self.set_value(feldname, value,row)
+   ## set indicated column to a given value
+   # @param feldname - indicated column name
+   # @param value -  value to be filled in indicated column
+   # @param row -  index of row where value has to be inserted \n
+   # if row points behind last datarow, a new datarow is attached and the value is inserted there
    def set_value(self, feldname, value, row = 0):
       #print "AfpSQLTableSelection.set_value:", feldname, value, type(value), self.feldnamen
       if row >= self.get_data_length():
@@ -435,10 +549,17 @@ class AfpSQLTableSelection(object):
          self.data[row][index] = value
          #print "AfpSQLTableSelection.set_value:", row, index, feldname, value, type(value)
          self.set_manipulation(feldname, row, value)
+   ## set data values from given dictionary
+   # @param changed_data - dictionary holding appropriate value in entry [column name]
+   # @param row -  index of row where values have to be inserted 
    def set_data_values(self, changed_data, row = 0):
       print "AfpSQLTableSelection.set_data_value:", changed_data
       for data in changed_data:
          self.set_value(data, changed_data[data], row)
+   ## set or if already set, reset manipulation entry
+   # @param feldname - name of column
+   # @param row - index of row
+   # @param value - value to be set
    def set_manipulation(self, feldname, row, value):
       for mani in self.manipulation:
          if mani[0] == "replace" and mani[1] == row:
@@ -446,21 +567,13 @@ class AfpSQLTableSelection(object):
             break
       else:
          self.manipulation.append(["replace", row, {feldname: value}])
+   ## set a lock on database table accordint to actuel select clause
    def lock_data(self):
       self.mysql.lock(self.tablename,  self.select)
+   ## unlocj database table and rollback
    def unlock_data(self):
       self.mysql.unlock()
-   def store_data_direct(self, changed_data):
-      self.mysql.write_unique( self.tablename, changed_data.keys(), changed_data.values(), None) 
-   #def store_data(self, changed_data, new = False):
-      # writes data coming from outside using this SelectionTable
-      #if new:
-         #self.mysql.write_unique( self.tablename, changed_data.keys(), changed_data.values(), None)
-      #elif self.unique_feldname:
-         #self.mysql.write_unique( self.tablename, changed_data.keys(), changed_data.values(), self.select)
-      #elif self.unique_feldname is None:
-         #self.manipulate_data(changed_data) # writes data into this SelectionTable
-         #self.mysql.write_no_unique(self.select_clause, self.feldnamen, self.data) 
+   ## write attached data to database
    def store(self):
       # writes data hold directly in this SelectionTable
       print "AfpSQLTableSelection.store:",self.tablename, self.unique_feldname
@@ -498,40 +611,3 @@ class AfpSQLTableSelection(object):
       self.new = False
       self.manipulation = []
       
-# Main   
-if __name__ == "__main__":
-   mysql = AfpSQL("127.0.0.1","server", "YnVzc2U=","BusAfp", False)
-   #selection = AfpSQLTableSelection(mysql,"ADRESATT",False)
-   #selection.load_data("KundenNr = 6467")
-   #data = [['6467', u'Knoblauch', u'Mitarbeiter', u'Mitarbeiter         06467', u'Mitarbeiter         Knoblauch', u'', u'', u''], ['6467', u'Knoblauch', u'Fahrer', u'Fahrer              06467', u'Fahrer              Knoblauch', u'', u'', u'']]
-   #selection.set_data(data)
-   #rows = selection.get_value()
-   #print "Initial: \n", rows
-   #row = Afp_copyArray(rows[1])
-   #row[0] = 0
-   #print row
-   #changes = [ [-1, row] ]
-   #selection.store_data(changes)
-   #print "Insert:\n",selection.get_value()
-   #changes = [ [2,{"Attribut":"Fahrer 1","Name":"Knoblauch 1"}] ]
-   #selection.store_data(changes)
-   #print "Modify:\n",selection.get_value()  
-   #changes = [ [2,None] ]
-   #selection.store_data(changes)
-   #print "Delete:\n",selection.get_value()
-   #version = mysql.get_version()
-   #print version   
-   Befehl = "INSERT INTO FAHRTEN (KundenNr,Abfahrt,Zielort,Art,Datum,Zustand,Von,Nach) VALUES(6467,'2014-04-10','Hamburg','MTF',CURDATE(),'KVA','von','nach');" 
-   print Befehl
-   mysql.db_cursor.execute (Befehl)   
-   Befehl = "SELECT LAST_INSERT_ID();"
-   id = mysql.db_cursor.execute (Befehl)
-   print Befehl, id
-   id = mysql.db_cursor.fetchone ()
-   print "fetchone",id
-   id = mysql.db_cursor.fetchall ()
-   print "fetchall:",id
-   id = mysql.db_cursor.lastrowid
-   print "lastrowid:", id
-   id = mysql.db_connection.insert_id()
-   print "connection insert_id:", id

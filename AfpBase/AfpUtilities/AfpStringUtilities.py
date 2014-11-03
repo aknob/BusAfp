@@ -30,15 +30,22 @@
 
 
 import datetime
-#import string
 
 import AfpBaseUtilities
 from AfpBaseUtilities import *
 
-#  228 a-uml , 252 u-uml, 246 o-uml, 223 sz, 225 a-ghraph, 233 e-egu
+## list of german "Umlaute" to be replaced \n
+# - 228 a-uml 
+# - 252 u-uml
+# - 246 o-uml
+# - 223 sz
+# - 225 a-ghraph
+# - 233 e-egu
 umlaute = ((228, 'ae'),(252, 'ue'),(246, 'oe'),(223, 'ss'),(225, 'a'),(233, 'e'))
 
 # conversions between values and strings
+## convert data to string
+# @param data - data to be converted
 def Afp_toString(data):
    string = ""
    typ  = type(data)   
@@ -70,6 +77,9 @@ def Afp_toString(data):
    elif not data is None:
       print "WARNING: \"" + typ.__name__ + "\" conversion type not specified!", data
    return string 
+## convert data to string, string to quoted strings, 
+# dates and times to strings describing the  timedelta or date creation
+# @param data - data to be converted
 def Afp_toQuotedString(data):
    string = Afp_toString(data)
    typ = type(data)
@@ -84,6 +94,9 @@ def Afp_toQuotedString(data):
       if len(split[2]) < 3: split[2] = "20" + split[2]
       string = "datetime.date(" + split[2] + ", " + split[1] + ", " + split[0] + ")"
    return string
+## convert data to string, 
+# dates and times are converted to internal representation (yyyy-mm-dd)
+# @param data - data to be converted
 def Afp_toInternDateString(data):
    string = Afp_toString(data)
    if type(data) == datetime.date:
@@ -91,84 +104,110 @@ def Afp_toInternDateString(data):
    elif type(data) == datetime.time:
       string = data.strftime("%H:%M:%S.%f")
    return string
+## convert data to string, 
+# dates are converted to short format without year (dd.mm)
+# @param data - data to be converted
 def Afp_toShortDateString(data):
    string = Afp_toString(data)
    if type(data) == datetime.date:
       split = string.split(".")
       string = split[0] + "." + split[1]
    return string
-def Afp_toFloatString(data, format = "5.2f"):
+## direct conversion of float data to string
+# @param data - data to be converted
+# @param format - format of data in string
+def Afp_toFloatString(data, format = "8.2f"):
    if data is None: return ""
    string = ("%" + format)%(data)
-   return string
+   return string.strip()
+## analyse string and extract data from it
+# @param string - string to be converted
+# - "xx.xx" or "xx,xx" -> float (x - digit)
+# - "dd.mm.yy[yy]"  -> date, short year will be mapped in actuel century
+# - "hh:mm[:ss]" -> time
+# - "xxx" -> int (x - digit)
+# - other -> string
 def Afp_fromString(string):
    if not Afp_isString(string): return string
    string = string.strip()
    data = None
-   if "." in string:
-      split = string.split(".")
-   elif "," in string:
-      split = string.split(",")
-   else:
-      split = [string]
-   if len(split) > 2:
-      day = 0
-      if split[0].isdigit(): day = int(split[0])
-      month = 0
-      if split[1].isdigit(): month = int(split[1])
-      year = 0
-      if split[2].isdigit(): year = int(split[2])
-      if day > 0 and month > 0 and year > 0:
-         if year < 1000: year += 2000
-         data = datetime.date(year, month, day)
-   elif len(split) > 1:
-      left = 0
-      if split[0].isdigit(): left = int(split[0])
-      right = 0
-      if split[1].isdigit(): right = int(split[1])
-      if (not left == 0 or Afp_isZeroString(split[0])) and (right > 0 or Afp_isZeroString(split[1])):
-         data = float(split[0] + "." + split[1])
-   elif ":" in string:
-      split = string.split(":")
-      hours = 0
-      if split[0].isdigit(): hours = int(split[0])
-      if hours > 23:
-         #data = datetime.time.max
-         data = datetime.timedelta(days=1)
+   if not " " in string:
+      if "." in string:
+         split = string.split(".")
+      elif "," in string:
+         split = string.split(",")
       else:
-         minutes = 0
-         if len(split) > 1:
-            if split[1].isdigit(): minutes = int(split[1])
-         seconds = 0
-         if len(split) > 2:
-            if split[2].isdigit(): seconds = int(split[2])
-         #data = datetime.time(hours, minutes, seconds)
-         data = datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
-   else:
-      val = 0
-      if string.isdigit(): val = int(string)
-      if not val == 0 or string == "0":
-         data = val
+         split = [string]
+      if len(split) > 2 and len(string) < 11:
+         day = 0
+         if split[0].isdigit(): day = int(split[0])
+         month = 0
+         if split[1].isdigit(): month = int(split[1])
+         year = 0
+         if split[2].isdigit(): year = int(split[2])
+         if day > 0 and month > 0 and year > 0:
+            if year < 1000: year += 100* int(datetime.date.today().year/100) 
+            data = datetime.date(year, month, day)
+      elif len(split) > 1:
+         left = 0
+         if split[0].isdigit(): left = int(split[0])
+         right = 0
+         if split[1].isdigit(): right = int(split[1])
+         if (not left == 0 or Afp_isZeroString(split[0])) and (right > 0 or Afp_isZeroString(split[1])):
+            data = float(split[0] + "." + split[1])
+      elif ":" in string and len(string) < 9:
+         split = string.split(":")
+         hours = 0
+         if split[0].isdigit(): hours = int(split[0])
+         if hours > 23:
+            #data = datetime.time.max
+            data = datetime.timedelta(days=1)
+         else:
+            minutes = 0
+            if len(split) > 1:
+               if split[1].isdigit(): minutes = int(split[1])
+            seconds = 0
+            if len(split) > 2:
+               if split[2].isdigit(): seconds = int(split[2])
+            #data = datetime.time(hours, minutes, seconds)
+            data = datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
       else:
-         data = string
-   return data
+         val = 0
+         if string.isdigit() or (string[0] == "-" and string[1:].isdigit()) : val = int(string)
+         if not val == 0 or string == "0":
+            data = val
+   if data:
+      return data
+   else:
+      return string
+## convert string to an integer
+# @param string - string to be converted
+# @param init - value, if no integer can be assigned
 def Afp_intString(string, init = 0):
    result = init
    data = Afp_fromString(string)
    if Afp_isNumeric(data):
       result = int(data)
    return result
+## convert string to a float
+# @param string - string to be converted
 def Afp_floatString(string):
    result = 0.0
    data = Afp_fromString(string)
    if Afp_isNumeric(data):
       result = float(data)
    return result
+## convert string to a date, if no conversion is found, today is returned
+# @param string - string to be converted
 def Afp_dateString(string):
    result = Afp_fromString(string)
    if type(result) != datetime.date:
       result = datetime.now().date()
    return result
+## convert string to a time value
+# @param string - string to be converted
+# @param end - indicates that maxtime should be set instead or mintime 
+# in case no timevalue can be extracted
 def Afp_timeString(string, end = False):
    result = Afp_fromString(string)
    typ = type(result)
@@ -182,21 +221,26 @@ def Afp_timeString(string, end = False):
             mins = int(60*(value - hours))
             result = datetime.time(hours, minutes)
          else:
-            result = datetime.time.min
-      if end:
-         result = datetime.time.max
-      else:
-         result = datetime.time.min
+            if end:
+               result = datetime.time.max
+            else:
+               result = datetime.time.min
    return result
+## generate datetime data from date- and timestring
+# @param datestring - string holding date
+# @param timestring - string holding time
+# @param end - for time creation: indicates that maxtime should be set instead or mintime 
 def Afp_datetimeString(datestring, timestring, end = False):
    date = Afp_dateString(datestring)
    time = Afp_timeString(timestring, end)
    return datetime.datetime.combine(date, time)
-
+## convert a number given by a string to a proper float string
+# @param string - string to be converted
 def Afp_stringFloatString(string):
    return Afp_toString(Afp_floatString(string))
  
-# convert entries of a up to 2-dim array to strings   
+## convert all entries of a up to 2-dim array to strings  
+# @param array - value array to be converted
 def Afp_ArraytoString(array):
    #print "Afp_ArraytoString"
    new_array = []
@@ -210,7 +254,9 @@ def Afp_ArraytoString(array):
          else:
             new_array.append(Afp_toString(row))
    return new_array
-#merges an array int one string, separated by blanks
+##merges an array int one string, separated by blanks
+# @param liste - list of values to be merged
+# @param max - maximum number of elements used for merging
 def Afp_genLineOfArr(liste, max = None):
    if max is None: max = len(liste)
    count = 0
@@ -222,26 +268,39 @@ def Afp_genLineOfArr(liste, max = None):
    return zeile[:-1]
 
 # type of strings and values
+## flag is value is a stringtype
+# @param wert - value to be analysed
 def Afp_isString(wert):
    typ = type(wert)
    if typ == str or typ == unicode: return True
    return False
+## flag is sign indicates a	comparison
+# @param sign - string to be analysed
 def Afp_isCompare(sign):
    if "=" in sign or ">" in sign or "<" in sign or "LIKE" in sign:
       return True
    else:
       return False
+## flag if string represents an empty line
+# @param string - string to be analysed
 def Afp_isNewline(string):
    return string.strip() == ""
+## flag if string represents an zero value
+# @param string - string to be analysed
 def Afp_isZeroString(string):
    for char in string.strip():
       if not char == "0": return False
    return True
+## flag if string may represent IP4 address
+# @param string - string to be analysed
 def Afp_isIP4(string):
    return Afp_hasNumericValue(string, 4)
+## flag if string may represent a numeric value
+# @param string - string to be analysed
+# @param check - maximum number of parts accepted when split at a "." \n
+# - check == 2: default, less then 2 parts are accepted \n
+# - check > 2: exact number of parts has to be available
 def Afp_hasNumericValue(string, check=2):
-   # default check == 2: less then 2 parts are accepte
-   # check > 2: exact number of parts has to be available
    if "." in string:
       split = string.split(".")
       if check > 2 and not len(split) == check:
@@ -257,12 +316,16 @@ def Afp_hasNumericValue(string, check=2):
       else: return False
    else:
       return False
-      
+## mask double qoutes in string values
+# @param value - value to be analysed
 def Afp_maskiere(value):
    if value is None: return None
    if Afp_isString(value):
       return value.replace('"','\\"')
    return  value
+## combine values to one string, if only one value is indicated each value type is possible
+# @param indices - indices of values to be extracted from array and combined
+# @param array- list of values
 def Afp_combineValues(indices, array):
    wert = ""
    if indices is None:
@@ -283,9 +346,9 @@ def Afp_combineValues(indices, array):
             else: leer = " "
             wert += leer +  Afp_maskiere(Afp_toString(array[ind]))
    return wert
-
+   
+## DEPRECATED FUNCTION: use Afp_extractPureValues or Afp_extractStringValues instead
 def Afp_extractValues(indices, array):
-   # DEPRECATED FUNCTION: use Afp_extractPureValues or Afp_extractStringValues insted
    #print "deprecated function Afp_extractValues:",indices, array
    if indices is None:
       wert = []
@@ -304,7 +367,9 @@ def Afp_extractValues(indices, array):
          for ind in indices:
             wert.append(Afp_maskiere(Afp_toString(array[ind])))
    return wert
-
+## extract values from array (list) and convert them to strings
+# @param indices - indices of values to be extracted from array, None all entries are extracted
+# @param array- list of values
 def Afp_extractStringValues(indices, array):
    #print "Afp_extractStringValues:",indices, array
    werte = Afp_extractPureValues(indices,array)
@@ -313,6 +378,10 @@ def Afp_extractStringValues(indices, array):
       strings.append(Afp_maskiere(Afp_toString(entry)))
    return strings
 
+## compare two values extracted from database
+# @param v1 - first value
+# @param v2 - second value
+# @param debug - flag for debug output
 def Afp_compareSql(v1, v2, debug = False):
    if Afp_isNumeric(v1):
       return (v1 == v2)
@@ -322,6 +391,8 @@ def Afp_compareSql(v1, v2, debug = False):
    v2 = Afp_replaceUml(v2.lower())
    if debug: print v1,v2
    return (v1 == v2)
+## replace special german letters to compare words
+# @param string - string to be manipulated
 def Afp_replaceUml(string):
    newstring = ''
    modified = False
@@ -339,13 +410,9 @@ def Afp_replaceUml(string):
       return newstring
    else:
       return string
-
-def Afp_getSelIndex(select):
-   return select[0]
-   #sel = Afp_between(select,"(",")")
-   #index = int(sel.split(",")[0])
-   #return index
-   
+## extract word from string which include special phrases
+# @param in_string - string to be analysed
+# @param including - string to included in word
 def Afp_getWords(in_string, including=None):
    words = []
    str = ""
@@ -374,7 +441,8 @@ def Afp_getWords(in_string, including=None):
    if including is None:
       words = currentwords
    return words
-   
+## get letters in front of numeric figures
+# @param  string - string where letters have to be extracted
 def Afp_getStartLetters(string):
    letters = ""
    test = True
@@ -383,11 +451,15 @@ def Afp_getStartLetters(string):
          if s.isdigit(): test = False
          else: letters += s
    return letters
-      
+ 
+## devide string into phrases inside and outside the start/end brackets
+# @param  string - string to be analysed
+# @param  start - opening bracket
+# @param  end  - closing bracket \n
+# output: \n
+# - len(instrings)     == len(outstrings): in[i] + out[i] + ...
+# - len(instrings)+1 == len(outstrings): out[i] + in[i] + out[i+1] + ...
 def Afp_between(string, start, end):
-   # output:
-   # len(instrings)     == len(outstrings): in[i] + out[i] + ...
-   # len(instrings)+1 == len(outstrings): out[i] + in[i] + out[i+1] + ...
    sstring = string.split(start)
    instrings = []
    outstrings = []
@@ -402,6 +474,8 @@ def Afp_between(string, start, end):
          outstrings.append(split[0])
    return instrings,outstrings
 
+## devide string into phrases inside and outside a double quote pair
+# @param  string - string to be analysed
 def Afp_maskedText(string):
    masked = []
    unmasked = []
@@ -413,6 +487,9 @@ def Afp_maskedText(string):
       mask = not mask
    return unmasked, masked
    
+## extract variable and function body from string \n
+# split at "=". "+=","-=","*=" are handled also
+# @param  string - string to be analysed
 def Afp_getFuncVar(string):
    # get variable name and function
    if not "=" in string: return None, string
@@ -426,7 +503,8 @@ def Afp_getFuncVar(string):
       var = var[:-1].strip()
       func = var + sign + func
    return var, func
-   
+## split function fromula at signs, devide variables and signs
+# @param  string - string to be analysed
 def Afp_splitFormula(string):
    vars = []
    signs = []
@@ -446,7 +524,7 @@ def Afp_splitFormula(string):
    if wort: vars.append(wort.strip())
    return vars, signs  
  
- # split string at different limiters
+ ## split string at different limiters
 def Afp_split(in_string, limiters):
    strings = [in_string]
    split = []
@@ -493,7 +571,7 @@ def Afp_leftSpCnt(string):
 
 # check if string holds a date,
 # possibly complete date with current day, month or year
-def Afp_ChDatum(string):
+def Afp_ChDatum(string, only_past = False):
    if not string: return string
    today = datetime.date.today()
    day = str(today.day)
@@ -520,6 +598,9 @@ def Afp_ChDatum(string):
       if lgh == 0: zahlen.append(day)
       if lgh <= 1: zahlen.append(month)
       if lgh <= 2: zahlen.append(year)
+   # check if year is in future
+   if only_past and int(zahlen[2]) > int(year):
+      zahlen[2] = str(today.year - 100)[:2] + zahlen[2]
    # check date values
    monat = int(zahlen[1])
    if monat < 1: zahlen[1] = '1'   
@@ -633,18 +714,5 @@ def AfpSelectEnrich_dbname(select, dbname):
       enriched += " " + lastentry
    return enriched
          
-# Main   
-if __name__ == "__main__":
-   #today = datetime.date.today()
-   #print today
-   #string = Afp_toString(today)
-   #print string
-   #tstr = "15:01"
-   #time = Afp_fromString(tstr)
-   #zeit,tage = Afp_ChZeit(tstr)
-   #print tstr, zeit, tage, time   
-   float = 45.07
-   print Afp_toFloatString(float), Afp_toFloatString(float,"1.1f")
-
    
     

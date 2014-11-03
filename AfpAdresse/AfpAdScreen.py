@@ -143,6 +143,7 @@ class AfpAdScreen(AfpScreen):
       # OPTIONBUTTON
       self.choice_Status = wx.Choice(panel, -1, pos=(377,52), size=(77,18), choices=["Passiv", "Aktiv", "Neutral", "Markiert", "Inaktiv"],  name="RStatus")
       self.choice_Status.SetSelection(0)
+      #self.choice_Status.Enable(False)
       self.Bind(wx.EVT_CHOICE, self.On_CStatus, self.choice_Status)
       self.choicemap = AfpAdresse_StatusMap()
         
