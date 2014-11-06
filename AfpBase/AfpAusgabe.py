@@ -216,7 +216,7 @@ class AfpAusgabe(object):
    # function and fromula evaluation is deligated \n
    # value output is a string
    # @param fields - variables to be replaced by data-values
-  def gen_value(self, fields):
+   def gen_value(self, fields):
       if "=" in fields:
          value = Afp_toString(self.gen_function(fields))
       elif "(" in fields and ")" in fields:

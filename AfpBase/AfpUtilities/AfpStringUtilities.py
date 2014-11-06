@@ -171,8 +171,9 @@ def Afp_fromString(string):
                if split[2].isdigit(): seconds = int(split[2])
             #data = datetime.time(hours, minutes, seconds)
             data = datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
-      else:
+      elif string:
          val = 0
+         #print "Afp_fromString:", string
          if string.isdigit() or (string[0] == "-" and string[1:].isdigit()) : val = int(string)
          if not val == 0 or string == "0":
             data = val

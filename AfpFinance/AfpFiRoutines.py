@@ -190,7 +190,7 @@ class AfpFinTrans(AfpSelectionList):
    # @param Name -  name of the address this payment is assigned to
    # @param data -  incident data where financial values have to be extracted, if == None: payment is assigne to transferaccount
    # @param reverse -  accounting data has to be swapped
-   def add_payment(self, payment, datum, auszug, KdNr, Name, data = None, reverse = false):
+   def add_payment(self, payment, datum, auszug, KdNr, Name, data = None, reverse = False):
       print "AfpFinTrans.add_payment:", payment, datum, auszug, KdNr, Name, data 
       if auszug: self.set_auszug(auszug, datum)
       accdata = {}
