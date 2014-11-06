@@ -525,6 +525,8 @@ def Afp_splitFormula(string):
    return vars, signs  
  
  ## split string at different limiters
+# @param in_string - string to be analysed
+# @param limiters - list of limiters where string has to be split
 def Afp_split(in_string, limiters):
    strings = [in_string]
    split = []
@@ -538,9 +540,11 @@ def Afp_split(in_string, limiters):
             strings.append(s)
    return strings
 
-def Afp_genFileName(prefix, id_nr, cnt_nr):
-      name = prefix + Afp_toString(id_nr) + Afp_toString(cnt_nr)[-2:]
-      return name
+## assure pathname to recognise wanted conventions for the path separator, \n
+#  used for either Unix "/" or Windows "\\" separator.
+# @param path - pathname to be checked
+# @param delimit - path separartor, defaul Unix
+# @param file - flag if path is a filename (otherwise an addtional delimiter is added at end)
 def Afp_pathname(path, delimit = None, file = False):
    delimiter = "/"
    if delimit: delimiter = delimit
@@ -550,6 +554,10 @@ def Afp_pathname(path, delimit = None, file = False):
       path = path.replace("\\",delimiter)
    if not file and not path[-1] == delimiter: path += delimiter
    return path
+## check if given name holds a complete path (includig a root), \n
+# if not, given rootdir is added at the beginning of the name.
+# @param rootdir - rootpath to be added
+# @param filename - name to be checked
 def Afp_addRootpath(rootdir, filename):
    if filename[0] == "/" or ":" in filename:
       # root already in filename, don't do anything
@@ -564,13 +572,17 @@ def Afp_addRootpath(rootdir, filename):
       composite = rootdir + filename
    return composite
 
-
+## countes the starting spaces in the string
+# @param string - string to be analysed
 def Afp_leftSpCnt(string):
    # left space count
    return  len(string) - len(string.lstrip())
 
-# check if string holds a date,
-# possibly complete date with current day, month or year
+## check if string holds a date, \n
+# possibly complete date with current day, month or year.
+# @param string - string to be analysed
+# @param only_past - flag if date is assumed to lie in the past,  \n
+# short years will be completed with the last century, if the normal completation would set them to lie in the future.
 def Afp_ChDatum(string, only_past = False):
    if not string: return string
    today = datetime.date.today()
@@ -623,6 +635,9 @@ def Afp_ChDatum(string, only_past = False):
       zahlen[1] = '0' + zahlen[1]
    string = zahlen[0] + "." + zahlen[1] + "." + zahlen[2]
    return string
+## check if string holds a time value, \n
+# return the cleaned time string and the number of days extracted from this string
+# @param string - string to be analysed
 def Afp_ChZeit(string):
    if not string: return None, 0
    char = ":"
@@ -669,7 +684,9 @@ def Afp_ChZeit(string):
    #print "Afp_ChZeit:", zeitstr, days
    return zeitstr, days
 
-# convert Superbase Field.Filename to mysql tablenames uised in select statements  
+## convert "Superbase" Field.Filename to mysql tablenames used in select statements.
+# @param string - string where names should be converted
+# @param dateien - names of tables involved in this statement
 def Afp_SbToDbName(string,dateien):
    unmasked, masked = Afp_maskedText(string)
    out_unmasked = []
@@ -696,7 +713,9 @@ def Afp_SbToDbName(string,dateien):
       out_string += out_unmasked[i]
       if i < lghm: out_string += " \"" + masked[i] + "\""
    return out_string
-   
+ ## complete the select statement with the .table extension for all tablecolumns
+# @param select - select statement to be completetd 
+# @param dbname - name of table for extensions
 def AfpSelectEnrich_dbname(select, dbname):
    if select is None: return None
    enriched = ""   

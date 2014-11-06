@@ -68,6 +68,8 @@ from AfpBaseRoutines import *
 ## main class to handle document output   
 class AfpAusgabe(object):
    ## Constructor
+   # @param debug - flag for debug information
+   # @param data - if given, AfpSelectionList holding data where output is created from
    def  __init__(self,  debug = False, data = None):
       self.data = data
       self.filecontent = None
@@ -87,7 +89,7 @@ class AfpAusgabe(object):
    def __del__(self):
       if self.debug: print "AfpAusgabe Destruktor"
    ## attach file which holds data to be used to inflate the flavoured text-file, \n
-   # this may be used if no direct access to a mysql database is possible 
+   # this may be used if no direct access to a mysql database is possible, only works if no data is given (self.data is None)
    # (used by the -d option of the commandline call)
    # @param filename - path to file to be loaded
    def set_data(self, filename):
@@ -209,11 +211,12 @@ class AfpAusgabe(object):
          for f,n in fields,netto:
             line += self.gen_value(f) + n.decode("UTF-8") 
       return line
-   def gen_value(self, fields):
-      # fills in []-phrases
-      # fields, variables, list of fields are handled here
-      # function and fromula evaluation is deligated
-      # value output is a string
+   ## generate the values stated in []-phrases \n
+   # fields, variables, list of fields are handled here \n
+   # function and fromula evaluation is deligated \n
+   # value output is a string
+   # @param fields - variables to be replaced by data-values
+  def gen_value(self, fields):
       if "=" in fields:
          value = Afp_toString(self.gen_function(fields))
       elif "(" in fields and ")" in fields:
@@ -230,10 +233,11 @@ class AfpAusgabe(object):
             value += " " + Afp_toString(self.values[field])
       #print "gen_value:", fields, value
       return value.strip()
+   ## handles different function evaluations \n
+   # assignments (= , +=, -=) are handled here \n
+   # fromula evaluation in ()-prarantheses is deligated
+   # @param funct - function to be evaluated
    def gen_function(self, funct):
-      # handles different function evaluations
-      # assignments (= , +=, -=) are handled here
-      # fromula evaluation in ()-phrases is deligated
       if "+=" in funct : sign = "+="
       elif "-=" in funct : sign = "-="
       else: sign = "="
@@ -249,6 +253,8 @@ class AfpAusgabe(object):
       pyBefehl = "self.values[var]" + sign + value
       exec pyBefehl      
       return value
+   ## evaluates a written condtion and returns the appropriate boolean value
+   # @param phrase - phrase which holds condition to be evaluated
    def evaluate_condition(self, phrase):
       condition = False
       phrase = phrase.replace("&gt;",">")
@@ -278,10 +284,11 @@ class AfpAusgabe(object):
       exec pyBefehl
       if self.debug: print "AfpAusgabe.evaluate_condition:", pyBefehl, condition
       return condition
+   ## evaluate formulas in ()-prarantheses \n
+   # all python evaluations are allowed, 
+   # as the formula is evaluated via the 'exec' command
+   # @param form - formula to be evaluated
    def evaluate_formula(self, form):
-      # evaluate formulas in ()-phrases
-      # all python evaluations are allowed, 
-      # as the formula is evaluated via the 'exec' command
       vars, signs = Afp_splitFormula(form)
       print "AfpAusgabe.evaluate_formula:", vars, signs, self.is_date_formula(vars)
       if self.is_date_formula(vars):
@@ -303,10 +310,11 @@ class AfpAusgabe(object):
          exec pyBefehl
          if self.debug: print "evaluate_formula:", form, pyBefehl, value
       return value
+   ## executes a while loop, may be called recursive for nested loops \n
+   # @param while_line - holds the while conditions
+   # @param stack_index - index of the lines in this while loop in self.line_stack
+   # @param data_index - current index of the line in data
    def execute_while(self, while_line, stack_index, data_index = 0):  
-      # executes a while loop, may be called recursive for nested loops
-      # 'while_line' holds the while conditions
-      # 'stack_index' is the index of the lines in this while loop in self.line_stack
       indices = None
       while_clause, feldnamen, dateinamen, function = self.while_input(while_line, stack_index)
       if self.data is None:
@@ -347,9 +355,11 @@ class AfpAusgabe(object):
             else:
                if self.debug: print "execute linie", local_lines.index(line), "of WHILE", stack_index
                self.execute_line(line)
+   ## analyses the while_line, \n
+   # extracts the while_clause, fields, tables and optional the function
+   # @param while_line - holds the while conditions
+   # @param stack_index - index of the lines in this while loop in self.line_stack
    def while_input(self, while_line, stack_index):
-      # analyses the while_line,
-      # extracts the while_clause, fields, tables and optional the function
       function = ""
       action, netto =  Afp_between(while_line,"{","}")
       if len(action) == 1 and action[0][:5] == "WHILE":
@@ -398,11 +408,15 @@ class AfpAusgabe(object):
          if len(feldnamen) > 1: feldnamen = feldnamen[1:]
          if len(dateien) > 1: dateien = dateien[1:]
       return clause, feldnamen, dateien, function
+   ## retrieve value from cache, possibly load into cache first
+   # @param fieldname - name of database column to be loaded
    def get_value(self, fieldname):
       if self.in_values(fieldname):
          return self.values[fieldname]
       else:
          return None
+   ## check if value exists in cache, possibly load value into cache
+   # @param fieldname - name of database column to be loaded
    def in_values(self, fieldname):
       #print "in_values", fieldname
       if fieldname in self.values:
@@ -414,6 +428,8 @@ class AfpAusgabe(object):
             self.values[fieldname] = wert
             return True
       return False
+   ## retrieve value from database (values from file are loaded once at start)
+   # @param fieldname - name of database column to be loaded
    def retrieve_value(self, fieldname):
       if self.data is None:
          print "WARNING: value for", fieldname, "not delivered in datafile"
@@ -422,6 +438,7 @@ class AfpAusgabe(object):
          val = self.data.get_ausgabe_value(fieldname)
       #print fieldname,":",val
       return val
+   ## load values from input file into data cache
    def load_values_from_data(self):
       lgh = len(self.filecontent)
       i = 0
@@ -432,8 +449,11 @@ class AfpAusgabe(object):
          i += 1
          if i < lgh:
             line = self.filecontent[i]
+   ## read block of rows from datafile
+   # @param feldnamen - names of values to be extracted
+   # @param while_clause - possible while clause in this row
+   # @param index - startindex of first row-block in data
    def extract_rows_from_data(self, feldnamen, while_clause, index):
-      # index = startindex of first row-block in data
       #print "extract", index, while_clause
       rows = []
       indices = []
@@ -478,6 +498,8 @@ class AfpAusgabe(object):
                if cnt > spcnt: skip = True
                elif cnt == spcnt: skip = False
       return rows, indices
+   ## extract value names and values from line
+   # @param line - line to be analysed
    def get_feld_name_value(self, line):
       name = None
       value = None
@@ -496,6 +518,8 @@ class AfpAusgabe(object):
                valuestring = split[1].strip()
             value = Afp_fromString(valuestring)
       return name,valuestring
+   ## check if given variables represent a formual where dates are involved
+   # @param vars - variables for formula
    def is_date_formula(self, vars):
       wert = self.get_value(vars[0])
       if Afp_isString(wert): wert = Afp_fromString(wert)
@@ -503,12 +527,18 @@ class AfpAusgabe(object):
          return True
       else:
          return False
+   ## evaluates a fromula where dates are involved
+   # @param vars - variables for formula
+   # @param sign - sign in formula (+. - implemeted)
    def evaluate_date_formula(self, vars, sign):
       wert = self.get_value(vars[0])
       if Afp_isString(wert): wert = Afp_fromString(wert)
       value = Afp_addDaysToDate(wert, int(vars[1]), sign)
       return value
-   
+   ## write result to file \n
+   # currently only .fodt and .odt files are implemented
+   # @param filename - name of file to be written
+   # @param template - name of empty template file to be used for writing in output format
    def write_resultfile(self, filename, template = None):
       if filename[-5:] == ".fodt":
          # write fodt file
@@ -531,7 +561,7 @@ class AfpAusgabe(object):
 ## Main  program to be called from the commandline \n
 # call: AfpAusgabe.py -v -d /home/daten/Afp/pyAfp/Vorlagen/AnmeldungMehrfach_3_data.txt -t /home/daten/Afp/pyAfp/Vorlagen/empty.odt /home/daten/Afp/pyAfp/Vorlagen/AnmeldungMehrfach_3.fodt /tmp/AfpResult.odt \n
 # call: AfpAusgabe.py -v -r /home/daten/Afp/pyAfp/Vorlagen/ -d AnmeldungMehrfach_3_data.txt -t empty.odt  AnmeldungMehrfach_3.fodt to /tmp/AfpResult.odt  \n
-# call: AfpAusgabe.py -v -r K:\Afp\pyAfp\Vorlagen\ -d AnmeldungMehrfach_3_data.txt -t empty.odt  AnmeldungMehrfach_3.fodt to C:\temp\AfpResult.odt \n \n
+# call: AfpAusgabe.py -v -r K:\\Afp\\pyAfp\\Vorlagen\ -d AnmeldungMehrfach_3_data.txt -t empty.odt  AnmeldungMehrfach_3.fodt to C:\\temp\\AfpResult.odt \n \n
 # usage: AfpAusgabe [option] file [to] outputfile \n
 # use the -h or --help option to get full definition
 def main(argv):
