@@ -38,10 +38,13 @@ from AfpBase.AfpBaseRoutines import *
 def AfpAdresse_StatusMap():
    return {-1:1,0:0,1:1,5:2,6:3,9:4}
 ## mapping in other direction \n
-# return status flöag indicated by input
+# return status flag indicated by input \n
 # @param ind - index in screen choice selection
 def AfpAdresse_StatusReMap(ind):
-   return AfpDict_ReMap(AfpAdresse_StatusMap(), ind)
+   dict = AfpAdresse_StatusMap()
+   for key in dict:
+      if dict[key] == ind: return key
+   return None
  
 ## baseclass for address handling      
 class AfpAdresse(AfpSelectionList):

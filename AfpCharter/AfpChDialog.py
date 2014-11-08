@@ -268,7 +268,7 @@ class AfpDialog_DiChEin(AfpDialog):
             if self.initial_transaction(): self.add_invoice()
             else: self.syncronise_invoice()
          # write data to database
-         self.data.print_selections()
+         self.data.view() # show data for debugging
          self.data.store()
          # execute financial transactions
          if transaction_needed:

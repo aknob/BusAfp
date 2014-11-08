@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 ## @package AfpBase.AfpBaseRoutines
-# AfpBaseRoutines module provides the base class for all 'Selection Lists',
-#                             and Afp specific utility routines with or without database access
+# AfpBaseRoutines module provides the base class for all 'Selection Lists', \n
+#                             and Afp specific utility routines with or without database access \n
 # it holds the calsses
 # - AfpSelectionList
 #
@@ -41,18 +41,25 @@ from AfpUtilities import *
 from AfpUtilities.AfpStringUtilities import *
 from AfpUtilities.AfpBaseUtilities import *
 
+# definition routines
+## get all possible module with own graphical interfaces (screens)
 def Afp_graphicModulNames():
    return ["Adresse","Charter"]
+## get all possible internal moduls
 def Afp_internalModulNames():
    return ["Finance","Einsatz"]
+## get modul short names - used for filename generation
 def Afp_getModulShortName(modul):
    if modul == "Einsatz": return "Ein"
    return modul[:2]
+## return possible user-moduls \n
+# - check if needed python moduls are present has to be implemented
 def Afp_ModulNames():
    modules = Afp_graphicModulNames()
    # check if appropriate python files exists
    # AfpXXRoutines, AfpXXDialog, AfpXXScreen
    return modules
+## get all possible afp-modul names
 def Afp_allModulNames():
    modules = []
    mods = Afp_graphicModulNames()
@@ -62,6 +69,8 @@ def Afp_allModulNames():
    for mod in mods:
       modules.append(mod)
    return modules
+## check if modul is available
+# @param input - name of modul or main table name
 def Afp_getModulName(input):
    modul = None
    modules = Afp_ModulNames()
@@ -70,6 +79,8 @@ def Afp_getModulName(input):
       if input == "Fahrten": modul = "Charter"
    if modul and not modul in modules: return None
    return modul
+## get all python-modules needed for a afp-modul
+# @param modul - name of afp-modul
 def Afp_ModulPyNames(modul):
    md = Afp_getModulShortName(modul)      
    parent = "Afp" + modul + "."
@@ -85,6 +96,10 @@ def Afp_ModulPyNames(modul):
       else:
          return files
    return None
+## get all python-modul file names for a afp-modul
+# @param modul - name of afp-modul
+# @param delimiter - path delimiter
+# @param path - rootpath to python-modules
 def Afp_ModulFileNames(modul, delimiter, path):
    files = []
    names = Afp_ModulPyNames(modul)
@@ -93,14 +108,22 @@ def Afp_ModulFileNames(modul, delimiter, path):
       fname = Afp_addRootpath(path, name + ".py")
       files.append(fname)
    return files
-def Afp_existsModulFiles(modul, delimiter):
-   filenames = Afp_ModulFileNames(modul, delimiter)
+## get information if all python-modul files exist for a afp-modul
+# @param modul - name of afp-modul
+# @param delimiter - path delimiter
+# @param path - rootpath to python-modules
+def Afp_existsModulFiles(modul, delimiter, path):
+   filenames = Afp_ModulFileNames(modul, delimiter, path)
    if filenames:
       exists = True
       for file in filenames:
             exists = exists and Afp_existsFile(file)
       return exists
    return False
+## get 'modul info' (timestamp) of all python-modul files for a afp-modul
+# @param modul - name of afp-modul
+# @param delimiter - path delimiter
+# @param path - rootpath to python-modules
 def Afp_getModulInfo(modul, delimiter, path):
    filenames = Afp_ModulFileNames(modul, delimiter, path)
    line = ""
@@ -109,7 +132,11 @@ def Afp_getModulInfo(modul, delimiter, path):
       time = Afp_getFileTimestamp(file)
       line += split[-1] + ": " + Afp_toString(time.date()) + " " + Afp_toString(time.time() )+ '\n'
    return line
-   
+ 
+## look if text represents the name of archieved file (only used for compability of already created data) \n
+# should return None for actuel created data
+# @param text - text to be analysed
+# @param delimiter - path delimiter
 def Afp_archivName(text, delimiter):
    filename = None
    if text and "." in text and len(text) < 30:
@@ -144,8 +171,8 @@ def Afp_startFile(filename, globals=None, debug = False, noWait = False):
    #Afp_startProgramFile(program, debug, filename, "--invisible")
    Afp_startProgramFile(program, debug, filename, None, noWait)
 
-##   dynamic import of a python module from modulname or path
-# handle to the modul will be returned
+##   dynamic import of a python module from modulname or path, 
+# a handle to the modul will be returned
 # @param modul -  name or path of modul to be imported
 #                             name will only work if modul has already been imported
 def AfpPy_Import(modul):
@@ -164,15 +191,15 @@ def AfpPy_Import(modul):
        if pathname and Afp_existsFile(pathname):
           print "File \"" + pathname + "\" exists, propably a syntax problem."
    return mod
-##   dynamic import of a python module from modulname
-# handle to the modul will be returned
+##   dynamic import of a python module from modulname,
+# a handle to the modul will be returned
 # @param modulname -  name of modul to be imported, in python modul syntax "package.modul"
 # @param globals - globas variables including the path delimiter to be used for filesystem pathes
 def Afp_importPyModul(modulname, globals):
    deli = globals.get_value("path-delimiter")
    modul = modulname.replace(".",deli)
    return AfpPy_Import(modul)
-## dynamic import of 'Afp' modules
+## dynamic import of 'Afp' modules,
 #  depending on the modul there are one to three pythonfiles to be imported
 # @param modulname - name of Afp-modul to be imported
 # @param globals        - global variables
@@ -184,12 +211,6 @@ def Afp_importAfpModul(modulname, globals):
       moduls.append(modul)
    if moduls:
       return moduls
-   return None
-
-def AfpDict_ReMap(dict, value):
-   # returns the first key for a given value
-   for key in dict:
-      if dict[key] == value: return key
    return None
 
 ##  write available data in 'Selection List' into a file
@@ -204,7 +225,7 @@ def Afp_printSelectionListDataInfo(selectionlist, fname):
          fout.write("   " + name + "." + entry  + '\n')
    fout.close()
    
-##  provide al list from a SQLTableSelection object
+##  provide a list from a SQLTableSelection object -
 #    mostly to allow additional selection
 # @param table_sel - input AfpSQLTableSelection object for which an additional selection has to be made
 # @param select     - filter to get possible additional selections from database
@@ -291,8 +312,12 @@ def Afp_getIndividualAccount(mysql, KNr, typ = "Debitor"):
    return 0
 
 ##   base class of all Afp-database objects
-# common class to hold and manipulate the data for a given module 
+# common class to hold and manipulate the data for a given afp-module 
 class AfpSelectionList(object):
+   ## initialize AfpSelectionList class
+   # @param globals - global values including the mysql connection - this input is mandatory
+   # @param listname - name of this selction list
+   # @param debug - flag for debug information
    def  __init__(self, globals, listname, debug = False):
       self.mysql = globals.get_mysql()
       self.globals = globals
@@ -305,23 +330,33 @@ class AfpSelectionList(object):
       self.debug = debug
       self.new = False
       if self.debug: print "AfpSelectionList Konstruktor",listname
-      #self.selections[dateiname] = sb.gen_selection(dateiname, None, self.debug)
+   ## destructor
    def __del__(self):   
       if self.debug: print "AfpSelectionList Destruktor" 
+   ## return if debug flag is set
    def is_debug(self):
       return self.debug
+   ## return if data is new (not yet stored in database)
    def is_new(self):
       return self.new
+   ## return globals
    def get_globals(self):
-      return self.globals 
+      return self.globals
+   ## return mysql connection
    def get_mysql(self):
       return self.mysql   
+   ## return name of this SelectionList
    def get_listname(self):
       return self.listname
+   ## return main index of this SelectionList
    def get_mainindex(self):
       return self.mainindex
+   ## return an afp-unique identifier of this SelectionList
    def get_identifier(self):
       return self.listname + self.get_string_value()
+   ## return the name of involved persons
+   # @param rev - reverse, first name, followed by surname
+   # @param selname - name of TableSelection where to retrieve names
    def get_name(self, rev = False, selname = "ADRESSE"):
       name = ""
       sel = self.get_selection(selname)
@@ -331,16 +366,20 @@ class AfpSelectionList(object):
          else:
             name = sel.get_string_value("Vorname") + " " + sel.get_string_value("Name")
       return name
+   ## show data in console (used for debug)
    def view(self):
       # convenience routine for debug purpose
       print "AfpSelectionList.view():", self.get_listname()
       for sel in self.selections: 
          print sel, self.selections[sel].data
+   ## get the user-relevant data in a line \n
    # this routine may (or rather should) be overwritten
    def line(self): 
       row = self.get_value_rows(None, None, 0)
       zeile = Afp_genLineOfArr(row)
       return zeile
+   ## generate the customised select_clause of this SelectionList for indicated TableSelection
+   # @param selname - name of TableSelection
    def evaluate_selects(self, selname):
       select_clause = None
       if selname is None: selname = self.mainselection
@@ -361,22 +400,26 @@ class AfpSelectionList(object):
                if value:
                   select_clause = sels[0] + "= " + value
       return select_clause
+   ## set the customised select_clause for the main selection
    def set_main_selects_entry(self):  
       if self.mainselection and self.mainindex and self.mainvalue:         
          selname = self.mainselection
          self.selects[selname] = [selname, self.mainindex + " = " + self.mainvalue, self.mainindex]
+   ## overwrite customised selects with new self.mainvalue
    def reset_selects(self):
-      # overwrite selects with new self.mainvalue
       self.set_main_selects_entry()
       self.reload_selection(self.mainselection)
       for selname in self.selects:
          if selname in self.selections and not selname == self.mainselection :   
             self.reload_selection(selname)
    # selection handling
+   ## return if a TableSelection exists in selections
+   # @param selname - name of TableSelection
    def exists_selection(self, selname):
       if selname is None: selname = self.mainselection
       return selname in self.selections
-   # constitute selection formally, no data attached
+   ## constitute selection formally, no data attached
+   # @param selname - name of TableSelection
    def constitute_selection(self, selname):
       selection = None
       if selname is None: selname = self.mainselection
@@ -389,7 +432,9 @@ class AfpSelectionList(object):
             #print "create_selection:", sel_vals, unique
             selection = AfpSQLTableSelection(self.mysql, sel_vals[0], self.debug, unique)
       return selection  
-   # create selection - retrieve values from database
+   ## create selection - retrieve values from database
+   # @param select - name of TableSelection
+   # @param allow_new - allow creation of a new TableSelection with no data attached
    def create_selection(self, select, allow_new = True):
       print "AfpSelectionList.create_selection:",select, allow_new
       #print self.selects[select]
@@ -407,18 +452,20 @@ class AfpSelectionList(object):
          selection = AfpSQLTableSelection(self.mysql, select, self.debug, self.mainindex)
       if not selection is None:
          self.selections[select] = selection
-   # create all selections
+   ## create all TableSelections
    def create_selections(self):
       for select in self.selects:
          if not select in self.selections:
             self.create_selection(select)
-   # attach new data to selection
+   ## attach new data to selection
+   # @param selname - name of TableSelection
    def reload_selection(self, selname):
       selection = self.get_selection(selname)
       select_clause = self.evaluate_selects(selname)
       if selection and select_clause:
          selection.load_data(select_clause)
-   # return selection, create new if not existend
+   ## return selection, create new if not existend
+   # @param name - if given, name of TableSelection, otherwise get main selection
    def get_selection(self, name = None):
       selection = None
       if name is None: selname = self.mainselection
@@ -434,7 +481,8 @@ class AfpSelectionList(object):
          if selname in self.selections: 
             selection = self.selections[selname]
       return selection
-   # clear data in selections
+   ## clear data in selections
+   # @param keep - list of names of selections not cleared
    def clear_selections(self, keep):
       self.mainvalue = None
       for sel in self.selections:
@@ -443,9 +491,16 @@ class AfpSelectionList(object):
                self.selections[sel].new_data(False, True)
             else:
                self.selections[sel].new_data(True)
+   ## delete selection completely
+   # @param selname - name of TableSelection 
+   # -  main selection can not be deleted
    def delete_selection(self, selname):
       if selname in self.selections and not selname == self.mainselection:
          del self.selections[selname]
+   ## retrieve a selection row and deliver it as a single TableSelection \n
+   # use set_row_to_selection_values to write manipulated values to the row again
+   # @param selname - name of TableSelection 
+   # @param row - index of row in TableSelection where data is retrieved
    def get_selection_from_row(self, selname, row):
       select = self.get_selection(selname)
       selection = select.create_initialized_copy()
@@ -456,20 +511,34 @@ class AfpSelectionList(object):
          selection.set_data(rows)
       print "AfpSelectionList.get_selection_from_row:",selname, row, selection
       return selection
+   ## delete a selection row from a TableSelection
+   # @param selname - name of TableSelection 
+   # @param row - index of row in TableSelection to be deleted
    def delete_row(self, selname, row):
       self.get_selection(selname).delete_row(row)
-   # special routine to be overwritten for individual selection programming
+      
+   ## special selection handling routine to be overwritten for individual selection programming
+   # @param selname - name of special TableSelection 
+   # @param new - iflag if a new selection without data should be created
    def spezial_selection(self, selname, new = False):
       return None
+   ## special selection save routine to be overwritten for individual selection programming
+   # @param name - name of special TableSelection 
    def spezial_save(self, name = None):
       return None
+      
+   ## get number of rows in indicated TableSelection
+   # @param name - name of special TableSelection 
    def get_value_length(self, name = None):
       return self.get_selection(name).get_data_length()
-   # extract values from selections
+   ## extract values from a single TableSelection
+   # @param sel - if given name of TableSelection
+   # - sel == None: data from mainselection, resp. row
+   # - sel == 'Name': data from selection 'name', resp. row
+   # @param felder - column names to be retrieved
+   # - felder == 'Name1, Name2, ...': data from columns 'Name1, Name2, ... of selection
+   # @param row - index of row in TableSelection
    def get_value_rows(self, sel = None, felder = None, row = -1):
-      # sel == None: data from mainselection, resp. row
-      # sel == 'Name': data from selection 'name', resp. row
-      # felder == 'Name1, Name2, ...': data from columns 'Name1, Name2, ... of selection
       print "get_value_rows called, maybe get_string_rows needed!"
       if sel is None and felder is None and row == -1:
          return self.mainvalue
@@ -482,9 +551,11 @@ class AfpSelectionList(object):
          return None
       else:
          return selection.get_values(felder, row)
+   ## extract values from a different TableSelections
+   # @param felder - column and selection names where data has to be retrieved from
+   # - felder == None: complete data from mainselection
+   # - felder == 'Feld1.Name1, Feld2.Name2, ...': data from column 'Feld1' of selection 'Name1', etc.
    def get_values(self, felder = None):
-      # felder == None: complete data from mainselection
-      # felder == 'Feld1.Name1, Feld2,Name2, ...': data from column 'Feld1' of selection 'Name1', etc.
       if felder is None:
          return self.get_value_rows()
       else: 
@@ -494,6 +565,8 @@ class AfpSelectionList(object):
             wert = self.get_value(feldname)
             result.append(wert)
          return [result]
+   ## extract one value from a TableSelection
+   # @param DateiFeld - column.selection name where data has to be retrieved from
    def get_value(self, DateiFeld = None):
       if DateiFeld is None:
          return self.mainvalue
@@ -506,6 +579,9 @@ class AfpSelectionList(object):
          return None
       else:
          return selection.get_value(feld)  
+   ## retrieve text from selection, eventually import extern file data into textfield  \n
+   # - only needed for intermediate use, may be removed later
+   # @param DateiFeld - column.selection name where data has to be retrieved from
    def get_ausgabe_value(self, DateiFeld = None):
       value = self.get_value(DateiFeld)
       if value:
@@ -520,6 +596,9 @@ class AfpSelectionList(object):
       else:
          wert = ""
       return wert
+   ## extract one value from a TableSelection, return it as a string
+   # @param DateiFeld - column.selection name where data has to be retrieved from
+   # @param quoted_string - retuns values as a string, returns strings in quotes
    def get_string_value(self, DateiFeld = None, quoted_string = False):
       value = self.get_value(DateiFeld)
       if value:
@@ -530,14 +609,21 @@ class AfpSelectionList(object):
       else:
          wert = ""
       return wert
+   ## extract values from a single TableSelection, return values as strings
+   # @param sel - if given name of TableSelection
+   # @param felder - column names to be retrieved
+   # @param row - index of row in TableSelection
    def get_string_rows(self,  sel = None, felder = None, row = -1):
       rows = self.get_value_rows(sel, felder,row)
       strings =  Afp_ArraytoString(rows)
       return strings
+   ## set a database lock on the main selection (table) of the SelectionList
    def lock_data(self):
       self.get_selection().lock_data()   
+   ## remove a database lock from the main selection (table) of the SelectionList
    def unlock_data(self):
       self.get_selection().unlock_data()
+   ## propgate new mainvalue to the dependent TableSelections
    def spread_mainvalue(self):
       print "AfpTableSelectionList.spread_mainvalue"
       target = None
@@ -558,6 +644,8 @@ class AfpSelectionList(object):
                   self.selections[sel].spread_value(target, -value)
                else:
                   self.selections[sel].spread_value(target, value)
+   ## sample newly created unique identifier value od dependent selection to the appropriate entries in the main selectrion
+   # @param selname - name of TableSelection where new identifier has been created
    def resample_value(self, selname):
       print "AfpTableSelectionList.resample_value initiated:", selname
       target = None
@@ -577,7 +665,9 @@ class AfpSelectionList(object):
             #print "AfpTableSelectionList.resample_value executed:", source, target, value
             # uniqueindex filled back into mainselection
             self.set_value(target, value)
- # store manipulated values of individual TableSelection in database
+   ## set a single value of individual TableSelection 
+   # @param DateiFeld - column.selection name where data has to be written to
+   # @param value - new vaolue of above column
    def set_value(self, DateiFeld, value):
       split = DateiFeld.split(".")
       feld = split[0]
@@ -585,10 +675,19 @@ class AfpSelectionList(object):
       if len(split) > 1: selname = split[1]
       selection = self.get_selection(selname)
       selection.set_value(feld, value)
+   ## set multiple  values of indicated TableSelection 
+   # @param changed_data - dictionary with changed_data[column] = value
+   # @param name - name of TableSelection where data should be written to
+   # @param row - index of row in TableSelöection where data should be written to
    def set_data_values(self, changed_data, name = None, row = 0):
       #print "AfpSelectionList.set_data_values()",changed_data
       selection = self.get_selection(name)
       selection.set_data_values(changed_data, row)  
+   ## set a row in a TableSelection to the modified values beeing hold in a single TableSelection \n
+   # - this single TableSelection should have been extracted with get_selection_from_row from the destination TableSelection \n
+   # - it is assumed that both TableSelections have the same tablename
+   # @param value_selection - TableSelection holding the changed values
+   # @param row - index of row in original TableSelection where data should be written to
    def set_row_to_selection_values(self, value_selection, row = -1):
       if row is None: row = -1
       selection = self.get_selection(value_selection.get_tablename())
@@ -596,7 +695,7 @@ class AfpSelectionList(object):
       mani = [row, value_row]
       print "AfpSelectionList.set_row_to_selection_values:", mani
       selection.manipulate_data([mani])
-   # store complete TableSelectionList
+   ## store complete SelectionList
    def store(self):
       #print "AfpTableSelectionList.store()", self.mainselection
       #print "AfpTableSelectionList.store() selections:", self.selections
@@ -625,22 +724,34 @@ class AfpSelectionList(object):
                self.spezial_save(sel)
             else:
                self.selections[sel].store()
+   ## get data info (column names of all attached TableSelections)
    def get_data_info(self):
       info = {}
       for entry in self.selections:
          info[entry] = self.get_selection(entry).feldnamen
       return info
     
-   # convinience routine for payment
-   # may be overwritten
+   ## routine to retrieve payment data from SelectionList \n
+   # may be overwritten, default implementation: return "Preis" and "Zahlung" column from main selection
    def get_payment_values(self):
       return self.get_value("Preis"),self.get_value("Zahlung")
+   ## routine to set payment data in SelectionList \n
+   # may be overwritten, default implementation: "Zahlung" and "ZahlDat" columns of main selection are set
+   # @param payment - amount that already has been payed
+   # @param datum - date of last payment
    def set_payment_values(self, payment, datum):
       self.set_value("Zahlung", payment)
       self.set_value("ZahlDat", datum)
-   # convinience routine for archiv
-   # may be overwritten if necessary
-   # new_data should hold the values ["Gruppe", "Bem", "Extern"]
+   ## complete data to be stored in archive \n
+   # - may be overwritten if necessary
+   # @param new_data - data to be completed and written into "ARCHIV" TableSelection \n
+   # new_data should already hold the values ["Gruppe"],[ "Bem"], ["Extern"]:
+   # - Gruppe: (group) 3rd level identification
+   # - Bem:  remark on this entry
+   # - Extern:  name of archived file (relativ to archiv path) \n
+   # it will be completed by:
+   # - Art: (kind) 1st level identification, will be set to "BusAfp"
+   # - Typ: (type) 2nd level identification, will be set to SelectionList listname
    def add_to_Archiv(self, new_data, delete = False):
       archiv_select_value = None
       selection = self.get_selection("ARCHIV")
@@ -663,17 +774,4 @@ class AfpSelectionList(object):
          selection.set_data_values(new_data, row)
       else:
          print "WARNING SelectionList.add_to_Archiv called but not implemented for", self.listname
-   # for debugging
-   def print_selections(self):
-      print "AfpSelectionList.print():", self.listname
-      for sel in self.selections:
-         print sel + ":", self.selections[sel].data
-
-# Main   
-if __name__ == "__main__":
-   #mod = AfpPy_Import("AfpAdRoutines")
-   #Felder = mod.AfpAdresse_AwDlg()
-   #print Felder
-    #print Afp_existsModulFiles("Charter","/")
-    print Afp_existsModulFiles("Finance","/")
-    
+     
