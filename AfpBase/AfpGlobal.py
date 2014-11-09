@@ -39,6 +39,8 @@ from AfpUtilities.AfpBaseUtilities import *
 import AfpBaseRoutines
 from AfpBaseRoutines import Afp_getModulInfo
 
+## set global system variables
+# @param settings - dictionary where values are added
 def Afp_setGlobalVars(settings):
    settings["python-version"] = Afp_getGlobalVar("python-version")
    pythonpath = Afp_getGlobalVar("python-path")
@@ -50,6 +52,8 @@ def Afp_setGlobalVars(settings):
    settings["tempdir"] = tempfile.gettempdir()
    settings["today"] = Afp_getToday()
    return settings
+## initialize needed global variables, if they aren't already set
+# @param settings - dictionary where values are checked and possibly added
 def Afp_iniGlobalVars(settings):
    if not "database" in settings:
       settings["database"] = "BusAfp"
@@ -83,7 +87,15 @@ def Afp_iniGlobalVars(settings):
       settings[".txt"] = "vim"
    return settings
 
+## class to hold global of modul specific varaiables
 class AfpSettings(object):
+   ## initialize AfpSettings class
+   # @param debug - flag for debug information
+   # @param conf_path - if given path to configuration file
+   # - only used for systemwide global configuration
+   # @param modulname - name of afp-modul these settings are for
+   # @param homedir - if given, path to home directory, where configuration files are found
+   # - only used for modul specific settings
    def  __init__(self, debug, conf_path = None, modulname = None, homedir = None):
       print "AfpSettings.init:", debug, conf_path, modulname, homedir
       self.debug = debug
@@ -110,15 +122,20 @@ class AfpSettings(object):
          # self.load(modulname)
          print "AfpSettings.load(" + modulname + ") not implemented!"
       if self.debug: print "AfpSettings Konstruktor",self.modul
+   ## destructor
    def __del__(self):
       if self.debug: print "AfpSettings Destruktor",self.modul
+   ## return debug flag
    def is_debug(self):
       return self.debug
+   ## loop through all settings, if name ends with "dir" reset pathdelimiter with actuel pathdelimiter
    def set_pathdelimiter(self):
       # convention: names of folder pathes end with "dir" (directory)
       for entry in self.settings:
          if entry[-3:] == "dir":
             self.settings[entry] = Afp_pathname(self.settings[entry], Afp_getGlobalVar("path-delimiter"))
+   ## read data from file and set appropriate variables
+   # @param path - filename including path of file to be read
    def read(self, path):
       if self.debug: print "AfpSettings.read:", path
       fin = open(path , 'r') 
@@ -133,8 +150,11 @@ class AfpSettings(object):
             self.set(name, value)
       fin.close()
    #def load(self, modul):
+   ## extract value from string, take care of special setting possibillities before conversion:
+   # - evaluation of string
+   # - special formats
+   # @param string - string to be analysed
    def fromString(self, string):
-      #take care of special setting possibillities before conversion
       if self.evalString(string):
          befehl = "value = " + string
          exec befehl
@@ -143,6 +163,11 @@ class AfpSettings(object):
       else:
          value = Afp_fromString(string)
       return value
+   ## take care if string has special formats, which require string output,
+   # when the standart analysis would suggest an other format   
+   # - IP4 addresses
+   # - windows root pathes
+   # @param string - string to be analysed
    def keepString(self, string):
       # identifiy special strings to be not interpreted and converted to other data types
       if Afp_isIP4(string): # IP4 Adresses
@@ -151,24 +176,39 @@ class AfpSettings(object):
       if len(string) > 1 and string[1] == ":" and not string[0].isdigit():
          return True
       return False
+   ## check if string holds a formula
+   # @param string - string to be analysed
    def evalString(self, string):
       if string[0] == "{" and string[-1] == "}":
          return True
       if string[0] == "[" and string[-1] == "]":
          return True
       return False
+   ## set a setting value
+   # @param name - name of global variable
+   # @param value - value to be assigned to this variable
    def set(self, name, value):
       #print name, value
       self.settings[name] = value
+   ## check if variable exists in setting
+   # @param name - name of global variable
    def exists_key(self, name):
       return name in self.settings
+   ## return all available variable names
    def get_keys(self):
       return self.settings.keys()
+   ## return value of indicates variable
+   # @param name - name of variable   
    def get(self, name):
       if name in self.settings: return self.settings[name]
       else: return None
 
+## object to hold all globally used values
 class AfpGlobal(object):
+   ## initialize AfpGlobal class
+   # @param name - name of this program package
+   # @param mysql - connection to database
+   # @param setting - initial global variables used systemwide
    def  __init__(self, name, mysql, setting):
       self.mysql = mysql
       self.setting = setting
@@ -176,18 +216,30 @@ class AfpGlobal(object):
       self.debug = self.setting.is_debug()
       self.settings = {}
       if self.debug: print "AfpGlobal Konstruktor"
+   ## destructor
    def __del__(self):
       if self.debug: print "AfpGlobal Destruktor"
+   ## return debug flag
    def is_debug(self):
       return self.debug
+   ## return database connection
    def get_mysql(self):
       return self.mysql
+   ## add another modul setting
+   # @param modul - name of afp-module using these settings
+   # @param setting - settings
    def add_setting(self, module, setting):
       self.settings[module] = setting
+   ## return setting
+   # @param modul - if given, name of afp-module using returned settings
    def get_setting(self, module = None):
       if module is None: return self.setting   
       if module in self.settings: return self.settings[module]
       return None
+   ## set value in settings
+   # @param name - name of variable to be set
+   # @param value - value of variable
+   # @param modul - if given, name of afp-module using returned settings
    def set_value(self, name, value, module = None):
       set = self.get_setting(module)
       if set is None and module:
@@ -195,6 +247,14 @@ class AfpGlobal(object):
          self.add_setting(module, set)
       if set and name:
          set.set(name, value)
+   ## set common information for this program package
+   # @param version - version number of this package
+   # @param copyright - copyright of this package
+   # @param website - website information for this package
+   # @param description - description of this package
+   # @param license - license information of this package
+   # @param picture - logo of this package
+   # @param developer - developer information of this package
    def set_infos(self,  version = None, copyright = None, website = None, description = None, license = None, picture = None, developer = None):
       if version: self.set_value("version", version)
       if copyright: self.set_value("copyright", copyright)
@@ -203,24 +263,33 @@ class AfpGlobal(object):
       if license: self.set_value("license", license)
       if picture: self.set_value("picture", picture)
       if developer: self.set_value("developer", developer)
+   ## retrieve value as a string
+   # @param name - name of variable to be retrieved
+   # @param modul - if given, name of afp-module otherwise get value from common variables
    def get_string_value(self, name, module = None):
       value = self.get_value(name, module)
       return Afp_toString(value)
+   ## retrieve value
+   # @param name - name of variable to be retrieved
+   # @param modul - if given, name of afp-module otherwise get value from common variables
    def get_value(self, name, module = None):
       set = self.get_setting(module)
       return set.get(name)
+   ##  show all entries, for debug purpose
    def view(self):
-      # convenience routine for debug purpose
       print "AfpGlobal.view: Global", self.setting.settings
       for set in self.settings: 
          print  "AfpGlobal.view:", self.settings[set].modul, self.settings[set].settings
+   ## return if operating system is assumed to be windows
    def os_is_windows(self):
       op_sys = self.get_value("op-system")
       is_win = "win" in op_sys or "Win" in op_sys
       return is_win
    # special retrieve routines
+   ## get header with database information
    def get_host_header(self):
       return "auf " + self.get_value("database-host") + ", User: \""  + self.get_value("database-user") + "\""
+   ## sample infomation about all modules
    def get_modul_infos(self):
       infos = ""
       for set in self.settings:
@@ -233,17 +302,11 @@ class AfpGlobal(object):
             infos += setting.get("Info")
       return infos
    # shortcuts to common flags and variables
+   ## return if accounting should be skipped
    def skip_accounting(self):
       if self.get_value("skip_accounting"): return True
       else: return False
+   ## return the date of today
    def today(self):
       return self.get_value("today")
       
-# Main   
-if __name__ == "__main__":
-   setting = AfpSettings(False)
-   keys = setting.get_keys()
-   print "Start"
-   for key in keys:
-      print key, setting.get(key)
-   print "Ende"
