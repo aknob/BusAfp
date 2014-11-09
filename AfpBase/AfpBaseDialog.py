@@ -233,6 +233,7 @@ def AfpReq_Information(globals):
    
 ## Baseclass Texteditor Requester 
 class AfpDialog_TextEditor(wx.Dialog):
+   ## constructor
    def __init__(self, *args, **kw):
       super(AfpDialog_TextEditor, self).__init__(*args, **kw) 
       self.Ok = False
@@ -254,20 +255,29 @@ class AfpDialog_TextEditor(wx.Dialog):
       self.SetAutoLayout(1)
       self.sizer.Fit(self)
       self.On_CEdit()
+   ## attach header, text and size to dialog
+   # @param header - text to be displayed in the window top ribbon
+   # @param text - text to be displayed and manipulated
+   # @param size - size of dialog
    def attach_text(self, header, text, size):
       self.SetSize(size)
       self.SetTitle(header)
       self.text_text.SetValue(text)
+   ## set the dialog edit modus
    def set_direct_editing(self):
       self.choice_Edit.SetSelection(1)
-      self.text_text.SetBackgroundColour(self.editcolor)      
+      self.text_text.SetBackgroundColour(self.editcolor) 
+   ## return Ok flag, to be called in calling routine
    def get_Ok(self):
       return self.Ok
+   ## return actuel text, to be called in calling routine
    def get_text(self):
       ret_text = self.text_text.GetValue()
       print "AfpDialog_TextEditor:", ret_text
       #return self.text_text.GetValue()
       return ret_text
+   ## Eventhandler CHOICE - handle event of the 'edit','read' od 'quit' choice
+   # @param event - event which initiated this action
    def On_CEdit(self,event = None):
       editable =  self.choice_Edit.GetCurrentSelection() == 1
       self.text_text.SetEditable(editable)
@@ -275,6 +285,8 @@ class AfpDialog_TextEditor(wx.Dialog):
       else: self.text_text.SetBackgroundColour(self.readonlycolor)    
       if self.choice_Edit.GetCurrentSelection() == 2: self.Destroy()
       if event: event.Skip()
+   ## Eventhandler BUTTON - Ok button pushed
+   # @param event - event which initiated this action
    def On_Button_Ok(self,event):
       if self.choice_Edit.GetSelection() == 1:
          self.Ok = True
@@ -283,6 +295,7 @@ class AfpDialog_TextEditor(wx.Dialog):
 
 ## Baseclass Multiline Requester 
 class AfpDialog_MultiLines(wx.Dialog):
+   ## constructor
    def __init__(self, *args, **kw):
       super(AfpDialog_MultiLines, self).__init__(*args, **kw) 
       self.Ok = False
@@ -357,11 +370,16 @@ class AfpDialog_MultiLines(wx.Dialog):
             if ind_c < len(self.check): values[i] = self.check[ind_c].GetValue()
             ind_c += 1
       self.result = values
+   ## return results, to be called from calling routine
    def get_result(self):
       return self.result 
+   ## Eventhandler BUTTON - Cancel button pushed
+   # @param event - event which initiated this action
    def On_Button_Cancel(self,event ):
       event.Skip()
       self.Destroy()
+   ## Eventhandler BUTTON - Ok button pushed
+   # @param event - event which initiated this action
    def On_Button_Ok(self,event):
       self.set_values()
       event.Skip()
@@ -369,6 +387,7 @@ class AfpDialog_MultiLines(wx.Dialog):
 
 ## Baseclass for all  dialogs 
 class AfpDialog(wx.Dialog):
+   ## constructor
    def __init__(self, *args, **kw):
       super(AfpDialog, self).__init__(*args, **kw) 
       self.Ok = False
@@ -457,9 +476,9 @@ class AfpDialog(wx.Dialog):
       self.Pop_label()
       self.Pop_choice()
       self.Pop_lists()
-   ## population routine for textboxes
+   ## population routine for textboxes \n
+   # covention: textmap holds the entryname to retrieve value from self.data
    def Pop_text(self):
-      # covention: textmap holds the entryname to retrieve value from self.data
       for entry in self.textmap:
          TextBox = self.FindWindowByName(entry)
          value = self.data.get_string_value(self.textmap[entry])
@@ -470,9 +489,9 @@ class AfpDialog(wx.Dialog):
          value = self.data.get_string_value(self.vtextmap[entry])
          #print self.textmap[entry], "=", value
          TextBox.SetValue(value)
-   ## population routine for labels
+   ## population routine for labels \n
+   # covention: labelmap holds the entryname to retrieve value from self.data
    def Pop_label(self):
-      # covention: labelmap holds the entryname to retrieve value from self.data
       for entry in self.labelmap:
          Label= self.FindWindowByName(entry)
          display = True
@@ -483,20 +502,23 @@ class AfpDialog(wx.Dialog):
             #print self.labelmap[entry], "=", value
             Label.SetLabel(value)
    ## population routine for choices
+   # covention: choicemap holds the entryname to retrieve value from self.data
    def Pop_choice(self):
      for entry in self.choicemap:
          Choice= self.FindWindowByName(entry)
          value = self.data.get_string_value(self.choicemap[entry])
          #print "Pop_choice:", self.choicemap[entry], "=", value
          Choice.SetStringSelection(value)
-   ## population routine for lists
+   ## population routine for lists \n
+   # covention: listmap holds the name to generate the routinename to be called: \n
+   # Pop_'name'()
    def Pop_lists(self):
-      # as filling of lists may be more complicated, it is deligated into the appropriate routine
       for entry in self.listmap:
          Befehl = "self.Pop_" + entry + "()"
          #print Befehl
          exec Befehl
    ## get value from textbox (needed for formating of dates)
+   # @param entry - windowname of calling widget
    def Get_TextValue(self, entry):
       TextBox = self.FindWindowByName(entry)
       wert = TextBox.GetValue()
@@ -538,12 +560,14 @@ class AfpDialog(wx.Dialog):
             if not self.new: self.data.unlock_data()
 
    ## common Eventhandler TEXTBOX - when leaving the textbox
+   # @param event - event which initiated this action
    def On_KillFocus(self,event):
       if self.is_editable():
          object = event.GetEventObject()
          name = object.GetName()
          if not name in self.changed_text: self.changed_text.append(name)    
    ## Eventhandler CHOICE - handle event of the 'edit','read' od 'quit' choice
+   # @param event - event which initiated this action
    def On_CEdit(self,event):
       editable = self.is_editable()
       if not editable: self.Populate()
@@ -551,6 +575,7 @@ class AfpDialog(wx.Dialog):
       if self.choice_Edit.GetCurrentSelection() == 2: self.Destroy()
       event.Skip()
    ## Eventhandler BUTTON - Ok button pushed
+   # @param event - event which initiated this action
    def On_Button_Ok(self,event):
       if self.choice_Edit.GetSelection() == 1:
          self.execute_Ok()
@@ -563,6 +588,7 @@ class AfpDialog(wx.Dialog):
       
 ## common dialog to create output documents
 class AfpDialog_DiReport(wx.Dialog):
+   ## constructor
    def __init__(self, *args, **kw):
       super(AfpDialog_DiReport, self).__init__(*args, **kw) 
       self.Ok = False
@@ -608,6 +634,11 @@ class AfpDialog_DiReport(wx.Dialog):
       self.Bind(wx.EVT_BUTTON, self.On_Rep_Ok, self.button_Okay)
 
    ## attach to database and populate widgets
+   # @param data - SelectionList holding data to be filled into output
+   # @param globals - globas variables including prefix of typ
+   # @param header - header to be display in the dialogts top ribbon
+   # @param prefix - if given prefix of resultfile
+   # @param datas - if given array of SelectionLists, which are assigned sucessively to data
    def attach_data(self, data, globals, header, prefix, datas = None):
       if header: 
          self.SetTitle(self.GetTitle() + ": " + header)
@@ -629,23 +660,27 @@ class AfpDialog_DiReport(wx.Dialog):
          self.check_Archiv.Enable(False)
          self.label_Ablage.Enable(False)
       self.Populate()
-   ## Population routines for dialog and widgets
+   ## common population routines for dialog and widgets
    def Populate(self):
       self.Pop_text()
       self.Pop_label()
       self.Pop_list()
+   ## return ok flag to caller
    def get_Ok(self):
-      return self.Ok      
+      return self.Ok  
+   ## specific population routine for textboxes 
    def Pop_text(self):
       for entry in self.textmap:
          TextBox = self.FindWindowByName(entry)
          value = self.data.get_string_value(self.textmap[entry])
          TextBox.SetValue(value)
+   ## specific population routine for lables
    def Pop_label(self):
       for entry in self.labelmap:
          Label = self.FindWindowByName(entry)
          value = self.data.get_string_value(self.labelmap[entry])
          Label.SetValue(value)
+   ## specific population routine for lists
    def Pop_list(self):
       rows = self.data.get_string_rows("AUSGABE", "Bez,Datei,BerichtNr")
       self.reportname = []
@@ -671,15 +706,18 @@ class AfpDialog_DiReport(wx.Dialog):
       self.list_Report.Clear()
       self.list_Report.InsertItems(self.reportname, 0)
       return None
+   ## common Eventhandler TEXTBOX - when leaving the textbox
+   # @param event - event which initiated this action
    def On_KillFocus(self,event):
       object = event.GetEventObject()
       name = object.GetName()
       if not name in self.changelist: self.changelist.append(name)
-   
+   ## initiate generation of names of template- and resultfiles
    def generate_names(self):
       fname = self.get_template_name()
       fresult = self.get_result_name()
       return fname, fresult
+   ## initiate document generation
    def generate_Ausgabe(self):
       empty = Afp_addRootpath(self.globals.get_value("templatedir"), "empty.odt")
       fname, fresult = self.generate_names()
@@ -693,6 +731,7 @@ class AfpDialog_DiReport(wx.Dialog):
       if fresult:
          self.execute_Ausgabe(fresult)
          self.add_to_archiv()
+   ## generate template filename due to list selection
    def get_template_name(self):
       template = None
       index = self.get_list_Report_index()
@@ -707,6 +746,7 @@ class AfpDialog_DiReport(wx.Dialog):
             template = Afp_addRootpath(self.globals.get_value("archivdir"), template)
          #print "get_template_name:", template      
       return template
+   ## generate result filename due to list selection
    def get_result_name(self):
       fresult = None  
       index = self.get_list_Report_index()
@@ -733,15 +773,18 @@ class AfpDialog_DiReport(wx.Dialog):
                fresult = Afp_addRootpath(self.globals.get_value("tempdir"), "BusAfp_textausgabe.fodt")
       #print "get_result_name:", fresult   
       return  fresult
+   ## return selected list index
    def get_list_Report_index(self):
       sel = self.list_Report.GetSelections()
       if sel: index = sel[0]
       #else: index = 0
       else: index = -.1
       return index
+   ## start editing of generated document in extern editor
+   # qparam fresult - result filename
    def execute_Ausgabe(self, fresult):
-      # steuere Ausgabe nach Auswahl im Ausgabeselector (Drucker, Office, Mail, Fax)
       Afp_startFile(fresult, self.globals, self.debug)
+   ## gernerate entry in archieve
    def add_to_archiv(self):
       if not self.archivname: return
       new_data = {}
@@ -751,18 +794,24 @@ class AfpDialog_DiReport(wx.Dialog):
       self.data.add_to_Archiv(new_data)
    
    # Event Handlers 
+   ## Eventhandler left mouse click in list selection
+   # @param event - event which initiated this action
    def On_Rep_Click(self,event):
       print "Event handler `On_Rep_Click' not implemented!"
       template, result = self.generate_names()
       #print self.reportlist, self.reportflag
       print template, result
       event.Skip()
+   ## Eventhandler left mouse doubleclick in list selection
+   # @param event - event which initiated this action
    def On_Rep_DClick(self,event):
       print "Event handler `On_Rep_DClick' not implemented!"
       template, result = self.generate_names()
       #print self.reportlist, self.reportflag
       print template, result
       event.Skip()
+   ## Eventhandler BUTTON - Edit button pushed
+   # @param event - event which initiated this action
    def On_Rep_Bearbeiten(self,event):
       if self.debug: print "Event handler `On_Rep_Bearbeiten'"      
       template = self.get_template_name()
@@ -817,10 +866,14 @@ class AfpDialog_DiReport(wx.Dialog):
                   self.list_Report.InsertItems(self.reportname, 0)
       self.choice_Bearbeiten.SetSelection(0)
       event.Skip()  
+   ## Eventhandler BUTTON - Cancel button pushed
+   # @param event - event which initiated this action
    def On_Rep_Abbr(self,event):
       if self.debug: print "Event handler `On_Rep_Abbr'"
       self.Destroy()
       event.Skip()
+   ## Eventhandler BUTTON - Ok button pushed
+   # @param event - event which initiated this action
    def On_Rep_Ok(self,event):
       if self.debug: print "Event handler `On_Rep_Ok'"
       self.archivname = None
@@ -851,6 +904,7 @@ def AfpLoad_DiReport(selectionlist, globals, header = "", prefix = "", datalist 
 #  "self.get_grid_felder()"      for selection grid population \n
 #  "self.invoke_neu_dialog()" to generate a new database entry
 class AfpDialog_DiAusw(wx.Dialog):
+   ## constructor
    def __init__(self, *args, **kw):
       super(AfpDialog_DiAusw, self).__init__(*args, **kw) 
       # values from call
@@ -883,7 +937,8 @@ class AfpDialog_DiAusw(wx.Dialog):
       self.InitWx()
       self.SetSize((560,315))
       self.SetTitle("--Variable-Text--")
-      
+   
+   ## set up dialog widgets      
    def InitWx(self):
       self.panel = wx.Panel(self, -1)
       panel = self.panel
@@ -910,6 +965,11 @@ class AfpDialog_DiAusw(wx.Dialog):
       self.Bind(wx.EVT_BUTTON, self.On_Ausw_Ok, self.button_Okay)
    ## initialisation of  the dialog \n
    # set up grid, attach data
+   # @param globals - global variables including database connection
+   # @param index - name of column for sorting values
+   # @param value - actuel index value for this selection
+   # @param where - filter for this selection
+   # @param text - text to be displayed above selection list
    def initialize(self, globals, Index, value, where, text):
       self.globals = globals
       self.mysql = globals.get_mysql()
@@ -1168,6 +1228,7 @@ class AfpDialog_DiAusw(wx.Dialog):
 
 ## base class for Screens
 class AfpScreen(wx.Frame):
+   ## constructor
    def __init__(self, *args, **kwds):
       kwds["style"] = wx.DEFAULT_FRAME_STYLE
       wx.Frame.__init__(self, *args, **kwds)
@@ -1263,6 +1324,9 @@ class AfpScreen(wx.Frame):
          if self.menu_items[id].GetText() == self.typ: self.menu_items[id].Check(True)
 
    ## resize grid rows
+   # @param name - name of grid
+   # @param grid - the grid object
+   # @param new_lgh - new number of rows to be populated
    def grid_resize(self, name, grid, new_lgh):
       if new_lgh < self.grid_minrows[name]:
          new_lgh =  self.grid_minrows[name]
@@ -1318,11 +1382,13 @@ class AfpScreen(wx.Frame):
       self.Pop_ext()
       self.Pop_grid()
       self.Pop_list()
+   ## populate text widgets
    def Pop_text(self):
       for entry in self.textmap:
          TextBox = self.FindWindowByName(entry)
          value = self.sb.get_string_value(self.textmap[entry])
          TextBox.SetValue(value)
+   ## populate external file textboxes
    def Pop_ext(self):
       delimiter = self.globals.get_value("path-delimiter")
       for entry in self.extmap:
@@ -1344,6 +1410,7 @@ class AfpScreen(wx.Frame):
             #print "AfpScreen SetValue", self.extmap[entry], text
             if text: TextBox.SetValue(text)
       # print "Population routine`Pop_text'!"
+   ## populate lists
    def Pop_list(self):
       for entry in self.listmap:
          rows = self.get_list_rows(entry)
@@ -1354,6 +1421,8 @@ class AfpScreen(wx.Frame):
             rows = rows[:ind]
          list.Clear()
          list.InsertItems(rows, 0)
+   ## populate grids
+   # @param name - if given ,name of grid to be populated 
    def Pop_grid(self, name = None):
       for typ in self.gridmap:
          if not name or typ == name:
@@ -1399,7 +1468,7 @@ class AfpScreen(wx.Frame):
    # default - empty, to be overwritten if needed
    def load_additional_globals(self): # only needed if globals for additonal moduls have to be loaded
       return
-    ## set current record to be displayed 
+   ## set current record to be displayed 
    # default - empty, to be overwritten if changes have to be diffused to other the main database table
    def set_current_record(self): 
       return   

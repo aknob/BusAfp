@@ -239,7 +239,7 @@ class AfpChScreen(AfpScreen):
    def On_Fahrt_Ausgabe(self,event):
       if self.debug and event: print "Event handler `On_Fahrt_Ausgabe'"
       Charter = self.get_charter()
-      zustand = Afp_noSpaceString(Charter.get_string_value("Zustand"))
+      zustand = Charter.get_string_value("Zustand").strip()
       prefix = "Charter_" + zustand + "_"
       AfpLoad_DiReport(Charter, self.globals, zustand, prefix)
       if event:
