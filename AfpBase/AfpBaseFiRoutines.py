@@ -63,25 +63,34 @@ class AfpZahlung(object):
          if data.get_selection().get_tablename() == tablename and data.get_value() == nr: 
             found = True
       return found
+   ## check if statement of account (Auszug) exists, if not create one
+   # @param auszug - identifier of statemen of account
    def check_auszug(self, auszug):
-      found = None
+      datum = None
       if self.finance:
-         if self.finance.get_value("Auszug.AUSZUG") == auszug: found = True
-         else: found = False
-      return found
-   def set_auszug(self, auszug, datum = None):
+         check = self.finance.check_auszug(auszug)
+         if check:
+            datum = self.finance.get_value("BuchDat.AUSZUG")         
+      else:
+         check =  True
+         datum = self.globals.today()
+      if check:   
+         self.auszug = auszug
+         if datum: self.datum = datum
+      return check
+   ## check if statement of account (Auszug) exists, if not create one
+   # @param auszug - identifier of statemen of account
+   # @param datum -  the date when statement has been recorded
+   def set_auszug(self, auszug, datum):
       if auszug == self.auszug and datum is None: return
       self.auszug = auszug 
       if self.finance:
-         check = self.check_auszug(auszug)
-         if check:
-            datum = self.finance.get_value("BuchDat.AUSZUG")
-         else:
             if datum is None: datum = self.globals.today()
             self.finance.set_auszug(auszug, datum)
       else:
          datum = self.globals.today()
       self.datum = datum
+      print "AfpZahlung.set_auszug:", self.auszug, self.datum
    def append_payment_data(self, data):
       amount, partial = data.get_payment_values()
       self.amount.append(amount)
@@ -174,8 +183,10 @@ class AfpZahlung(object):
       for entry in self.selected_list:
          liste.append(entry.get_listname()[:2] + ": " + entry.line())
       return liste
+   ## distributes the given payment to all selected data entries \n
+   # should only be called once, when all data has been gathered
+   # @param value - amount of payment
    def distribute_payment(self, value):
-      # should only be called once, when all data has been gathered
       if Afp_isEps(value):
          self.generate_distribution(value)
          lgh = len(self.selected_list)
@@ -185,6 +196,9 @@ class AfpZahlung(object):
          # execute each gathered payment
          for i in range(lgh):
             self.set_payment_data(i)
+   ## core routine to generate distribution of payment to selected data, \n
+   # pure integer calculation on cent basis is used.
+   # @param value - amount of payment
    def generate_distribution(self, value):
       # pure integer calculation on cent basis
       if Afp_isEps(value):

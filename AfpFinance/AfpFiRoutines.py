@@ -99,9 +99,16 @@ class AfpFinTrans(AfpSelectionList):
    ## destructor
    def __del__(self):    
       if self.debug: print "AfpFinTrans Destruktor"
+   ## check if identifier of statement of this account (Auszug) exists, if yes load it
+   # @param auszug - identifier of statement of account
+   def check_auszug(self, auszug):
+      if auszug == self.get_value("Auszug.AUSZUG"): return True
+      self.selects["AUSZUG"][1] = "Auszug = \"" + auszug + "\""  
+      if auszug == self.get_value("Auszug.AUSZUG"): return True
+      return False
    ## set identifier of statement of account (Auszug)
    # @param auszug - identifier of statement of account (xxnnn - xx identifier of bankaccount, nnn number)
-   # @param datum, - idate of statement of account 
+   # @param datum, - date of statement of account 
    def set_auszug(self, auszug, datum):
       if auszug == self.get_value("Auszug.AUSZUG"): return
       ausname = Afp_getStartLetters(auszug) 
@@ -184,8 +191,8 @@ class AfpFinTrans(AfpSelectionList):
       return acc
    ## add one payment entry according to input
    # @param payment - amount of payment
-   # @param datum - date when  payment has benn recorded
-   # @param auszug -  statement of account wher payment has benn recorded
+   # @param datum - date when  payment has been recorded
+   # @param auszug -  statement of account where payment has been recorded
    # @param KdNr -  number of address this payment is assigned to
    # @param Name -  name of the address this payment is assigned to
    # @param data -  incident data where financial values have to be extracted, if == None: payment is assigne to transferaccount
@@ -203,16 +210,22 @@ class AfpFinTrans(AfpSelectionList):
       if data is None: 
          # received payment, has to be distributed
          self.set_payment_transfer()         
-         accdata["Konto"] = self.get_value("KtNr.AUSZUG")
+         KtNr = self.get_value("KtNr.AUSZUG")
+         accdata["Konto"] = KtNr
+         accdata["KtName"] = self.get_account_name(KtNr)
          accdata["Gegenkonto"] = self. transfer
+         accdata["GktName"] = "ZTF"
          accdata["Bem"] = "Mehrfach (" + Name + ")"
       else:
          # distribute according to data-types
          if self.transfer: 
             accdata["Konto"] = self.transfer
+            accdata["KtName"] = "ZTF"
             accdata["Bem"] = "Mehrfach (" + Name + "): " + data.get_name()
          else: 
-            accdata["Konto"] = self.get_value("KtNr.AUSZUG")
+            KtNr = self.get_value("KtNr.AUSZUG")
+            accdata["Konto"] = KtNr
+            accdata["KtName"] = self.get_account_name(KtNr)
             accdata["Bem"] = "Zahlung: " + Name
          accdata = self.add_payment_data(accdata, data)
       accdata = self.add_payment_data_default(accdata)
@@ -238,9 +251,10 @@ class AfpFinTrans(AfpSelectionList):
    # @param data - incident data where entries are created from
    # @param storno - flag if incident should be cancelled
    def add_financial_transactions(self, data, storno = False):
-      print "AfpFinTrans.add_financial_transactions"
+      print "AfpFinTrans.add_financial_transactions", storno
       today = self.globals.today()
       accdata = self.add_financial_transaction_data(data)
+      print "AfpFinTrans.add_financial_transactions accdata:", accdata
       if accdata:
          sel = self.get_selection()
          for acc in accdata:
@@ -310,7 +324,9 @@ class AfpFinTrans(AfpSelectionList):
    def add_payment_data_charter(self, paymentdata, data):
       RNr = data.get_value("RechNr.Fahrten")
       if RNr: self.add_payment_data_rechnung(paymentdata, data)
-      else: paymentdata["Gegenkonto"] = Afp_getSpecialAccount(self.get_mysql(), "MFA")
+      else: 
+         paymentdata["Gegenkonto"] = Afp_getSpecialAccount(self.get_mysql(), "MFA")
+         paymentdata["GktName"] = "MFA"
       return paymentdata   
    ## Charter: deliver financial transaction data
    # @param data - Charter data where relevant values have to be extracted
@@ -331,6 +347,7 @@ class AfpFinTrans(AfpSelectionList):
       if Afp_isEps(zahlung):
          paymentdata["Betrag"] = zahlung
          paymentdata["Konto"] = Afp_getSpecialAccount(self.get_mysql(), "MFA")
+         paymentdata["KtName"] = "MFA"
          paymentdata["KundenNr"] = data.get_value("KundenNr")        
          paymentdata = self.add_payment_data_rechnung(paymentdata, data)
       return paymentdata
@@ -339,9 +356,11 @@ class AfpFinTrans(AfpSelectionList):
    # @param data - Rechnung data where relevant values have to be extracted
    def add_payment_data_rechnung(self, paymentdata, data):
       paymentdata["Gegenkonto"] = data.get_value("Debitor.RECHNG") 
+      paymentdata["GktName"] = data.get_name(True, "RechAdresse") 
       print "AfpFinTrans.add_payment_data_rechnung:",paymentdata
       if not paymentdata["Gegenkonto"]:
          paymentdata["Gegenkonto"]  = Afp_getIndividualAccount(self.get_mysql(), data.get_value("KundenNr"))
+         paymentdata["GktName"] = data.get_name(True) 
          print "AfpFinTrans.add_payment_data_rechnung fallback:", paymentdata
       return paymentdata 
    ## Rechnung (Invoice): deliver financial transaction data

@@ -391,7 +391,7 @@ class AfpSQLTableSelection(object):
       self.data = map(list, [datei.get_values()])
       self.manipulation = []    
    ## attach input to data property
-   # @param data - data to be attched
+   # @param data - data to be attached
    # @param select - select clause for this  data
    def set_data(self, data, select=None):
       self.select = select      

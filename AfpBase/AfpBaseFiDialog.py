@@ -84,16 +84,46 @@ class AfpDialog_DiFiZahl(AfpDialog):
       self.label_Gut.SetLabel(gut)
       self.list_Zahlungen.Clear()
       self.list_Zahlungen.InsertItems(liste, 0)
+   ## execution routine for pushing the Ok button \n
+   # distribute and enter all payments into the database
    def execute_Ok(self):
       value = Afp_fromString(self.text_Zahlung.GetValue())
       if Afp_isEps(value):
-         self.On_Zahlung_Auszug()         
-         self.data.distribute_payment(value)
-         if self.do_store: self.data.store()
-         self.Ok = True
-      print "execute_Ok:", value, self.Ok
+         Auszug = self.text_Auszug.GetValue()
+         if self.check_auszug(Auszug):
+            self.data.distribute_payment(value)
+            if self.do_store: self.data.store()
+            self.Ok = True
+      print "AfpZahlung.execute_Ok:", value, self.Ok
+   ## set flag to avoid writing into database when leaving the dialog \n
+   # exectution may be performed by caller
    def do_not_store(self):
       self.do_store = False
+   ## check if statement of account (Auszug) exists, if not create one
+   # @param auszug - identifier of statement of account to be checked
+   def check_auszug(self, auszug):
+      if not auszug:
+         Ok = AfpReq_Question("Barzahlung?","","Zahlung")
+         if Ok:
+            today = Afp_toString(self.data.get_globals().get_value("today"))
+            auszug = "BAR" + today
+            self.text_Auszug.SetValue(auszug)
+      if auszug:
+         checked = self.data.check_auszug(auszug)
+         if not checked:
+            datum, Ok = AfpReq_Date("Bitte Datum für Auszug '".decode("UTF-8") + auszug + "' abgeben,", "", "", "", True)
+            if Ok: 
+               self.set_auszug(auszug, datum) 
+               checked = True
+         return checked
+      else:
+         return False
+   ## create an new statement of account 
+   # @param auszug - identifier of statement of account to be created
+   # @param datum - date when statement has become valid
+   def set_auszug(self, auszug, datum):
+      if auszug:
+         self.data.set_auszug(auszug, datum)
    def select_selection(self, tablename):
       liste = []
       ident = []
@@ -118,17 +148,12 @@ class AfpDialog_DiFiZahl(AfpDialog):
          self.data.add_selection(tablename, value)
          self.Pop_Zahlungen()
    # Event Handlers 
-   def On_Zahlung_Auszug(self,event = None):
+   def On_Zahlung_Auszug(self,event):
       if self.debug: print "Event handler `On_Zahlung_Auszug'"
+      print "Event handler `On_Zahlung_Auszug'"
       Auszug = self.text_Auszug.GetValue()
-      if not Auszug:
-         Ok = AfpReq_Question("Barzahlung?","","Zahlung")
-         if Ok:
-            today = Afp_toString(self.data.get_globals().get_value("today"))
-            Auszug = "BAR" + today
-            self.text_Auszug.SetValue(Auszug)
-      self.data.set_auszug(Auszug)
-      if event: event.Skip()
+      self.check_auszug(Auszug)
+      event.Skip()
 
    def On_Zahlung_Verb(self,event):
       print "Event handler `On_Zahlung_Verb' not implemented!"

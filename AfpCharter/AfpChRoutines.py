@@ -57,14 +57,17 @@ def AfpCharter_getOperateList():
    return ["Angebot", "Auftrag","Rechnung","Mahnung"]
  
 ## check if 'Zustand' needs financial transactions   
+# @param zustand - value to be checked
 def AfpCharter_needsTransaction(zustand):
    list = AfpCharter_getTransactionList()
    return zustand in list
 ## check if 'Zustand' allows payment
+# @param zustand - value to be checked
 def AfpCharter_isPayable(zustand):
    list = AfpCharter_getPayableList()
    return zustand in list
 ## check if 'Zustand' allows coach operation actions
+# @param zustand - value to be checked
 def AfpCharter_isOperational(zustand):
    list = AfpCharter_getOperateList()
    return zustand in list
@@ -230,6 +233,7 @@ class AfpCharter(AfpSelectionList):
       if KundenNr:
          self.create_selection("ADRESSE", False)
    ## financial transaction will be initated if the appropriate modul is installed
+   # @param initial - flag for initial call of transaction (interal payment may be added)
    def execute_financial_transaction(self, initial):
       if self.finance:
          self.finance.add_financial_transactions(self)
@@ -248,7 +252,7 @@ class AfpCharter(AfpSelectionList):
       data = {"Datum": self.globals.today(), "KundenNr": KNr, "Name": self.get_name(True), "Fahrt": self.get_value("FahrtNr")}
       data["Debitor"] = Afp_getIndividualAccount(self.get_mysql(), KNr)
       betrag = self.get_value("Preis")
-      data["ZahlBetrag"] = betrag
+      data["Zahlbetrag"] = betrag
       betrag2 = self.extract_taxfree_portion()
       if betrag2:
          betrag -= betrag2
@@ -276,7 +280,8 @@ class AfpCharter(AfpSelectionList):
       else:
          betrag = self.generate_taxfree_portion(betrag)
       return betrag
-   ## taxfree portion of price is generated from the differwent data entries
+   ## taxfree portion of price is generated from the different data entries
+   # @param betrag - price where taxfree portion has to be extracted
    def generate_taxfree_portion(self, betrag):
       print "AfpCharter.generate_taxfree_portion"
       taxfree = 0.0
@@ -299,7 +304,7 @@ class AfpCharter(AfpSelectionList):
       print "AfpCharter.syncronise_invoice"
       betrag = self.get_value("Preis")
       data = {}
-      data["ZahlBetrag"] = betrag
+      data["Zahlbetrag"] = betrag
       betrag2 = self.extract_taxfree_portion()
       if betrag2:
          betrag -= betrag2
@@ -308,7 +313,8 @@ class AfpCharter(AfpSelectionList):
       if self.get_value("ZahlDat"):
          data["Zahlung"] = self.get_value("Zahlung")
          data["ZahlDat"] = self.get_value("ZahlDat")
-      self.get_selection("RECHNG").set_data(data)
+      #print "AfpCharter.syncronise_invoice data:", data
+      self.set_data_values(data, "RECHNG")
    ## one line to hold all relevant values of charter, to be displayed 
    def line(self):
       zeile =  self.get_string_value("SortNr").rjust(8) + "  "  + self.get_string_value("Datum") + " " +  self.get_string_value("Zustand") + " " + self.get_string_value("Art") + " " + self.get_string_value("Zielort")  

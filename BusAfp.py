@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 ## @package BusAfp
-# BusAfp is a software to manage coach and travel acivities
-#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
-#
+# BusAfp is a software to manage coach and travel acivities \n
+#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch) \n
+# \n
 #   History: \n
-#        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
-#        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
+#        19 Okt.2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
+#        30 Nov.2012 - inital code generated - Andreas.Knoblauch@afptech.de
 
 #
 # This file is part of the  'Open Source' project "BusAfp" by 
@@ -38,7 +38,13 @@ from AfpBase.AfpDatabase import AfpSQL
 
 ## main class to invoke BusAfp Software
 class BusAfp(wx.App):
-   ## initialize mysql connection, global variables and application  
+   ## initialize mysql connection, global variables and application
+   # @param debug - flag for debug information
+   # @param startpath - path where BusAfp has been started from
+   # @param confpath - path to configuration file
+   # @param dbhost - host for database
+   # @param dbuser - user on host for database
+   # @param dbword - password for user on host for database
    def initialize(self, debug, startpath, confpath, dbhost, dbuser, dbword): 
       name = 'BusAfp'
       version = "6.0.1 alpha"       
@@ -89,6 +95,7 @@ class BusAfp(wx.App):
       wx.InitAllImageHandlers()
     
    ## load appropriate modul     
+   # @param modulname - afp-modul name to be loaded
    def load_module(self, modulname):
       Modul = AfpBase.AfpBaseDialog.Afp_loadScreen(self.globals, modulname)
       if Modul: 
@@ -96,10 +103,9 @@ class BusAfp(wx.App):
          return True
       else:
          return False
-      
 # end of class BusAfp
 
-#main program
+# main program
 debug = False
 execute = True
 confpath = ""

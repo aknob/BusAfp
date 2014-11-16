@@ -240,6 +240,14 @@ def Afp_datetimeString(datestring, timestring, end = False):
 def Afp_stringFloatString(string):
    return Afp_toString(Afp_floatString(string))
  
+##  convert all entries of a array to strings, routine will be called recursively for inner lists
+def Afp_ArraytoString_dep(array):
+   for i in range(len(array)):
+      if type(array[i]) == list:
+         array[i] = Afp_ArraytoString(array[i])
+      else:
+         array[i] = Afp_toString(array[i])
+   return array
 ## convert all entries of a up to 2-dim array to strings  
 # @param array - value array to be converted
 def Afp_ArraytoString(array):
@@ -248,10 +256,7 @@ def Afp_ArraytoString(array):
    if array:
       for row in array:
          if type(row) == list or type(row) == tuple:
-            new_row = []
-            for cell in row:
-               new_row.append(Afp_toString(cell))
-            new_array.append(new_row)
+            new_array.append(Afp_ArraytoString(row))
          else:
             new_array.append(Afp_toString(row))
    return new_array
@@ -585,7 +590,7 @@ def Afp_leftSpCnt(string):
 # @param only_past - flag if date is assumed to lie in the past,  \n
 # short years will be completed with the last century, if the normal completation would set them to lie in the future.
 def Afp_ChDatum(string, only_past = False):
-   if not string: return string
+   if string is None: return string
    today = datetime.date.today()
    day = str(today.day)
    month = str(today.month)

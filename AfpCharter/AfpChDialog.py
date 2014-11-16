@@ -64,6 +64,7 @@ def AfpChInfo_selectEntry(fahrtinfo_selection, allow_new = False):
 ## dialog for selection of charter data \n
 # selects an entry from the fahrten table
 class AfpDialog_ChAusw(AfpDialog_DiAusw):
+   ## initialise dialog
    def __init__(self):
       AfpDialog_DiAusw.__init__(self,None, -1, "")
       self.typ = "Fahrtenauswahl"
@@ -80,7 +81,8 @@ class AfpDialog_ChAusw(AfpDialog_DiAusw):
                      ["Kontakt.Fahrten",15], 
                      ["FahrtNr.Fahrten",None]] # Ident column
       return Felder
-   ## invoke the dialog for a new entry
+   ## invoke the dialog for a new entry \n
+   # overwritten for "Charter" use
    def invoke_neu_dialog(self, globals, eingabe, filter):
       superbase = AfpSuperbase.AfpSuperbase(globals, debug)
       if eingabe is None: eingabe = globals.get_value("Standartort")
@@ -89,7 +91,11 @@ class AfpDialog_ChAusw(AfpDialog_DiAusw):
       superbase.select_key(eingabe)
       return AfpLoad_DiChEin_fromSb(globals, superbase, eingabe)      
  
-## loader routine for charter selection dialog     
+## loader routine for charter selection dialog 
+# @param globals - global variables including database connection
+# @param index - column which should give the order
+# @param value -  if given,initial value to be searched
+# @param where - if given, filter for search in table
 def AfpLoad_ChAusw(globals, index, value = "", where = None):
    DiAusw = AfpDialog_ChAusw()
    #print Index, value, where
@@ -103,6 +109,7 @@ def AfpLoad_ChAusw(globals, index, value = "", where = None):
 
 ## allows the display and manipulation of a charter entry
 class AfpDialog_DiChEin(AfpDialog):
+   ## initialise dialog
    def __init__(self, *args, **kw):   
       self.distance = None
       self.choicevalues = {}
@@ -113,7 +120,7 @@ class AfpDialog_DiChEin(AfpDialog):
       self.SetSize((574,410))
       self.SetTitle("Mietfahrt")
     
-   ## initialize graphic elements
+   ## initialise graphic elements
    def InitWx(self):
       panel = wx.Panel(self, -1)
       self.label_Zustand = wx.StaticText(panel, -1, label="Zustand.Fahrten", pos=(8,8), size=(140,20), name="Zustand")
@@ -142,15 +149,15 @@ class AfpDialog_DiChEin(AfpDialog):
       self.text_Nach.Bind(wx.EVT_KILL_FOCUS, self.On_Check_Strecke)
       self.label_T_Pers = wx.StaticText(panel, -1, label="Pe&rsonen:", pos=(340,194), size=(60,18), name="T_Pers")
       self.text_Pers = wx.TextCtrl(panel, -1, value="", pos=(400,190), size=(40,24), style=0, name="Pers")
-      self.textmap["Pers"] = "Personen.FAHRTEN"
+      self.vtextmap["Pers"] = "Personen.FAHRTEN"
       self.text_Pers.Bind(wx.EVT_KILL_FOCUS, self.On_KillFocus)
       self.label_T_Km = wx.StaticText(panel, -1, label="&Km:", pos=(10,194), size=(24,16), name="T_Km")
       self.text_Km = wx.TextCtrl(panel, -1, value="", pos=(30,190), size=(40,24), style=0, name="Km")
-      self.textmap["Km"] = "Km.FAHRTEN"      
+      self.vtextmap["Km"] = "Km.FAHRTEN"      
       self.label_T_Preis = wx.StaticText(panel, -1, label="&Preis:", pos=(290,318), size=(60,18), name="T_Preis")
       self.text_Km.Bind(wx.EVT_KILL_FOCUS, self.On_KillFocus)           
       self.text_Preis = wx.TextCtrl(panel, -1, value="", pos=(354,316), size=(84,24), style=0, name="Preis")
-      self.textmap["Preis"] = "Preis.FAHRTEN"
+      self.vtextmap["Preis"] = "Preis.FAHRTEN"
       self.text_Preis.Bind(wx.EVT_KILL_FOCUS, self.On_KillFocus)
       
       self.label_T_KmFrei = wx.StaticText(panel, -1, label="Frei", pos=(110,194), size=(20,16), name="T_KmFrei")
@@ -281,7 +288,7 @@ class AfpDialog_DiChEin(AfpDialog):
       self.changed_text = []   
       self.choicevalues = {}
       
- # handling routines
+   # handling routines
    ## financial transaction needed for selection in dialog
    def needs_transaction(self):
       transaction = False
@@ -418,7 +425,7 @@ class AfpDialog_DiChEin(AfpDialog):
       for row in rows:
          preis = Afp_floatString(row[1])
          if row[3]: preis *= Afp_intString(row[3])
-         liste.append(row[0] + Afp_toString(preis).rjust(10) + " " + row[2])
+         liste.append(Afp_toString(row[0]) + Afp_toString(preis).rjust(10) + " " + Afp_toString(row[2]))
       self.list_Extras.Clear()
       self.list_Extras.InsertItems(liste, 0)
     
@@ -703,7 +710,7 @@ class AfpDialog_DiMfEx(AfpDialog):
       self.textmap["Extra"] = "Extra"
       self.text_Extra.Bind(wx.EVT_KILL_FOCUS, self.On_KillFocus)
       self.text_Preis = wx.TextCtrl(panel,-1, value="", pos=(350,20), size=(80,24), style=0, name="Preis")
-      self.textmap["Preis"] = "Preis"
+      self.vtextmap["Preis"] = "Preis"
       self.text_Preis.Bind(wx.EVT_KILL_FOCUS, self.On_KillFocus)
       self.choice_Sicht = wx.Choice(panel, -1, pos=(20,55), size=(100,24), choices=["versteckt", "sichtbar"], style=0, name="Sicht")
       self.choice_Sicht.SetSelection(0)      
@@ -738,9 +745,7 @@ class AfpDialog_DiMfEx(AfpDialog):
       self.Ok = False
       data = {}
       for entry in self.changed_text:
-         TextBox = self.FindWindowByName(entry)
-         wert = TextBox.GetValue()
-         name = self.textmap[entry].split(".")[0]
+         name, wert = self.Get_TextValue(entry)
          data[name] = wert
       for entry in self.choicevalues:
          data[entry] = self.choicevalues[entry]
@@ -825,14 +830,14 @@ class AfpDialog_DiMfEx(AfpDialog):
          if event:
             preis = Afp_fromString(self.text_Preis.GetValue())
             if preis and pers:
-               preis /= pers
+               preis = float(preis)/pers
                self.text_Preis.SetValue(Afp_toFloatString(preis))
       else:
          self.choicevalues["noPausch"] = ""
          if event:
             preis = Afp_fromString(self.text_Preis.GetValue())
             if preis and pers:
-               preis *= pers
+               preis = float(preis)*pers
                self.text_Preis.SetValue(Afp_toFloatString(preis))
       if event: event.Skip()  
    def On_CUmst(self,event = None):
@@ -849,8 +854,8 @@ class AfpDialog_DiMfEx(AfpDialog):
       self.changed_text = []
       self.choicevalues = {} 
       if not self.new:
-         info = self.data.get_value_rows("FAHRTEX","Info",self.index)
-         print "On_loeschen:", info
+         info = self.data.get_value_rows("FAHRTEX","Info",self.index)[0][0]
+         print "On_loeschen:", info, len(info), info[1]
          plus = False
          left = " "
          if info and len(info) > 1:

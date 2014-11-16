@@ -247,7 +247,7 @@ def Afp_getListe_fromTableSelection(table_sel, select, ident, order = None):
       attributs.manipulate_data(manipulate)
    liste = []
    for i in range(attributs.get_data_length()):
-      liste.append(attributs.get_values(ident, i))
+      liste.append(attributs.get_values(ident, i)[0][0])
    # return a slice to be shown (liste) and the complete values (attributs.get_values()) for further use
    return liste, attributs.get_values()
 

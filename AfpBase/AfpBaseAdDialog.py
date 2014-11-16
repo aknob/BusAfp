@@ -34,7 +34,9 @@ import wx
 import wx.grid
 
 import AfpBase
-from AfpBase import AfpBaseRoutines, AfpBaseDialog, AfpBaseAdRoutines
+from AfpBase import AfpBaseRoutines, AfpBaseDialog, AfpBaseAdRoutines, AfpUtilities
+from AfpBase.AfpUtilities import AfpStringUtilities
+from AfpBase.AfpUtilities.AfpStringUtilities import Afp_ArraytoString
 from AfpBase.AfpBaseRoutines import *
 from AfpBase.AfpBaseDialog import *
 from AfpBase.AfpBaseAdRoutines import *
@@ -42,39 +44,38 @@ from AfpBase.AfpBaseAdRoutines import *
 ## select adress attribut or enter new \n
 # return row or 'None' in case nothing is selected
 # @param Adresse - AfpSelectionList holding adress data
-def AfpSel_AdgetMrkRow(Adresse):
+def AfpAdDi_selectAttributRow(Adresse):
    sel = Adresse.get_selection("ADRESATT")
    liste, rows = Afp_getListe_fromTableSelection( sel, "KundenNr = 0", "Attribut", "Attribut")
    if not liste[0]: liste[0] = "\"Neues Adressenmerkmal\""
    name = Adresse.get_name()
-   row, ok = AfpReq_Selection("Bitte Adressmerkmal für", name +" auswählen.", liste, "Merkmalauswahl", rows)
+   liste = Afp_ArraytoString(liste)
+   row, ok = AfpReq_Selection("Bitte Adressmerkmal für".decode("UTF-8") , name + " auswählen.".decode("UTF-8") , liste, "Merkmalauswahl", rows)
    index = sel.get_feldindices("Attribut,Tag,Aktion,AttText")
    if not row[index[0]] and ok:
       attribut, ok = AfpReq_Text("Bitte Bezeichnung für neues Adressenmerkmal eingeben.","Dieses Merkmal wird " + name + " zugeordnet.")
       if ok: row[index[0]] = attribut
    else:
       attribut = row[index[0]]
-      print "AfpSel_AdgetMrkRow:",attribut, attribut.encode("UTF-8"),attribut.encode('iso8859_15')
-      #attribut = attribut.encode('iso8859_15')
-      #attribut = attribut.decode("UTF-8")
-      print attribut
    if row[index[2]] and ok:
       Tag =  row[index[1]] 
-      pyBefehl = "Tag, ok = AfpAdDi_" + row[index[2]] + "(Tag)"
-      exec pyBefehl
+      Tag, ok = AfpAdDi_spezialAttribut(attribut, Tag)
       if ok:  row[index[1]]  = Tag
    elif ok:
       AttText = row[index[3]]
       AttText, ok = AfpReq_Text("Bitte einen zusätzlichen Text für das Adressenmerkmal '".decode("UTF-8") + attribut + "'" ,"von " + name + " eingeben.",AttText)
-      #AttText, ok = AfpReq_Text("Bitte einen zusätzlichen Text für das Adressenmerkmal " ,attribut.decode('iso8859_15') +" von " + name + " eingeben.",AttText)
       if AttText and ok: row[index[3]] = AttText
    if ok: return row
    else: return None
    
-def AfpAdDi_Anmeld_RbAtt(Tag):
-   Ok = False
-   print "AfpAdDi_Anmeld_RbAtt:",Tag, Ok
-   return Tag, Ok
+## handling routine to set special values needed for an attribut \n
+# - not used at the moment. will at least be necessary for the attribut 'Reisebüro' in a future toutistic afp-module
+# @param attribut - name of the attribut which needs special handling
+# @param tag - tag string holding all values for this special attribut
+def AfpAdDi_spezialAttribut(attribut, tag):
+   Ok = True
+   print "AfpAdDi_spezialAttribut:",attribut, tag, Ok
+   return tag, Ok
 
 ## dialog for selection of adress data \n
 # selects an entry from the adress table
@@ -330,7 +331,7 @@ def AfpLoad_DiAdEin_fromKNr(globals, KNr):
 ## Class for attribut sub-dialog , it displays dialog to show and manipulate attribut-data (AdresAtt) and handles interactions \n
 class AfpDialog_DiAdEin_SubMrk(AfpDialog):
    def __init__(self, *args, **kw):
-      self.changelist = {}
+      self.changes = {}
       self.changedlists = False
       AfpDialog.__init__(self,None, -1, "")
       self.SetSize((358,225))
@@ -343,13 +344,13 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
       self.list_attribut = wx.ListBox(panel, -1, pos=(8,2) , size=(170, 80), name="Attribut")
       self.listmap.append("Attribut")
       self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_DClick_Attribut, self.list_attribut)
-      self.changelist["Attribut"] = []
+      self.changes["Attribut"] = []
       self.button_Ad_Attribut = wx.Button(panel, -1, label="Mer&kmal", pos=(8,86), size=(100,32), name="Ad_Attribut")
       self.Bind(wx.EVT_BUTTON, self.On_Ad_Merkmal, self.button_Ad_Attribut)      
       self.list_verbindung = wx.ListBox(panel, -1, pos=(180,2) , size=(170, 80), name="Verbindung")
       self.listmap.append("Verbindung")
       self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_DClick_Verbindung, self.list_verbindung)
-      self.changelist["Verbindung"] = []
+      self.changes["Verbindung"] = []
       self.button_Ad_Attr_Verbind = wx.Button(panel, -1, label="&Verbindung", pos=(250,86), size=(100,32), name="Ad_Attr_Verbind")
       self.Bind(wx.EVT_BUTTON, self.On_Ad_Verbindung, self.button_Ad_Attr_Verbind)
       self.text_Ad_Attr_Bem = wx.TextCtrl(panel, -1, value="", pos=(8,126), size=(342,26), style=0, name="Ad_Attr_Bem")
@@ -365,6 +366,7 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
       liste = []
       for row in rows:
          liste.append(row[0] + " " + row[1])
+      liste = Afp_ArraytoString(liste)
       self.list_attribut.Clear()
       self.list_attribut.InsertItems(liste, 0)
    ## Population routine for connected adresses list
@@ -378,7 +380,7 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
       self.list_verbindung.InsertItems(liste, 0)
 
    ## overwritten from AfpDialog, because also buttons are dis/enabled
-   def Set_Editable(self, ed_flag):
+   def Set_Editable(self, ed_flag, lock_data = None):
       AfpDialog.Set_Editable(self, ed_flag)
       self.button_Ad_Attribut.Enable(ed_flag)
       self.button_Ad_Attr_Verbind.Enable(ed_flag)
@@ -387,7 +389,7 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
    ## return if content has changed
    def has_changed(self):
       if self.use_changedlists:
-         return (self.changed_text or self.changelist)
+         return (self.changed_text or self.changes)
       else:
          return False
 
@@ -397,13 +399,14 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
       index = self.list_attribut.GetSelections()[0]
       if self.is_editable() and index >= 0:
          selection = self.data.get_selection("ADRESATT")
-         attribut = selection.get_values("Attribut", index)
+         attribut = Afp_toString(selection.get_values("Attribut", index)[0][0])
+         print attribut
          Ok = AfpReq_Question("Soll das Merkmal '" + attribut + "'", "für diese Adresse gelöscht werden?".decode("UTF-8"), "Löschen?".decode("UTF-8"))
          if Ok:
             mani = [index, None]
             selection.manipulate_data([mani])
-            self.changelist["Attribut"].append(mani)
-            self.Pop_list_attribut()
+            self.changes["Attribut"].append(mani)
+            self.Pop_Attribut()
       event.Skip()  
    ## Eventhandler LIST - double click in connected addresses list
    def On_DClick_Verbindung(self,event):
@@ -416,19 +419,19 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
          if Ok:
             mani = [index, None]
             selection.manipulate_data([mani])
-            self.changelist["Verbindung"].append(mani)
-            self.Pop_list_verbindung()
+            self.changes["Verbindung"].append(mani)
+            self.Pop_Verbindung()
       event.Skip()  
    ## Eventhandler BUTTON - add new entry to attribut list   
    def On_Ad_Merkmal(self,event):
       if self.debug: print "Event handler `On_Ad_Merkmal'!"
-      row = AfpSel_AdgetMrkRow(self.data)
+      row = AfpAdDi_selectAttributRow(self.data)
       #print row
       if row:
          mani = [-1, row]
          self.data.get_selection("ADRESATT").manipulate_data([mani])
-         self.changelist["Attribut"].append(mani)
-         self.Pop_list_attribut()
+         self.changes["Attribut"].append(mani)
+         self.Pop_Attribut()
       event.Skip()
    ## Eventhandler BUTTON - add new entry to connected addresses list   
    def On_Ad_Verbindung(self,event):
@@ -441,8 +444,8 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
          rows = self.data.get_mysql().select("*","KundenNr = " + Afp_toString(KNr), "ADRESSE") 
          mani = [-1, rows[0]]       
          self.data.get_selection("Bez").manipulate_data([mani])
-         self.changelist["Verbindung"].append(mani)
-         self.Pop_list_verbindung()
+         self.changes["Verbindung"].append(mani)
+         self.Pop_Verbindung()
          # print KNr
       event.Skip()
    ## Eventhandler BUTTON - add extern file for remaks \n

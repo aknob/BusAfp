@@ -40,7 +40,7 @@ import wx.grid
 import AfpUtilities.AfpBaseUtilities
 from AfpUtilities.AfpBaseUtilities import Afp_existsFile, Afp_copyFile
 import AfpUtilities.AfpStringUtilities
-from AfpUtilities.AfpStringUtilities import Afp_pathname, Afp_addRootpath, Afp_toString, Afp_toInternDateString, Afp_fromString
+from AfpUtilities.AfpStringUtilities import Afp_pathname, Afp_addRootpath, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum
 import AfpGlobal
 from AfpGlobal import AfpGlobal
 
@@ -109,6 +109,24 @@ def AfpReq_Text(text1, text2, text = "", header = "", hidden = False):
    dialog.Destroy()
    if hidden: text = text.encode('base64')
    if ret == wx.ID_OK: Ok = True
+   return text, Ok
+## date input needed, text is checked to have valuable date format (return date-text, Ok == True/False)
+# @param text1, text2 - two lines of text to be displayed (used for historical reasons)
+# @param text - text to be modified, if supplied
+# @param header - header to be displayed on top ribbon of dialog
+# @param only_past - if a decision about the year has to be made, the date is assumed to lie in the past
+def AfpReq_Date(text1, text2, text = "", header = "", only_past = False):
+   Ok = False
+   if not header: header = "Datumseingabe"
+   loop = True
+   while loop:
+      text, Ok = AfpReq_Text(text1, text2, text, header)
+      loop = False
+      if Ok:
+         datum = Afp_ChDatum(text, only_past)
+         if not datum == text:
+            text = datum
+            loop = True
    return text, Ok
 ## Edit multilineText (return text, Ok == True/False)
 # @param oldtext - text to be modified, if supplied
