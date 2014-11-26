@@ -191,34 +191,35 @@ class AfpCharter(AfpSelectionList):
       else:
          data["KundenNr"] = self.get_value("KundenNr")
          keep.append("ADRESSE")
-      if keep_flag[1]: # contact kept
-         data["Kontakt"] = self.get_value("Kontakt")
-         data["Name"] = self.get_value("Name")
-         keep.append("Kontakt")
-      if keep_flag[2] and "FAHRTI" in self.selections: # Fahrtinfo kept
-         keep.append("FAHRTI")
-         self.selections["FAHRTI"].new = True
-      if keep_flag[3] and "FAHRTEX" in self.selections: # Fahrtextra kept
-         keep.append("FAHRTEX")
-         self.selections["FAHRTEX"].new = True
-         data["Extra"] = self.get_value("Extra") 
-         data["Preis"] = self.get_value("Preis") 
-         data["PersPreis"] = self.get_value("PersPreis") 
-      elif keep_flag[4] and not "FAHRTEX" in self.selections: # Fahrtextra kept
-         data["Preis"] = self.get_value("Preis") 
-         data["PersPreis"] = self.get_value("PersPreis") 
-      if keep_flag[4]: # data kept
-         data["Abfahrt"] = self.get_value("Abfahrt") 
-         data["Fahrtende"] = self.get_value("Fahrtende") 
-         data["Abfahrtsort"] = self.get_value("Abfahrtsort") 
-         data["Zielort"] = self.get_value("Zielort") 
-         data["Personen"] = self.get_value("Personen") 
-         data["Km"] = self.get_value("Km") 
-         data["Kostenst"] = self.get_value("Kostenst") 
-         data["Vorgang"] = self.get_value("Vorgang") 
-         data["Ausstattung"] = self.get_value("Ausstattung") 
-         data["Von"] = self.get_value("Von") 
-         data["Nach"] = self.get_value("Nach") 
+      if keep_flag:
+         if keep_flag[1]: # contact kept
+            data["Kontakt"] = self.get_value("Kontakt")
+            data["Name"] = self.get_value("Name")
+            keep.append("Kontakt")
+         if keep_flag[2] and "FAHRTI" in self.selections: # Fahrtinfo kept
+            keep.append("FAHRTI")
+            self.selections["FAHRTI"].new = True
+         if keep_flag[3] and "FAHRTEX" in self.selections: # Fahrtextra kept
+            keep.append("FAHRTEX")
+            self.selections["FAHRTEX"].new = True
+            data["Extra"] = self.get_value("Extra") 
+            data["Preis"] = self.get_value("Preis") 
+            data["PersPreis"] = self.get_value("PersPreis") 
+         elif keep_flag[4] and not "FAHRTEX" in self.selections: # Fahrtextra kept
+            data["Preis"] = self.get_value("Preis") 
+            data["PersPreis"] = self.get_value("PersPreis") 
+         if keep_flag[4]: # data kept
+            data["Abfahrt"] = self.get_value("Abfahrt") 
+            data["Fahrtende"] = self.get_value("Fahrtende") 
+            data["Abfahrtsort"] = self.get_value("Abfahrtsort") 
+            data["Zielort"] = self.get_value("Zielort") 
+            data["Personen"] = self.get_value("Personen") 
+            data["Km"] = self.get_value("Km") 
+            data["Kostenst"] = self.get_value("Kostenst") 
+            data["Vorgang"] = self.get_value("Vorgang") 
+            data["Ausstattung"] = self.get_value("Ausstattung") 
+            data["Von"] = self.get_value("Von") 
+            data["Nach"] = self.get_value("Nach") 
       data["Zustand"] = AfpCharter_getZustandList()[0]
       data["Art"] = self.get_value("Art")
       if not "Von" in data: data["Von"] = "von"
@@ -228,8 +229,9 @@ class AfpCharter(AfpSelectionList):
       print "AfpCharter.set_new keep:", keep
       self.clear_selections(keep)
       self.set_data_values(data,"FAHRTEN")
-      if keep_flag[2] or keep_flag[3]:
-         self.spread_mainvalue()
+      if keep_flag:
+         if keep_flag[2] or keep_flag[3]:
+            self.spread_mainvalue()
       if KundenNr:
          self.create_selection("ADRESSE", False)
    ## financial transaction will be initated if the appropriate modul is installed

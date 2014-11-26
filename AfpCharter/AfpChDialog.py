@@ -230,7 +230,7 @@ class AfpDialog_DiChEin(AfpDialog):
    
    ## attach data to dialog and invoke population of the graphic elements
    # @param data - AfpCharter object to hold the data to be displayed
-   # @param KNr - if given data is ireset and nitialized with the address indicated by this number
+   # @param KNr - if given data is reset and intialized with the address indicated by this number
    def attach_data(self, data, KNr = None):
       self.data = data
       self.debug = self.data.debug
@@ -323,7 +323,7 @@ class AfpDialog_DiChEin(AfpDialog):
       transaction = False
       if self.needs_transaction() and not self.had_transaction(): transaction = True
       return transaction
-   ## checkt if relevant data for financial transactions has changed
+   ## check if relevant data for financial transactions has changed
    # @param data - data to be checked, not yet inserted into the internal data object \n
    # additionally the internal data object will be checked for relevant changes
    def check_transaction(self, data):
@@ -519,7 +519,7 @@ class AfpDialog_DiChEin(AfpDialog):
       event.Skip()
 
    ## event handler for click into the 'Extra' listbox \n
-   # invokes the AfpDialog_DiMfEx dialog
+   # invokes the AfpDialog_DiMfEx dialog to edit additional tour features
    def On_Fahrt_Extras(self,event):
       if self.debug: print "Event handler `On_Fahrt_Extras'"
       index = self.list_Extras.GetSelections()[0] - 1
@@ -540,6 +540,8 @@ class AfpDialog_DiChEin(AfpDialog):
          self.set_extraPreis()
       event.Skip()
 
+   ##Eventhandler BUTTON - change address \n
+   # invokes the AfpDialog_DiAdEin dialog
    def On_Adresse_aendern(self,event):
       if self.debug: print "Event handler `On_Adresse_aendern'"
       KNr = self.data.get_value("KundenNr.ADRESSE")
@@ -548,6 +550,8 @@ class AfpDialog_DiChEin(AfpDialog):
       if changed: self.Populate()
       event.Skip()
 
+   ##Eventhandler BUTTON - change contact address \n
+   # invokes the address selection dialog
    def On_Fahrt_Kontakt(self,event):
       if self.debug: print "Event handler `On_Fahrt_Kontakt'" 
       name = self.data.get_value("Name.Kontakt")
@@ -564,6 +568,9 @@ class AfpDialog_DiChEin(AfpDialog):
          self.Set_Editable(True)
       event.Skip()
       
+   ## Eventhandler BUTTON - change invoice address,
+   # only available whe an invoice is attached to this charter \n
+   # invokes the address selection dialog
    def On_Fahrt_RechAd(self,event):
       if self.debug: print "Event handler `On_Fahrt_RechAd'"
       if self.data.get_value("RechNr"):
@@ -580,7 +587,8 @@ class AfpDialog_DiChEin(AfpDialog):
             self.Set_Editable(True)
       event.Skip()
 
-   ## event handler for new entry
+   ##  Eventhandler BUTTON  for new entry \n
+   # a copy of the actuel charter may be made completely or partly
    def On_Fahrt_Neu(self,event):
       if self.debug: print "Event handler `On_Fahrt_Neu'"
       text1 = "Soll eine Kopie der aktuellen Fahrt erstellt werden?"
@@ -602,6 +610,7 @@ class AfpDialog_DiChEin(AfpDialog):
          self.Set_Editable(True)
       event.Skip()
 
+   ##  Eventhandler BUTTON  for a payment \n
    def On_Fahrt_Zahl(self,event):
       if self.debug: print "Event handler `On_Fahrt_Zahl'"
       Ok, data = AfpLoad_DiFiZahl(self.data, True)
@@ -615,10 +624,13 @@ class AfpDialog_DiChEin(AfpDialog):
          self.Set_Editable(True)
       event.Skip()
 
+   ## Eventhandler BUTTON - change bus configuration desired- not yet implemented! \n
    def On_Fahrt_Ausstatt(self,event):
       print "Event handler `On_Fahrt_Ausstatt' not implemented!"
       event.Skip()
 
+   ##  Eventhandler BUTTON  change charter information \n
+   # arrival- or departure- -times and -.adresses may be set here for different fixpoints of the journey
    def On_Fahrt_Info(self,event):
       if self.debug: print "Event handler `On_Fahrt_Info'"
       index = AfpChInfo_selectEntry(self.data.get_selection("FAHRTI"), True)
@@ -633,6 +645,8 @@ class AfpDialog_DiChEin(AfpDialog):
             self.Set_Editable(True)
       event.Skip()
 
+   ##  Eventhandler BUTTON  change charter freetext infos \n
+   # additional informations or remarks may be stored here
    def On_Fahrt_Text(self,event):
       if self.debug: print "Event handler `On_Fahrt_Text'"
       oldtext = self.data.get_string_value("Brief.FAHRTEN")
@@ -645,6 +659,8 @@ class AfpDialog_DiChEin(AfpDialog):
          self.Set_Editable(True)
       event.Skip()
 
+   ##  Eventhandler CHOICE  change the 'art' of charter \n
+   # available values are 'Tagesfahrt' (day trip), MTF (Mehrtagesfahrt, serveral day journey) or 'Transfer'
    def On_CArt(self,event):
       if self.debug: print "Event handler `On_CArt'"  
       select = self.choice_Art.GetCurrentSelection()
@@ -652,6 +668,8 @@ class AfpDialog_DiChEin(AfpDialog):
       self.ch_durance(True)
       self.ch_km()
       event.Skip()  
+   ##  Eventhandler CHOICE  change the state (zustand) of the charter \n
+   # depending on the state, payment is available, an invoice is created and financial transactions are recorded
    def On_CZustand(self,event):
       if self.debug: print "Event handler `On_CZustand'"
       select = self.choice_Zustand.GetCurrentSelection()
@@ -673,11 +691,13 @@ class AfpDialog_DiChEin(AfpDialog):
       else:
          self.choice_Zustand.SetStringSelection(zustand)   
       event.Skip()  
+   ## execution in case the OK button ist hit - to be overwritten in derived class
    def execute_Ok(self):
       self.store_database()
 # end of class AfpDialog_DiChEin
 
-# loader routine for dialog DiChEin
+## loader routine for dialog DiChEin \n
+# @param eingabe - if given, address identification number to generate a new charter entry
 def AfpLoad_DiChEin(Charter, eingabe = None):
    DiChEin = AfpDialog_DiChEin(None)
    if eingabe: DiChEin.attach_data(Charter, eingabe)
@@ -686,15 +706,21 @@ def AfpLoad_DiChEin(Charter, eingabe = None):
    Ok = DiChEin.get_Ok()
    DiChEin.Destroy()
    return Ok  
+## loader routine for dialog DiChEin according to the given superbase object \n
+# @param sb - AfpSuperbase object, where data can be taken from
+# @param eingabe - if given, address identification number to generate a new charter entry
 def AfpLoad_DiChEin_fromSb(globals, sb, eingabe = None):
    Charter = AfpCharter(globals, None, sb, sb.debug, False)
    return AfpLoad_DiChEin(Charter, eingabe)
+## loader routine for dialog DiChEin according to the given charter identification number \n
+# @param fahrtnr -  identification number of charter to be filled into dialog
 def AfpLoad_DiChEin_fromFNr(globals, fahrtnr):
    Charter = AfpCharter(globals, fahrtnr)
    return AfpLoad_DiChEin(Charter)
 
-# Dialog for additional tour features
+## Dialog for additional tour features
 class AfpDialog_DiMfEx(AfpDialog):
+   ## initialise dialog
    def __init__(self, *args, **kw):   
       self.index = None
       self.plus = False
@@ -703,7 +729,8 @@ class AfpDialog_DiMfEx(AfpDialog):
       AfpDialog.__init__(self,None, -1, "")
       self.SetSize((446,146))
       self.SetTitle("Fahrtextra")
-
+   
+   ## initialise graphic elements
    def InitWx(self):
       panel = wx.Panel(self, -1)
       self.text_Extra = wx.TextCtrl(panel, -1, value="", pos=(20,20), size=(324,24), style=0, name="Extra")
@@ -725,10 +752,14 @@ class AfpDialog_DiMfEx(AfpDialog):
       self.Bind(wx.EVT_BUTTON, self.On_Loeschen, self.button_Loeschen)     
       self.setWx(panel, [20, 100, 100, 30], [330, 100, 100, 30])
    
+   ## execution in case the OK button ist hit - to be overwritten in derived class   
    def execute_Ok(self):
       self.store_data()
 
-   # attach to database and populate widgets
+   ## attach data to dialog and invoke population of the graphic elements
+   # @param data - AfpCharter object to hold the data to be displayed
+   # @param index - if given, index of row of additional data to be displayed in data.selections["FahrtEx"]
+   # @param pers - number of persons set on this tour, needed for calculation of the per person prices
    def attach_data(self, data, index, pers):
       self.data = data
       self.debug = self.data.debug
@@ -740,7 +771,8 @@ class AfpDialog_DiMfEx(AfpDialog):
       self.Set_Editable(self.new, True)
       if self.new:
          self.choice_Edit.SetSelection(1)
-         
+
+   ## read values from dialog and invoke writing into data         
    def store_data(self):
       self.Ok = False
       data = {}
@@ -755,6 +787,9 @@ class AfpDialog_DiMfEx(AfpDialog):
          self.Ok = True
       self.changed_text = []   
       self.choicevalues = {}  
+   ## initialise new empty data with all necessary values \n
+   # or the other way round, complete new data entries with all needed input
+   # @param data - data top be completed
    def complete_data(self, data):
       self.choicevalues = {}
       self.On_CSicht()
@@ -770,7 +805,8 @@ class AfpDialog_DiMfEx(AfpDialog):
       #print "AfpDialog_MfEx.complete_data()",data         
       return data
 
-   # Population routines for dialog and widgets
+   ## Population routine for the dialog overwritten from parent \n
+   # due to special choice settings
    def Populate(self):
       if self.index is None:
          self.index = self.data.get_value_length("FAHRTEX") 
@@ -794,6 +830,10 @@ class AfpDialog_DiMfEx(AfpDialog):
          else:
             self.choice_Indi.SetSelection(0)
    
+   ## activate or deactivate changeable widgets \n
+   # this method also calls the parent method
+   # @param ed_flag - flag if widgets have to be activated (True) or deactivated (False)
+   # @param initial - flag if data has to be locked, used in parent method 
    def Set_Editable(self, ed_flag, initial = False):
       super(AfpDialog_DiMfEx, self).Set_Editable(ed_flag, initial)
       if ed_flag: 
@@ -810,6 +850,8 @@ class AfpDialog_DiMfEx(AfpDialog):
          self.Populate()
          
     # Event Handlers 
+   ##  Eventhandler CHOICE  change the state of visablity in output \n
+   # depending on the state this entry may be listed as a separate line in the output
    def On_CSicht(self,event = None):
       if self.debug: print "Event handler `On_CSicht'"
       select = self.choice_Sicht.GetCurrentSelection()
@@ -820,6 +862,8 @@ class AfpDialog_DiMfEx(AfpDialog):
       else:
          self.choicevalues["Info"] = " " + plus
       if event: event.Skip()  
+   ##  Eventhandler CHOICE  flag if price has to be interpreted on a per person base \n
+   # toggelling this flag, the price will be multiplied by or devided through the number of persons
    def On_CIndi(self,event = None):
       if self.debug: print "Event handler `On_CIndi'"
       select = self.choice_Indi.GetCurrentSelection()
@@ -840,6 +884,8 @@ class AfpDialog_DiMfEx(AfpDialog):
                preis = float(preis)*pers
                self.text_Preis.SetValue(Afp_toFloatString(preis))
       if event: event.Skip()  
+   ##  Eventhandler CHOICE  toggle tax choice \n
+   # depending on the choice, the price will be assumed to be tax relevant or not
    def On_CUmst(self,event = None):
       if self.debug: print "Event handler `On_CUmst'"
       select = self.choice_Umst.GetCurrentSelection()
@@ -849,6 +895,8 @@ class AfpDialog_DiMfEx(AfpDialog):
          self.choicevalues["Inland"] = "I"
       if event: event.Skip()
 
+   ##  Eventhandler BUTTON  delete this line from list in calling dialog, \n
+   # resp. mark it to be ignored for price calculation
    def On_Loeschen(self,event):
       if self.debug: print "Event handler `On_Loeschen'", self.index
       self.changed_text = []
@@ -871,7 +919,11 @@ class AfpDialog_DiMfEx(AfpDialog):
       self.Destroy()
       event.Skip()  
    
-# loader routine for dialog DiMfEx
+## loader routine for dialog DiMfEx 
+# @param data - AfpCharter object to hold the data to be displayed
+# @param index - if given, index of row of additional data to be displayed in data.selections["FahrtEx"], \n
+# otherwise a new row has to be added
+# @param pers - number of persons set on this tour, needed for calculation of the per person prices
 def AfpLoad_DiMfEx(data, index, pers):
    dialog = AfpDialog_DiMfEx(None)
    dialog.attach_data(data, index, pers)
@@ -884,7 +936,7 @@ def AfpLoad_DiMfEx(data, index, pers):
    else:
       return None
       
- #Dialog for additional tour data
+##Dialog for additional tour data information
 class AfpDialog_DiMfInfo(AfpDialog):
    def __init__(self, *args, **kw):   
       self.index = None
@@ -893,6 +945,7 @@ class AfpDialog_DiMfInfo(AfpDialog):
       self.SetSize((446,176))
       self.SetTitle("Fahrtinfo")
 
+   ## initialise graphic elements
    def InitWx(self):
       panel = wx.Panel(self, -1)
       choices_Richtung, choices_Zeitpunkt = AfpChInfo_getDirSelValues()
@@ -918,10 +971,13 @@ class AfpDialog_DiMfInfo(AfpDialog):
       self.Bind(wx.EVT_BUTTON, self.On_Loeschen, self.button_Loeschen)     
       self.setWx(panel, [20, 100, 100, 30], [330, 100, 100, 30])
    
+   ## execution in case the OK button ist hit - overwritten from parent class   
    def execute_Ok(self):
       self.store_data()
 
-   # attach to database and populate widgets
+   ## attach data to dialog and invoke population of the graphic elements
+   # @param data - AfpCharter object to hold the data to be displayed
+   # @param index - if given, index of row of additional data to be displayed in data.selections["FahrtI"]
    def attach_data(self, data, index):
       self.data = data
       self.debug = self.data.debug
@@ -936,6 +992,7 @@ class AfpDialog_DiMfInfo(AfpDialog):
          #self.choice_Edit.SetSelection(1)
       self.choice_Edit.SetSelection(1)
          
+  ## read values from dialog and invoke writing into data         
    def store_data(self):
       self.Ok = False
       data = {}
@@ -956,12 +1013,17 @@ class AfpDialog_DiMfInfo(AfpDialog):
          self.Ok = True
       self.changed_text = []   
       self.choice_changed = False  
+   ## set textvalue in data, depending on choice settings
+   # @param data - dictionary to hold data for modification
    def set_choicevalues(self, data):
       selfahrt = self.choice_Richtung.GetCurrentSelection()
       select = self.choice_Zeitpunkt.GetCurrentSelection()
       data["Adresse2"] = AfpChInfo_setDirSelection(selfahrt, select)
       return data
          
+   ## initialise new empty data with all necessary values \n
+   # or the other way round, complete new data entries with all needed input
+   # @param data - data top be completed
    def complete_data(self, data):
       self.set_choicevalues(data)
       for entry in self.textmap:
@@ -973,9 +1035,8 @@ class AfpDialog_DiMfInfo(AfpDialog):
       #print "AfpDialog_MfInfo.complete_data()",data         
       return data
 
-   def get_data(self):
-      return self.data
-   # Population routines for dialog and widgets
+   ## Population routine for the dialog overwritten from parent \n
+   # due to special choice settings
    def Populate(self):
       if self.index is None:
          self.index = self.data.get_value_length("FAHRTI") 
@@ -992,6 +1053,10 @@ class AfpDialog_DiMfInfo(AfpDialog):
          self.choice_Richtung.SetSelection(selfahrt)
          self.choice_Zeitpunkt.SetSelection(selaban)
    
+   ## activate or deactivate changeable widgets \n
+   # this method also calls the parent method
+   # @param ed_flag - flag if widgets have to be activated (True) or deactivated (False)
+   # @param initial - flag if data has to be locked, used in parent method 
    def Set_Editable(self, ed_flag, initial = False):
       super(AfpDialog_DiMfInfo, self).Set_Editable(ed_flag, initial)
       if ed_flag: 
@@ -1005,11 +1070,8 @@ class AfpDialog_DiMfInfo(AfpDialog):
          self.choicevalues = {}
          self.Populate()
          
-    # Event Handlers 
-   def On_ChangeChoice(self,event):
-      if self.debug: print "Event handler `On_ChangeChoice'"
-      self.choice_changed = True
-      event.Skip()  
+   ##  Eventhandler TEXT,  check if date entry has the correct format, \n
+   # complete date-text if necessary 
    def On_ChangeDatum(self,event):
       if self.debug: print "Event handler `On_ChangeDatum'"
       datum = self.text_Datum.GetValue()
@@ -1018,6 +1080,14 @@ class AfpDialog_DiMfInfo(AfpDialog):
       self.On_KillFocus(event)
       event.Skip()  
 
+   ##  Eventhandler CHOICE,  record if a choice had been changed \n
+   # and the set_choicevalues method has to be invoked during storing
+   def On_ChangeChoice(self,event):
+      if self.debug: print "Event handler `On_ChangeChoice'"
+      self.choice_changed = True
+      event.Skip()  
+      
+   ##  Eventhandler BUTTON  delete this line from list in calling dialog,
    def On_Loeschen(self,event):
       if self.debug: print "Event handler `On_Loeschen'", self.index
       self.changed_text = []
@@ -1028,7 +1098,10 @@ class AfpDialog_DiMfInfo(AfpDialog):
       self.Destroy()
       event.Skip()  
    
-# loader routine for dialog DiMfEx
+## loader routine for dialog DiMfInfo
+# @param data - AfpCharter object to hold the data to be displayed
+# @param index - if given, index of row of information data to be displayed in data.selections["FahrtI"], \n
+# otherwise a new row has to be added
 def AfpLoad_DiMInfo(data, index):
    dialog = AfpDialog_DiMfInfo(None)
    dialog.attach_data(data, index)

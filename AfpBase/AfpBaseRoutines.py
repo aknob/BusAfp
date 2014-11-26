@@ -89,7 +89,7 @@ def Afp_ModulPyNames(modul):
       if modul == "Finance":
          return [files[2]]
       else:
-         return files[1:2]
+         return files[1:3]
    elif modul in Afp_graphicModulNames():
       if modul == "Adresse":
          return [files[0]]
@@ -436,12 +436,12 @@ class AfpSelectionList(object):
    # @param select - name of TableSelection
    # @param allow_new - allow creation of a new TableSelection with no data attached
    def create_selection(self, select, allow_new = True):
-      print "AfpSelectionList.create_selection:",select, allow_new
       #print self.selects[select]
       if allow_new and self.new: new = True
       else: new = False
       selection = self.constitute_selection(select)
       select_clause = self.evaluate_selects(select)
+      print "AfpSelectionList.create_selection:", select_clause, new, selection
       if selection is None and select_clause == []:
          if new: selection = self.spezial_selection(select, True)
          else:   selection = self.spezial_selection(select)
@@ -470,8 +470,10 @@ class AfpSelectionList(object):
       selection = None
       if name is None: selname = self.mainselection
       else: selname = name
+      #print "AfpSelectionList.get_selection:", selname in self.selections, selname, self.selections
       if not selname in self.selections:  
          self.create_selection(selname)
+         #print "AfpSelectionList.get_selection created:", selname in self.selections, selname, self.selections
       if selname in self.selections: 
          selection = self.selections[selname]  
       else:
@@ -752,7 +754,7 @@ class AfpSelectionList(object):
    # it will be completed by:
    # - Art: (kind) 1st level identification, will be set to "BusAfp"
    # - Typ: (type) 2nd level identification, will be set to SelectionList listname
-   def add_to_Archiv(self, new_data, delete = False):
+   def add_to_Archiv(self, new_data):
       archiv_select_value = None
       selection = self.get_selection("ARCHIV")
       if selection:

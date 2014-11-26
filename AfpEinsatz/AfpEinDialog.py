@@ -1,6 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# 11.03.2014 Andreas Knoblauch - generated
+
+## @package AfpEinsatz.AfpEinDialog
+# AfpEinDialog module provides the dialogs and appropriate loader routines needed for vehicle operation \n
+#
+#   History: \n
+#        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
+#        11 Mar. 2014 - inital code generated - Andreas.Knoblauch@afptech.de
+
+#
+# This file is part of the  'Open Source' project "BusAfp" by 
+#  AfpTechnologies (afptech.de)
+#
+#    BusAfp is a software to manage coach and travel acivities
+#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#    This program is distributed in the hope that it will be useful, but
+#    WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+#    See the GNU General Public License for more details.
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+#
 
 import wx
 
@@ -15,8 +40,9 @@ import AfpEinsatz
 from AfpEinsatz import AfpEinRoutines
 from AfpEinsatz.AfpEinRoutines import *
 
-
+## display and manipulation of vehicle operations
 class AfpDialog_DiEinsatz(AfpDialog):
+   ## initialise dialog
    def __init__(self, *args, **kw):
       AfpDialog.__init__(self,None, -1, "")
       self.choicevalues = {}
@@ -28,6 +54,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
       self.SetSize((452,430))
       self.SetTitle("Einsatz")
 
+   ## initialise graphic elements
    def InitWx(self):
       panel = wx.Panel(self, -1)
       self.label_Abfahrt = wx.StaticText(panel, -1, label="&Abfahrt:", pos=(178,92), size=(80,20), name="Abfahrt")
@@ -119,6 +146,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
       self.Bind(wx.EVT_BUTTON, self.On_Ein_Dokument, self.button_Dokument)
       self.setWx(panel, [360, 330, 80, 24], [360, 360, 80, 34])
 
+   ## population routine, AfpDialog population routines is called here
    def Populate(self):
       super(AfpDialog_DiEinsatz, self).Populate()
       self.switch_driver_external()
@@ -139,6 +167,9 @@ class AfpDialog_DiEinsatz(AfpDialog):
          self.label_EName.SetLabel(name)
          self.label_Start.SetLabel(start)
          self.label_Ziel.SetLabel(ziel)
+
+   ## populate the driver list, \n
+   # this routine is called from the AfpDialog.Populate
    def Pop_FahrList(self):
       #print "akn 15.12 4:00 - 17:00 [16.12] > 7:00 [15.12] Stellort"
       rows = self.data.get_value_rows("FAHRER", "Kuerzel,Datum,Von,Bis,EndDatum,AbZeit,Abfahrt,AbOrt")
@@ -147,9 +178,11 @@ class AfpDialog_DiEinsatz(AfpDialog):
          liste.append(self.Set_FahrerLineFromRow(row))
       self.list_FahrList.Clear()
       self.list_FahrList.InsertItems(liste, 0)
+   ## create one line info of driver row
+   # @param row - input row line is created from \n
+   # - row = [Kuerzel, Datum, Von, Bis, EndDatum, AbZeit, Abfahrt, AbOrt] 
+   # - Einsatz:   AbDatum, AbZeit, EndZeit, EndDatum, Zeit, Datum, Stellort]
    def Set_FahrerLineFromRow(self, row):
-      # row = [Kuerzel, Datum, Von, Bis, EndDatum, AbZeit, Abfahrt, AbOrt]
-      # Einsatz:   AbDatum, AbZeit, EndZeit, EndDatum, Zeit, Datum, Stellort]
       line = ""
       ADat = ""
       EDat = ""
@@ -192,6 +225,12 @@ class AfpDialog_DiEinsatz(AfpDialog):
       if SDat: 
          line += " > " + SDat
       return line
+
+   ## attaches data to this dialog, invokes population of widgets \n
+   # - overwritten from parent
+   # @param data - AfpSelectionList which holds data to be filled into dialog wodgets 
+   # @param new - flag if new database entry has to be created 
+   # @param editable - flag if dialogentries are editable when dialog pops up
    def attach_data(self, data, new = False, editable = False):
       rows = data.get_mysql().select_strings("Name","","BUSSE")
       values = []
@@ -212,10 +251,10 @@ class AfpDialog_DiEinsatz(AfpDialog):
       if self.data_is_fremd():
          self.choice_Bus.SetSelection(1)
          self.switch_driver_external(True)
-         
+   ## execution in case the OK button ist hit - overwritten from parent     
    def execute_Ok(self):
       self.store_database()
- 
+   ## read values from dialog and invoke writing into database          
    def store_database(self):
       self.Ok = False
       data = {}
@@ -245,20 +284,24 @@ class AfpDialog_DiEinsatz(AfpDialog):
          self.Ok = True              
       self.changed_text = []   
       self.choicevalues = {}
-         
+
+   ## return if operation stored in data is to be executed by an extern operator
    def data_is_fremd(self):
       flag = False
       if self.data.get_value("Bus.EINSATZ") == "FREMD":
          if self.data.get_value("FremdNr.EINSATZ"):
             flag = True
       return flag
+   ## return if operation in dialog is to be executed by an extern operator
    def selection_is_fremd(self):
       fremd = False
       if self.choice_Bus.GetStringSelection() == "FREMD":
          fremd = True
       return fremd
+   ## switch operation to be executed internal or by an extern operator
+   # @param flag - flag if operation is to be executed by an extern operator \n
+   # driver is show if flag  is set to False
    def switch_driver_external(self, flag = False):
-      # switches between driver and external panel, driver is shown for flag == False
       if flag:
          driver = False
          extern = True
@@ -280,7 +323,12 @@ class AfpDialog_DiEinsatz(AfpDialog):
       # set flags for driver display
       self.button_BFahrer.Show(driver)
       self.list_FahrList.Show(driver) 
-      
+   
+   ## extract date and time from both widgets for different typ
+   # @param typ - typ for which the widgets are read
+   # @param end - flag if time has to be interpreted \n
+   # relativ to midnight (24:00), otherwise 0:00 will be used
+   # - convention: the appropriate widgets have to be called typ + "Dat" and typ + "Zeit"
    def get_typTime(self, typ, end = False):
       typDat = typ + "Dat"
       TextBox = self.FindWindowByName(typDat)
@@ -289,6 +337,10 @@ class AfpDialog_DiEinsatz(AfpDialog):
       TextBox = self.FindWindowByName(typZeit)
       timestring, tage = Afp_ChZeit(TextBox.GetValue())
       return Afp_datetimeString(datestring, timestring, end)
+   ## write input time value to date and time widgets for different types
+   # @param time - time value for which the widgets are written
+   # @param typ - typ for which the widgets are written
+   # - convention: the appropriate widgets have to be called typ + "Dat" and typ + "Zeit"
    def set_typTime(self, time, typ):
       typDat = typ + "Dat" 
       TextBox = self.FindWindowByName(typDat)
@@ -300,6 +352,8 @@ class AfpDialog_DiEinsatz(AfpDialog):
          TextBox.SetValue(Afp_toString(time.time())) 
          self.times[typ] = time
          if not typZeit in self.changed_text: self.changed_text.append(typZeit)
+   ## check if a time widgets exists for this typ
+   # @param typ - typ for which widget has t be checked
    def typ_hasTime(self, typ):
       typZeit = typ + "Zeit"
       TextBox = self.FindWindowByName(typZeit)
@@ -307,6 +361,8 @@ class AfpDialog_DiEinsatz(AfpDialog):
       else: return False
       
    # Event Handlers 
+   ##  Eventhandler TEXT,  check if time entry has the correct format, \n
+   # complete time-text if necessary 
    def On_ChTime(self,event):
       if self.debug: print "Event handler `On_ChTime'"
       if self.is_editable(): 
@@ -349,6 +405,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
             self.set_typTime(dattime,"Start")
       event.Skip()
       
+   ##Eventhandler CHOICE - handle vehicle choice changes
    def On_CBus(self, event):
       if self.debug: print "Event handler `On_CBus'"
       choice = self.choice_Bus.GetStringSelection()
@@ -356,6 +413,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
       self.switch_driver_external(choice == "FREMD")
       event.Skip()
 
+   ##Eventhandler BUTTON - edit triggering incident
    def On_Ein_Typ(self,event):
       if self.debug: print "Event handler `On_Ein_Typ'"
       if not self.charter_modul is None:
@@ -365,6 +423,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
          self.charter_modul .AfpLoad_DiChEin_fromFNr(globals, FahrtNr)
       event.Skip()
 
+   ##Eventhandler BUTTON - select address of extern operator
    def On_Ein_AbAdresse(self,event):
       if self.debug: print "Event handler `On_Ein_AbAdresse'"
       if self.selection_is_fremd():
@@ -378,6 +437,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
             self.label_EAbFax.SetLabel(self.fremd.get_string_value("Fax"))
       event.Skip()
 
+   ##Eventhandler BUTTON - select driver entry
    def On_Ein_Fahrer(self,event):
       if self.debug: print "Event handler `On_Ein_Fahrer'"
       Ok = False
@@ -393,6 +453,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
          self.Set_Editable(True)
       event.Skip()
 
+   ##Eventhandler CLICK - edit driver entry
    def On_Ein_FahrChg(self,event):
       if self.debug: print "Event handler `On_Ein_FahrChg'"
       Ok = False
@@ -404,6 +465,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
          self.changed_data = True  
       event.Skip()
 
+   ##Eventhandler BUTTON - generate new vehicle operation
    def On_Ein_Neu(self,event):
       if self.debug: print "Event handler `On_Ein_Neu'"
       Ok = False
@@ -421,18 +483,25 @@ class AfpDialog_DiEinsatz(AfpDialog):
          self.Set_Editable(True)
       event.Skip()
 
+   ##Eventhandler BUTTON - edit triggering incident
    def On_Ein_Loeschen(self,event):
       print "Event handler `On_Ein_Loeschen' not implemented!"
       event.Skip()
 
+   ##Eventhandler BUTTON - edit date entry
+   # only needed if calendar-modul has been implemented
    def On_Ein_Termin(self,event):
       print "Event handler `On_Ein_Termin' not implemented!"
       event.Skip()
 
+   ##Eventhandler BUTTON - edit extern file
+   # not implemented yet - possibly not needed
    def On_Ein_Bem(self,event):
       print "Event handler `On_Ein_Bem' not implemented!"
       event.Skip()
 
+   ##Eventhandler BUTTON - generate output documents \n
+   # the dialog AfpDialog_DiReport is called
    def On_Ein_Dokument(self,event):
       if self.debug: print "Event handler `On_Ein_Dokument'"
       prefix = "Einsatz_" + self.data.get_string_value()
@@ -451,7 +520,8 @@ class AfpDialog_DiEinsatz(AfpDialog):
             AfpLoad_DiReport(None, self.data.globals, header, prefix, datalist)
       event.Skip()
 
-# loader routine for dialog DiEin
+## loader routine for dialog DiEinsatz \n
+# @param data - SelectionList for which this vehicle operation is created
 def AfpLoad_DiEinsatz(data):
    DiEin = AfpDialog_DiEinsatz(None)
    DiEin.attach_data(data)
@@ -460,7 +530,9 @@ def AfpLoad_DiEinsatz(data):
    DiEin.Destroy()
    return Ok
 
+## Dialog for driver mission
 class AfpDialog_DiFahrer(AfpDialog):
+   ## constructor
    def __init__(self, *args, **kw):
       self.localtextmap = {}      
       AfpDialog.__init__(self,None, -1, "")
@@ -470,7 +542,8 @@ class AfpDialog_DiFahrer(AfpDialog):
 
       self.SetSize((374,415))
       self.SetTitle("Fahrer Einsatz")
-  
+      
+   ## initialise graphic elements  
    def InitWx(self):
       panel = wx.Panel(self, -1)
       self.label_Name = wx.StaticText(panel, -1, label="Name$", pos=(10,6), size=(272,20), name="Name")
@@ -550,7 +623,11 @@ class AfpDialog_DiFahrer(AfpDialog):
       self.Bind(wx.EVT_BUTTON, self.On_Ein_FahrExt, self.button_ExText)
       self.setWx(panel, [10, 350, 80, 20], [285, 350, 75, 30])
       
-     # attach to database and populate widgets
+   ## attach data to dialog and invoke population of the graphic elements
+   # @param data - AfpEinsatz for which this driver mission is created
+   # @param index - if given, index of row of this driver mission is attached to
+   # @param KundenNr - if given and index is None, address identifiction number of new driver this mission is created for
+   # @param info - if given, additional info for this new driver mission
    def attach_data(self, data, index, KundenNr = None, info = None):
       self.data = data
       self.debug = self.data.debug
@@ -583,6 +660,9 @@ class AfpDialog_DiFahrer(AfpDialog):
          self.selection.set_value("Kuerzel", self.label_Kurz.GetLabel())
          self.choice_Edit.SetSelection(1)
 
+   ## get value from textbox (needed for formating of dates) \n
+   # overwritten from parent
+   # @param entry - windowname of calling widget
    def Get_TextValue(self, entry):
       TextBox = self.FindWindowByName(entry)
       wert = TextBox.GetValue()
@@ -595,9 +675,11 @@ class AfpDialog_DiFahrer(AfpDialog):
          name = self.textmap[entry]  
       return name, wert
 
+  ## execution in case the OK button ist hit - overwritten from parent
    def execute_Ok(self):
       self.store_data()       
          
+   ## read values from dialog and invoke writing into data         
    def store_data(self):
       self.Ok = False
       data = {}
@@ -615,6 +697,10 @@ class AfpDialog_DiFahrer(AfpDialog):
       self.changed_text = []   
       self.choicevalues = {}  
  
+   ## dis- or enable editing of dialog widgets \n
+   # overwritten from parten to handle 'localtextmap', AfpDialog.SetEditable routine is called here
+   # @param ed_flag - flag to turn editing on or off
+   # @param lock_data - flag if invoking of dialog needs a lock on the database
    def Set_Editable(self, ed_flag, lock_data = None):
       super(AfpDialog_DiFahrer, self).Set_Editable(ed_flag, lock_data)
       for entry in self.localtextmap:
@@ -624,7 +710,8 @@ class AfpDialog_DiFahrer(AfpDialog):
          if ed_flag: TextBox.SetBackgroundColour(self.editcolor)
          else: TextBox.SetBackgroundColour(self.readonlycolor) 
          
-   # Population routines for dialog and widgets
+   ## population routine for dialog and widgets \n
+   # overwritten from parent to handle localtextmap for floats and additional special handlings
    def Populate(self):
       self.Pop_text()
       self.Pop_label()
@@ -642,41 +729,36 @@ class AfpDialog_DiFahrer(AfpDialog):
       #print "Populate selection:",self.selection.data
       #print "Populate data[EINSATZ]:",self.data.selections["EINSATZ"].data
       #print "Populate data[FAHRER]:",self.data.selections["FAHRER"].data
-   
-   def Pop_text(self):
-      # covention: textmap holds the entryname to retrieve value from self.selection
-      for entry in self.textmap:
-         TextBox = self.FindWindowByName(entry)
-         value = self.selection.get_string_value(self.textmap[entry])
-         TextBox.SetValue(value)
-      for entry in self.vtextmap:
-         TextBox = self.FindWindowByName(entry)
-         value = self.selection.get_string_value(self.vtextmap[entry])
-         TextBox.SetValue(value)
-   def Pop_label(self):
-      # covention: labelmap holds the entryname to retrieve value from self.selection
-      for entry in self.labelmap:
-         Label= self.FindWindowByName(entry)
-         value = self.selection.get_string_value(self.labelmap[entry])
-         #print self.labelmap[entry], "=", value
-         Label.SetLabel(value)
 
+   ##  check if date entry in widget has the correct format \n
+   # complete time-text if necessary 
+   # @param name - name of widget
    def check_datum(self, name):
       TextBox = self.FindWindowByName(name)
       datestring = Afp_ChDatum(TextBox.GetValue())
       if datestring: 
          TextBox.SetValue(datestring)
          self.set_changed(name)
-   def check_zeit(self, name):
+   ##  check if time entry in widget has the correct format \n
+   # complete time-text if necessary 
+   # @param name - name of widget
+  def check_zeit(self, name):
       TextBox = self.FindWindowByName(name)
       timestring, days = Afp_ChZeit(TextBox.GetValue())
       if timestring: 
          TextBox.SetValue(timestring)
          self.set_changed(name)
+   ## set if widget has been changed
+   # @param name - name of widget
+   # @param object - the widget itself
    def set_changed(self, name, object = None):
       if name is None and object:
          name = object.GetName()
       if not name in self.changed_text: self.changed_text.append(name)
+   ## set time values for this driver mission
+   # @param tage - full days of mission
+   # @param abZeit - time on start day of mission
+   # @param bisZeit - time on end day of mission
    def set_gesamt_zeit(self, tage, abZeit, bisZeit):
       if tage is None: tage = 0
       ab = Afp_toTimedelta(abZeit)
@@ -691,6 +773,7 @@ class AfpDialog_DiFahrer(AfpDialog):
       self.label_GStd.SetLabel(Afp_toFloatString(rest, "5.1f"))
 
    # Event Handlers 
+   ##  Eventhandler BUTTON  allow entry of working dates and times
    def On_Ein_Arbeit(self,event):
       if self.debug: print "Evtent handler `On_Ein_Arbeit'"
       tage = None
@@ -736,6 +819,7 @@ class AfpDialog_DiFahrer(AfpDialog):
       self.set_changed(None, self.text_ZeitE)
       event.Skip()
       
+   ##  Eventhandler BUTTON  allow entries of expenses
    def On_Ein_Spesen(self,event):
       if self.debug: print "Event handler `On_Ein_Spesen'"
       tage = Afp_fromString(self.text_Tage.GetValue())
@@ -762,6 +846,7 @@ class AfpDialog_DiFahrer(AfpDialog):
       self.set_changed(None, self.text_SpesenSE)
       event.Skip()
 
+   ##  Eventhandler TEXT  set dependent date and time widgets\n
    def On_Ein_calArbeit(self,event):
       if self.debug: print "Event handler `On_Ein_calArbeit'"
       name = event.GetEventObject().GetName()
@@ -774,6 +859,7 @@ class AfpDialog_DiFahrer(AfpDialog):
       self.On_KillFocus(event)
       event.Skip()  
       
+   ##  Eventhandler TEXT  set dependent expense widgets\n
    def On_Ein_calSpesen(self,event = None):
       if self.debug: print "Event handler `On_Ein_calSpesen'"
       spesen = 0.0
@@ -788,18 +874,23 @@ class AfpDialog_DiFahrer(AfpDialog):
          self.On_KillFocus(event)
          event.Skip()
 
+   ##  Eventhandler TEXT,  check if date entry has the correct format, \n
+   # complete date-text if necessary 
    def On_Check_Datum(self,event):
       if self.debug: print "Event handler `On_Check_Datum'"
       self.check_datum(event.GetEventObject().GetName())
       self.On_KillFocus(event)
       event.Skip()
 
+   ##  Eventhandler TEXT,  check if time entry has the correct format, \n
+   # complete time-text if necessary 
    def On_Check_Zeit(self,event):
       if self.debug: print "Event handler `On_Check_Zeit'"    
       self.check_zeit(event.GetEventObject().GetName())
       self.On_KillFocus(event)
       event.Skip()
       
+   ##  Eventhandler BUTTON,  delete this driver mission
    def On_Ein_FahrLoesch(self,event):
       if self.debug: print "Event handler `On_Ein_FahrLoesch'"
       name = self.label_Name.GetLabel()
@@ -811,11 +902,17 @@ class AfpDialog_DiFahrer(AfpDialog):
          self.Destroy()
       event.Skip()
 
+   ##  Eventhandler BUTTON,  edit extern textfile \n
+   # not implemented yet - possibly not needed
    def On_Ein_FahrExt(self,event):
       print "Event handler `On_Ein_FahrExt' not implemented!"
       event.Skip()
 
-# loader routine for dialog DiFahr
+## loader routine for dialog DiFahrer
+# @param data - AfpEinsatz for which this driver mission is created
+# @param index - if given, index of row of this driver mission is attached to
+# @param KundenNr - if given and index is None, address identifiction number of new driver this mission is created for
+# @param info - if given, additional info for this new driver mission
 def AfpLoad_DiFahrer(data, index , KundenNr = None, info = None):
    DiFahr = AfpDialog_DiFahrer(None)
    print index, KundenNr

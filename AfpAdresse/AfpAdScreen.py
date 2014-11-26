@@ -177,7 +177,7 @@ class AfpAdScreen(AfpScreen):
       #self.Bind(wx.EVT_MENU, self.On_MAdresse, self.MAdresse)
       #self.Bind(wx.EVT_MENU, self.On_MTouristik, self.MTouristik)
       
-   ## Eventhandler BUTTON - select other address, either direkt of via attribut
+   ## Eventhandler BUTTON - select other address, either direkt or via attribut
    def On_Adresse_AuswErw(self,event):
       if self.debug: print "Event handler `On_Adresse_AuswErw'!"
       self.sb.set_debug()

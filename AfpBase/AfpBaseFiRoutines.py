@@ -1,22 +1,44 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# 14.02.2014 Andreas Knoblauch - generated
+
+## @package AfpBase.AfpBaseFiRoutines
+# AfpBaseFiRoutines module provides classes and routines needed for finance handling,\n
+# no display and user interaction in this modul.
+#
+#   History: \n
+#        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
+#        14 Feb. 2014 - inital code generated - Andreas.Knoblauch@afptech.de
+
+#
+# This file is part of the  'Open Source' project "BusAfp" by 
+#  AfpTechnologies (afptech.de)
+#
+#    BusAfp is a software to manage coach and travel acivities
+#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#    This program is distributed in the hope that it will be useful, but
+#    WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+#    See the GNU General Public License for more details.
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+#
 
 import AfpBaseRoutines
 from AfpBaseRoutines import *
-# for main execution
-#import AfpGlobal
-#import AfpDatabase
-#from AfpDatabase import AfpSuperbase
-#import AfpCharter
-#from AfpCharter import AfpChRoutines
 
-
-#class AfpZahlung(AfpSelectionList):
+##class for payment in afp-modules
 class AfpZahlung(object):
+   ## initialize payment class, \n
+   # if avaulable attach modul to record financial transactions
+   # @param data - SelectionList where payment is due to - this input is mandatory
+   # @param multiName - if given, additional entries will be retrieved from database with identic values in this column
+   # @param debug - flag for debug information
    def  __init__(self, data , multiName = None, debug = False):
-      # data has to be given for initialisation,
-      #AfpSelectionList.__init__(self, data.get_globals(), "Zahlung", debug)
       self.globals = data.get_globals()
       self.mysql = self.globals.get_mysql()
       self.moduls = {}
@@ -50,13 +72,17 @@ class AfpZahlung(object):
             self.finance = self.finance_modul.AfpFinTrans(self.globals)
       print "AfpZahlung.finance:", self.finance
       if self.debug: print "AfpZahlung Konstruktor:", multiName
+   ## destructor
    def __del__(self):    
       if self.debug: print "AfpZahlung Destruktor"
-      #AfpSelectionList.__del__(self)     
+   ## view data in console, convinience routine for debug purpose     
    def view(self):
       print "AfpZahlung.view():"
       for data in self.selected_list: data.view()
       if self.finance: self.finance.view() 
+   ## check if a tableselection according to given values is avauilable
+   # @param tablename - name of database table to be checked
+   # @param nr - identification number checked
    def check_selection(self, tablename, nr):
       found = False      
       for data in self.selected_list:
@@ -91,6 +117,8 @@ class AfpZahlung(object):
          datum = self.globals.today()
       self.datum = datum
       print "AfpZahlung.set_auszug:", self.auszug, self.datum
+   ## append given data to participate from this payment
+   # @param data - SelectionList holding data for payment
    def append_payment_data(self, data):
       amount, partial = data.get_payment_values()
       self.amount.append(amount)
@@ -98,6 +126,8 @@ class AfpZahlung(object):
       if self.partial[-1] is None: self.partial[-1] = 0.0      
       self.balance.append(int(100* (self.amount[-1] - self.partial[-1])))      
       print "AfpZahlung.append_payment_data()", self.amount, self.partial, self.balance
+   ## set values of partial payment in data, invoke financial transaction
+   # @param index - index of payment part in selection list
    def set_payment_data(self, index):
       data = self.selected_list[index]
       payment = float(self.distribution[index])/100
@@ -108,6 +138,9 @@ class AfpZahlung(object):
          data.set_payment_values(sum, today)
          self.add_payment_transaction(payment, data)
          self.partial[index] = sum
+   ## add a selection made from the database to this payment
+   # @param tablename - name of database table to added
+   # @param nr - identification number of database row to be added
    def add_selection(self, tablename, nr):
       added = False
       sellist = None
@@ -129,17 +162,24 @@ class AfpZahlung(object):
             self.distribution = None
             added = True
       return added
+   ## invoke financial transaction for a payment. if desired
+   # @param payment - amount of payment to be recorded
+   # @param data - if given, SelectionList for which transaction should be recorded
    def add_payment_transaction(self, payment, data = None):
       # data == None: multiple payment to be booked through intermediate account
       if self.debug: print "AfpZahlung.add_payment_transaction():", payment, data
       if self.finance: 
          self.finance.add_payment(payment, self.datum, self.auszug, self.get_KundenNr(), self.get_name(), data)
+   ## remove a selection from selection list
+   # @param index - index of selection of list
    def remove_selection(self, index):
       if index < len(self.selected_list):
          del self.selected_list[index]
          del self.amount[index]
          del self.partial[index]
          del self.balance[index]
+   ## attach needed python-modul for dymanic access 
+   # @param name - name of needed modul
    def get_modul(self, name):
       if not name in self.moduls:
          modul = AfpPy_Import(name)
@@ -148,36 +188,53 @@ class AfpZahlung(object):
          return self.moduls[name]
       else:
          return None
+   # convinience routines simular to AfpSelectionList
+   ## return mysql connection
    def get_mysql(self):
       return self.mysql
+   ## return if debug flag is set
    def get_debug(self):
       return self.debug  
+   ## return initial selection of this payment
    def get_data(self):
       return self.selected_list[0]
+   ## return value of initial selection
+   # @param DateiFeld - name of tablecoöumn (column.table)
    def get_value(self,DateiFeld):
       return self.get_data().get_value(DateiFeld)
+   ## return value of initial selection as a string
+   # @param DateiFeld - name of tablecoöumn (column.table)
    def get_string_value(self,DateiFeld):
       #print DateiFeld
       return self.get_data().get_string_value(DateiFeld)
+   ## return the name of involved person for this payment
    def get_name(self):
       data = self.get_data()
       name = data.get_string_value("Vorname.ADRESSE") + " " + data.get_string_value("Name.ADRESSE") 
       return name  
+   ## return the addres identification number of involved person for this payment
    def get_KundenNr(self):
       KNr = self.get_data().get_value("KundenNr")
       return KNr
+   ## return the sum of all selected prices as a string
    def get_preis(self):
       preis = 0.0
       for prs in self.amount:
          preis += prs
       return Afp_toString(preis)
+   ## return the sum of all already recorded payments as a string
    def get_anzahlung(self):
       anzahlung = 0.0
       for anz in self.partial:
          anzahlung += anz
       return Afp_toString(anzahlung)
+   ## return possibly made overpayment
    def get_gutschrift(self):
+      preis = Afp_floatString(self.get_preis())
+      anz = Afp_floatString(self.get_anzahlung())
+      if anz > preis: return Afp_toString(anz - preis)
       return ""
+   ## return list to be displayed for the selections of this payment
    def get_display_list(self):
       liste = []
       for entry in self.selected_list:
@@ -236,14 +293,20 @@ class AfpZahlung(object):
             #print "end while", filled, distribute, spend
             if distribute > 0:
                self.distribution[0] += distribute
+   ## write this payment to database
    def store(self):
       for entry in self.selected_list: entry.store()
       if self.finance: self.finance.store()
 
+## invoice base class
 class AfpRechnung(AfpSelectionList):
+   ## initialise a invoice base class
+   # @param globals - global values including the mysql connection - this input is mandatory
+   # @param RechNr - if given, data will be retrieved this database entry
+   # @param debug - flag for debug information
+   # @param complete - flag if data from all tables should be retrieved durin initialisation \n
+   # RechNr has to be supplied,  otherwise a new, clean object is created
    def  __init__(self, globals, RechNr = None, debug = False, complete = False):
-      # either FahrtNr or sb (superbase) has to be given for initialisation,
-      # otherwise a new, clean object is created
       AfpSelectionList.__init__(self, globals, "Rechnung", debug)
       self.debug = debug
       self.new = False
@@ -263,9 +326,12 @@ class AfpRechnung(AfpSelectionList):
       self.selects["FAHRTEN"] = [ "FAHRTEN","RechNr = RechNr.RECHNG"] 
       if complete: self.create_selections()
       if self.debug: print "AfpRechnung Konstruktor, RechNr:", self.mainvalue
+   ## destructor
    def __del__(self):    
       if self.debug: print "AfpRechnung Destruktor"
-      #AfpSelectionList.__del__(self)  
+      #AfpSelectionList.__del__(self) 
+   ## clear current SelectionList to behave as a newly created List 
+   # @param KundenNr - KundenNr of newly seelected adress, == None if adress is kept   
    def set_new(self, KundenNr):
       self.new = True
       data = {}
@@ -284,54 +350,22 @@ class AfpRechnung(AfpSelectionList):
       if KundenNr:
          self.create_selection("ADRESSE", False)
          self.set_value("Name", self.get_name(True))
+   ## one line to hold all relevant values of this invoice to be displayed 
    def line(self):
       zeile = self.get_string_value("RechNr").rjust(8) + " " + self.get_string_value("Datum") + " " + self.get_string_value("Wofuer") + " " 
       zeile += self.get_string_value("Zahlbetrag").rjust(10) + " " + self.get_string_value("Zahlung").rjust(10)
-      return zeile  
+      return zeile 
+   ## switch 'Zustand' from open (offen) to payed (bezahlt) if necessary
    def set_zustand(self):
       if self.get_value("Zustand") == "offen" and self.get_value("Zahlung") >= self.get_value("ZahlBetrag"):
          self.set_value("Zustand","bezahlt")
+   ## set internal payment values
+   # @param payment - amount of payment
+   # @param datum - date when last payment has been done
    def set_payment_values(self, payment, datum):
       AfpSelectionList.set_payment_values(self, payment, datum)
       self.set_zustand()
       if self.get_value("MietNr"):
          self.set_value("Zahlung.FAHRTEN", payment)
          self.set_value("ZahlDat.FAHRTEN", datum)
-  
-            
-# Main      
-if __name__ == "__main__":
-   #mysql = AfpSQL.AfpSQL("127.0.0.1","server", "YnVzc2U=","BusAfp", False)
-   #set = AfpGlobal.AfpSettings(False)
-   #globals = AfpGlobal.AfpGlobal(mysql, set)
-   #sb = AfpSuperbase.AfpSuperbase(globals, False)
-   #sb.open_datei("ADRESSE")
-   #sb.open_datei("ARCHIV")
-   #sb.open_datei("AUSGABE")
-   #sb.open_datei("FAHRTI")
-   #sb.open_datei("FAHRTEX")
-   #sb.open_datei("FAHRTVOR")
-   #sb.open_datei("FAHRTEN")
-   #sb.open_datei("RECHNG")
-   #sb.CurrentIndexName("FahrtNr")   
-   #sb.select_key(1436)
-   #sb.CurrentIndexName("Zielort")   
-   #Charter = AfpChRoutines.AfpCharter(globals,None,sb,True,True)
-   #Test = AfpZahlung(Charter)
-   #amount = [500.00,500.00,700.00,250.00]
-   #amount = [500.00,500.00,700.00]
-   #partial = [250.00,250.00,300.00,200.00]
-   #partial = [250.00,250.00,250.00]
-   #partial = [550.00,500.00,700.00,250.00]
-   #balance = []
-   #for i in range(0,len(amount)):
-      #balance.append(int(100*(amount[i] - partial[i])))
-   #Test.amount = amount
-   #Test.partial = partial
-   #Test.balance = balance
-   #print partial
-   #Test.distribute_payment(1000.00)
-   #print Test.partial
-    print "Hallo"  
-      
-   
+    

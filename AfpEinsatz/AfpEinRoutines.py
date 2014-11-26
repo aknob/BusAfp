@@ -1,23 +1,56 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# 11.03.2014 Andreas Knoblauch - generated
+
+## @package AfpEinsatz.AfpEinRoutines
+# AfpEinRoutines module provides classes and routines needed for handling of vehicle operations,\n
+# no display and user interaction in this modul.
+#
+#   History: \n
+#        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
+#        11 Mar. 2014 - inital code generated - Andreas.Knoblauch@afptech.de
+
+#
+# This file is part of the  'Open Source' project "BusAfp" by 
+#  AfpTechnologies (afptech.de)
+#
+#    BusAfp is a software to manage coach and travel acivities
+#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#    This program is distributed in the hope that it will be useful, but
+#    WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+#    See the GNU General Public License for more details.
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+#
 
 import AfpBase
 from AfpBase import AfpBaseRoutines
 from AfpBase.AfpBaseRoutines import *
 
+## class to handle vehicle operations (Einsatz)
 class AfpEinsatz(AfpSelectionList):
+   ## initialize class AfpEinsatz
+   # @param globals - global values including the mysql connection - this input is mandatory
+   # @param EinsatzNr - identifier of a certain operation incident
+   # @param MietNr - if given, identifier of a charter incident
+   # @param ReiseNr - if given, identifier of a touristic entry
+   # @param typ - if MietNr or ReiseNr is given, typ how start and enddate of input data have to be interpreted
+   # @param debug - flag for debug information \n
+   # \n
+   # either EinsatzNr or ((MietNr or ReiseNr) and typ) has to be given for initialisation, otherwise a new, clean object is created
    def  __init__(self, globals, EinsatzNr, MietNr = None, ReiseNr = None, typ = None, debug = False):
-      # either VorgangsNr or BuchungsNr has to be given for initialisation,
-      # otherwise a new, clean object is created
       AfpSelectionList.__init__(self, globals, "Einsatz", debug)
       self.debug = debug
       self.mainindex = "EinsatzNr"
       if EinsatzNr:     
          self.new = False
          self.mainvalue = Afp_toString(EinsatzNr)
-      elif MietNr or ReiseNr:
-         self.set_new(MietNr, ReiseNr, typ)
+      else:
          self.mainvalue = ""
       self.mainselection = "EINSATZ"
       self.set_main_selects_entry()
@@ -31,12 +64,18 @@ class AfpEinsatz(AfpSelectionList):
       self.selects["FremdAdresse"] = [ "ADRESSE","KundenNr = FremdNr.EINSATZ"]  
       self.selects["FahrtAdresse"] = [ "ADRESSE","KundenNr = KundenNr.FAHRTEN"]  
       self.selects["ReiseAdresse"] = [ "ADRESSE","KundenNr = KundenNr.REISEN"]  
+      if MietNr or ReiseNr: self.set_new(MietNr, ReiseNr, typ)
       if self.debug: print "AfpEinsatz Konstruktor:", self.mainindex, self.mainvalue 
+   ## destructor
    def __del__(self):    
       if self.debug: print "AfpEinsatz Destruktor"
       
+   ## clear current SelectionList to behave as a newly created List 
+   # @param MietNr - if given, identifier of charter this operation should be attached to
+   # @param ReiseNr -  if given, identifier of touristic tour this operation should be attached to
+   # @param infoindex -  if given, index of info the data should be extracted from
+   # @param typ -  if given, typ how start and enddate of input data have to be interpreted
    def set_new(self, MietNr =  None, ReiseNr = None, infoindex = None,  typ = None):
-      self.new = True
       data = {}
       keep = []
       select = "" 
@@ -56,8 +95,10 @@ class AfpEinsatz(AfpSelectionList):
          keep.append("ReiseAdresse")
          self.clear_selections(keep)
       if data and select:
+         print "AfpEinsatz.set_new:", data, select
          self.set_data_values(data,"EINSATZ")
          selection = self.get_selection(select)
+         print "AfpEinsatz.set_new:", selection, selection.select, selection.data
          data["Datum"] = selection.get_value("Abfahrt")
          data["EndDatum"] = selection.get_value("Fahrtende")
          info = self.get_Fahrtinfo(infoindex, typ)         
@@ -69,13 +110,16 @@ class AfpEinsatz(AfpSelectionList):
             data["Zeit"] = info[1]
             data["Stellort"] = info[2]
          self.set_data_values(data,"EINSATZ")
+      self.new = True
   
+   ## check if attached data is of the input typ
+   # @param typ - typ to be checked
    def is_typ(self, typ):
       if self.get_value(typ +"Nr"):
          return True
       else:
          return False
-  
+   ## return typ-string to be displayed
    def get_typ(self):
       typ = ""
       if self.is_typ("Miet"):
@@ -91,7 +135,9 @@ class AfpEinsatz(AfpSelectionList):
          else:
             typ = "Reise"
       return typ
-      
+   ## extract date, time and address from possibly given data
+   # @param index - index of row in given data
+   # @param typ -  how dates of input data have to be interpreted
    def get_Fahrtinfo(self, index , typ = None):
       info = None
       if self.is_typ("Miet"):
@@ -103,7 +149,8 @@ class AfpEinsatz(AfpSelectionList):
          if not index is None:
             info = rows[index][:3]
       return info
-         
+   ## extract complete working days and hours from given time interval
+   # @param time - timeval interval to be analysed
    def get_einsatztage(self, time):
       day = self.globals.get_value("hours-per-day","Einsatz")
       hday = self.globals.get_value("hours-per-halfday","Einsatz")
@@ -112,6 +159,9 @@ class AfpEinsatz(AfpSelectionList):
       days, hours = Afp_daysFromTime(time, day, hday)
       #print "AfpEinsatz.get_einsatztage:", time, "=", days, hours, "bei",day, hday
       return days, hours
+   ## extract spesen from working days and hours
+   # @param tage - complete working days
+   # @param hours - hours not fitting into a complete working days
    def get_spesen(self, tage, std = None):
       spesen = 0.0
       if tage:
@@ -129,7 +179,8 @@ class AfpEinsatz(AfpSelectionList):
                   max_value = pro_std[entry]
          spesen += max_value
       return spesen
-   
+   ## create list of drivers to be displayed 
+   # @param indices - if given, indices of drivers which should be inserted 
    def create_FahrerList(self, indices = None):
       FahrerList = []
       if indices:
@@ -139,7 +190,7 @@ class AfpEinsatz(AfpSelectionList):
          for ind in range(self.get_value_length("FAHRER")):
              FahrerList.append(AfpFahrer(self.globals, self, ind, self.debug))
       return FahrerList
-      
+   ## add appropriate SelectionList for output  
    def add_Ausgabe(self):
       if self.get_value("FremdNr.EINSATZ"):
          if "AUSGABE" in self.selections:
@@ -149,8 +200,14 @@ class AfpEinsatz(AfpSelectionList):
          else:
             Fahrten = "\"Fahrten\""       
          self.selects["AUSGABE"] = [ "AUSGABE","!Art = \"Fremdeinsatz\" and Typ = " + Fahrten] 
-      
+
+## class for driver handling      
 class AfpFahrer(AfpSelectionList):
+   ## initialize class AfpFahrer
+   # @param globals - global values including the mysql connection - this input is mandatory
+   # @param Einsatz - operation SelectionList this driver entry should be attached to
+   # @param index - index of driver in operation SelectionList this object refers to
+   # @param debug - flag for debug information \n
    def  __init__(self, globals, Einsatz, index = 0, debug = False):
       AfpSelectionList.__init__(self, globals, "FAHRER", debug)
       self.debug = debug
@@ -174,9 +231,11 @@ class AfpFahrer(AfpSelectionList):
       selection = AfpSQLTableSelection(self.get_mysql(), "ARCHIV", self.debug)
       selection.load_data(select)
       self.selections["ARCHIV"] = selection
-      if self.debug: print "AfpFahrer Konstruktor:", self.mainindex, self.mainvalue 
+      if self.debug: print "AfpFahrer Konstruktor:", self.mainindex, self.mainvalue
+   ## destructor
    def __del__(self):    
       if self.debug: print "AfpFahrer Destruktor"
+   ## add appropriate SelectionList for output  
    def add_Ausgabe(self):
       if "AUSGABE" in self.selections:
          self.delete_selection("AUSGABE")
@@ -185,7 +244,10 @@ class AfpFahrer(AfpSelectionList):
       else:
          Fahrten = "\"Fahrten\""
       self.selects["AUSGABE"] = [ "AUSGABE","!Art = \"Einsatz\" and Typ = " + Fahrten] 
-   def add_to_Archiv(self, new_data, delete = False):
+   ## complete data to be stored in archive \n
+   # - overwritten from parent
+   # @param new_data - data to be completed and written into "ARCHIV" TableSelection \n
+   def add_to_Archiv(self, new_data):
       selection =self.get_selection("ARCHIV")
       row = selection.get_data_length()
       new_data["Art"] = "BusAfp"

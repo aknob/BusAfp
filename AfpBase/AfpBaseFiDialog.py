@@ -1,6 +1,32 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# 14.02.2014 Andreas Knoblauch - generated
+
+## @package AfpBase.AfpBaseFiDialog
+# AfpBaseFiDialog module provides the dialogs and appropriate loader routines needed for finance handling, \n
+# payment userinteraction is performed here. \n
+#
+#   History: \n
+#        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
+#        14 Feb. 2014 - inital code generated - Andreas.Knoblauch@afptech.de
+
+#
+# This file is part of the  'Open Source' project "BusAfp" by 
+#  AfpTechnologies (afptech.de)
+#
+#    BusAfp is a software to manage coach and travel acivities
+#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#    This program is distributed in the hope that it will be useful, but
+#    WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+#    See the GNU General Public License for more details.
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+#
 
 import wx
 import wx.grid
@@ -14,14 +40,16 @@ from AfpBaseDialog import *
 import AfpBaseFiRoutines
 from AfpBaseFiRoutines import *
 
-
+## display and manipulation of payments
 class AfpDialog_DiFiZahl(AfpDialog):
+   ## initialise dialog
    def __init__(self, *args, **kw):
       AfpDialog.__init__(self,None, -1, "")
       self.do_store = True
       self.SetSize((570,400))
       self.SetTitle("Zahlung")
 
+   ## initialise graphic elements
    def InitWx(self):
       panel = wx.Panel(self, -1)
    #FOUND: DialogFrame "Von_Zahlung", conversion not implemented due to lack of syntax analysis!
@@ -74,6 +102,8 @@ class AfpDialog_DiFiZahl(AfpDialog):
       self.Bind(wx.EVT_BUTTON, self.On_Zahlung_Info, self.button_Info)
       self.setWx(panel, [370, 320, 90, 44], [470, 320, 90, 44])
 
+   ## populate the 'Zahlung' list, \n
+   # this routine is called from the AfpDialog.Populate
    def Pop_Zahlungen(self):
       liste = self.data.get_display_list()
       gesamt = self.data.get_preis()
@@ -124,6 +154,8 @@ class AfpDialog_DiFiZahl(AfpDialog):
    def set_auszug(self, auszug, datum):
       if auszug:
          self.data.set_auszug(auszug, datum)
+   ## invoke selection of another participent of this payment
+   # @param tablename - name of database taable, where selection should be made
    def select_selection(self, tablename):
       liste = []
       ident = []
@@ -147,7 +179,9 @@ class AfpDialog_DiFiZahl(AfpDialog):
       if ok and value:
          self.data.add_selection(tablename, value)
          self.Pop_Zahlungen()
+
    # Event Handlers 
+   ## event handler when cursor leaves the 'statement of account' (Auszug) textbox
    def On_Zahlung_Auszug(self,event):
       if self.debug: print "Event handler `On_Zahlung_Auszug'"
       print "Event handler `On_Zahlung_Auszug'"
@@ -155,28 +189,40 @@ class AfpDialog_DiFiZahl(AfpDialog):
       self.check_auszug(Auszug)
       event.Skip()
 
+   ##Eventhandler BUTTON - add a incoming invoice to this payment \n
+   # not implemented yet
    def On_Zahlung_Verb(self,event):
       print "Event handler `On_Zahlung_Verb' not implemented!"
       event.Skip()
 
+   ##Eventhandler BUTTON - add a touristic entry  to this payment \n
+   # not implemented yet
    def On_Zahlung_Anmeld(self,event):
       print "Event handler `On_Zahlung_Anmeld' not implemented!"
       event.Skip()
 
+   ##Eventhandler BUTTON - add a cancelled invoice to this payment \n
+   # not implemented yet
    def On_Zahlung_Storno(self,event):
       print "Event handler `On_Zahlung_Storno' not implemented!"
       event.Skip()
 
+   ##Eventhandler BUTTON - add a charter entry to this payment \n
+   # not implemented yet
    def On_Zahlung_Miet(self,event):
       if self.debug: print "Event handler `On_Zahlung_Miet'"
       self.select_selection("FAHRTEN")
       event.Skip()
 
+   ##Eventhandler BUTTON - add a outgoing invoice to this payment \n
+   # not implemented yet
    def On_Zahlung_Rech(self,event):
       if self.debug: print "Event handler `On_Zahlung_Rech'"
       self.select_selection("RECHNG")
       event.Skip()
 
+   ##Eventhandler BUTTON - add a outgoing invoice to this payment \n
+   # not implemented yet
    def On_Zahlung_Reihe(self,event):
       if self.debug: print "Event handler `On_Zahlung_Reihe'"
       index = self.list_Zahlungen.GetSelections()[0] 
@@ -185,19 +231,26 @@ class AfpDialog_DiFiZahl(AfpDialog):
          self.Pop_Zahlungen()
       event.Skip()
 
+   ##Eventhandler BUTTON - show list of financial payment transaction \n
+   # not implemented yet
    def On_Zahlung_Liste(self,event):
       print "Event handler `On_Zahlung_Liste' not implemented!"
       event.Skip()
 
+   ##Eventhandler BUTTON - allow manuel distribution of this payment \n
+   # not implemented yet
    def On_Zahlung_Manuell(self,event):
       print "Event handler `On_Zahlung_Manuell' not implemented!"
       event.Skip()
 
+   ##Eventhandler BUTTON - show payment info \n
+   # not implemented yet
    def On_Zahlung_Info(self,event):
       print "Event handler `On_Zahlung_Info' not implemented!"
       event.Skip()
 
-# loader routine for dialog DiFiZahl
+## loader routine for dialog DiFiZahl \n
+# @param do_not_store - flag if writing to database should be skipped
 def AfpLoad_DiFiZahl(data, do_not_store = False):
    DiZahl = AfpDialog_DiFiZahl(None)
    Zahl = AfpZahlung(data) 

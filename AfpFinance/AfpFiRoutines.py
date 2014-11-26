@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# 14.02.2014 Andreas Knoblauch - generated
 
 ## @package AfpFinance.AfpFiRoutines
 # AfpFiRoutines module provides classes and routines needed for finance handling and accounting,\n
@@ -33,7 +32,7 @@ import AfpBase
 from AfpBase import AfpBaseRoutines
 from AfpBase.AfpBaseRoutines import *
 
-## calss to handle finance depedencies
+## class to handle finance depedencies
 class AfpFinance(AfpSelectionList):
    ## initialize class
    # @param globals - global values including the mysql connection - this input is mandatory

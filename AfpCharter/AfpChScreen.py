@@ -42,7 +42,7 @@ from AfpBase.AfpDatabase import *
 from AfpBase.AfpDatabase.AfpSQL import AfpSQL
 from AfpBase.AfpDatabase.AfpSuperbase import AfpSuperbase
 from AfpBase.AfpBaseRoutines import AfpPy_Import, Afp_archivName, Afp_startFile
-from AfpBase.AfpBaseDialog import AfpReq_Info, AfpReq_Selection, AfpLoad_DiReport, AfpScreen
+from AfpBase.AfpBaseDialog import AfpReq_Info, AfpReq_Selection, AfpReq_Question, AfpLoad_DiReport, AfpScreen
 from AfpBase.AfpBaseAdDialog import AfpLoad_AdAusw, AfpLoad_DiAdEin_fromSb
 from AfpBase.AfpBaseFiDialog import AfpLoad_DiFiZahl
 
@@ -254,13 +254,15 @@ class AfpChScreen(AfpScreen):
       if self.einsatz and AfpCharter_isOperational(zustand):
          selection = Charter.get_selection("EINSATZ")
          ENr = None
+         print "AfpChScreen.On_Fahrt_EinF Einsatz:", self.einsatz
+         print "AfpChScreen.On_Fahrt_EinF:", selection.get_data_length(), selection, Charter.selections
          if selection.get_data_length() == 0:
             Ok = AfpReq_Question("Kein Einsatz für diese Mietfahrt vorhanden,","neuen Einsatz erstellen?","Einsatz?")
             if Ok:
                Einsatz2 = None
-               Einsatz = self.einsatz[0].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, None, "start")
+               Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, None, "start")
                if Charter.get_value("Art") == "Transfer":
-                   Einsatz2 = self.einsatz[0].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, None, "end")
+                   Einsatz2 = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, None, "end")
                Einsatz.store()
                if Einsatz2: Einsatz2.store()
                selection.reload_data()
@@ -277,13 +279,14 @@ class AfpChScreen(AfpScreen):
                ENr = selection.get_value("EinsatzNr")
                Ok = True
             if Ok:
-               Einsatz = self.einsatz[0].AfpEinsatz(Charter.get_globals(), ENr)
-               Ok = self.einsatz[1].AfpLoad_DiEinsatz(Einsatz)
+               Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), ENr)
+               Ok = self.einsatz[0].AfpLoad_DiEinsatz(Einsatz)
       else:
          AfpReq_Info("'" + zustand + "' für eine Mietfahrt,".decode("UTF-8") , "es ist kein Einsatz möglich!".decode("UTF-8"))
       event.Skip()
 
-   ## Eventhandler BUTTON - new charter entry
+   ## Eventhandler BUTTON - new charter entry \n
+   # only complete new entries are created here, no copiing possible.
    def On_Fahrt_neu(self,event):   
       if self.debug: print "AfpChScreen Event handler `On_Fahrt_neu'"
       name = self.sb.get_string_value("Name.ADRESSE")
@@ -377,7 +380,9 @@ class AfpChScreen(AfpScreen):
       self.sb.set_index(index, "FAHRTEN", "FahrtNr")
       self.sb.CurrentIndexName(index)
       
-  # routines to be overwritten
+   # routines to be overwritten
+   ## load global veriables for this afp-module
+   # (overwritten from AfpScreen) 
    def load_additional_globals(self):
       self.globals.set_value(None, None, "Einsatz")
    ## set current record to be displayed 
@@ -404,6 +409,7 @@ class AfpChScreen(AfpScreen):
       self.sb.CurrentIndexName("Abfahrt","FAHRTEN")
       self.sb.select_last() # for tests
       return
+   ## supply list of graphic object where keydown events should not be traced.
    def get_no_keydown(self):
       return []
    ## get names of database tables to be opened for this screen
