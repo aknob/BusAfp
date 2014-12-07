@@ -32,7 +32,7 @@ import AfpBase
 from AfpBase import AfpBaseRoutines
 from AfpBase.AfpBaseRoutines import *
 
-## class to handle finance depedencies
+## class to handle finance depedencies, 
 class AfpFinance(AfpSelectionList):
    ## initialize class
    # @param globals - global values including the mysql connection - this input is mandatory
@@ -76,8 +76,10 @@ class AfpFinance(AfpSelectionList):
    def __del__(self):    
       if self.debug: print "AfpFinance Destruktor"
 
-## class to sample all entries needed for one action
-class AfpFinTrans(AfpSelectionList):
+## class to sample all financial transaction entries needed for one action. \n
+# central class for financial transactions of all kinds. \n
+# this centralisation is considered to more usefull then following the object oriented approach.
+class AfpFinanceTransactions(AfpSelectionList):
    ## initialize class
    # @param globals - global values including the mysql connection - this input is mandatory
    # a new, clean object is created
@@ -94,10 +96,10 @@ class AfpFinTrans(AfpSelectionList):
       if not self.mainselection in self.selections:
          self.create_selection(self.mainselection)
       self.selects["AUSZUG"] = [ "AUSZUG","Auszug = Beleg.BUCHUNG"] 
-      if self.debug: print "AfpFinTrans Konstruktor:", self.mainindex, self.mainvalue 
+      if self.debug: print "AfpFinanceTransactions Konstruktor:", self.mainindex, self.mainvalue 
    ## destructor
    def __del__(self):    
-      if self.debug: print "AfpFinTrans Destruktor"
+      if self.debug: print "AfpFinanceTransactions Destruktor"
    ## check if identifier of statement of this account (Auszug) exists, if yes load it
    # @param auszug - identifier of statement of account
    def check_auszug(self, auszug):
@@ -128,6 +130,49 @@ class AfpFinTrans(AfpSelectionList):
    # @param fhandle - filehandle for output file
    def set_output_file(self, fhandle):
       self.file = fhandle
+   ## generate  oner row for exported data
+   # @param accdata - dictionary holding data for row to be written
+   def generate_export_line(self, accdata):
+      columns = self.globals.get_value("export","finance")
+      sep = self.globals.get_value("separator","finance")
+      if not columns: columns = ["Datum", "Konto","Gegenkonto","Betrag","Beleg","Bem"]
+      if not sep: sep = ","
+      line = ""
+      for col in columns:
+         if col in accdata:
+            line += sep + Afp_toQuotedString(accdata[col])
+         else:
+            line += sep + "\"\""
+      return line[1:]
+   ## proceed data either into intern data structures or into the output file
+   # @param accdata - dictionary holding data for row to be assimilated
+   def assimilate_transaction_data(self, accdata):
+      if self.file:
+         line =  self.generate_export_line(accdata) 
+         print "AfpFinanceTransactions.assimilate_transaction_data write line:", line
+         self.file.write( line + '\n')
+      else:
+         sel =  self.get_selection()
+         index = sel.add_data_row(True)
+         sel.set_data_values(accdata, index)
+   ## overwritten 'store' of the AfpSelectionList, the parent 'store' is called and a common action-number spread.          
+   def store(self):
+      print "AfpFinanceTransactions.store 0:",self.new, self.mainindex
+      self.view()
+      AfpSelectionList.store(self)
+      print "AfpFinanceTransactions.store 1:",self.new, self.mainindex 
+      self.view()
+      if self.new:
+         self.new = False
+         VNr = self.get_value("BuchungsNr")
+         print "VorgangsNr:", VNr
+         changed_data = {"VorgangsNr": VNr}
+         for i in range(0, self.get_value_length()):
+            self.set_data_values(changed_data, None, i)
+         print "AfpFinanceTransactions.store 2:",self.new, self.mainindex 
+         for d in self.selections: print d,":", self.selections[d].data
+         AfpSelectionList.store(self)
+
    ## set payment through indermediate account (payment has to be split)
    def set_payment_transfer(self):
       self.transfer = self.get_special_accounts("ZTF")
@@ -197,7 +242,7 @@ class AfpFinTrans(AfpSelectionList):
    # @param data -  incident data where financial values have to be extracted, if == None: payment is assigne to transferaccount
    # @param reverse -  accounting data has to be swapped
    def add_payment(self, payment, datum, auszug, KdNr, Name, data = None, reverse = False):
-      print "AfpFinTrans.add_payment:", payment, datum, auszug, KdNr, Name, data 
+      print "AfpFinanceTransactions.add_payment:", payment, datum, auszug, KdNr, Name, data 
       if auszug: self.set_auszug(auszug, datum)
       accdata = {}
       accdata["Datum"] = datum
@@ -229,14 +274,11 @@ class AfpFinTrans(AfpSelectionList):
          accdata = self.add_payment_data(accdata, data)
       accdata = self.add_payment_data_default(accdata)
       if reverse: accdata = self.set_storno_values(accdata, "Auszahlung")
-      sel =  self.get_selection()
-      index = sel.add_data_row(True)
-      sel.set_data_values(accdata, index)
+      self.assimilate_transaction_data(accdata)
       # possible Skonto has to be accounted during payment
       accdata = self.data_create_skonto_accounting(data)
       if accdata:
-         index = sel.add_data_row(True)
-         sel.set_data_values(accdata, index)
+         self.assimilate_transaction_data(accdata)
    ## extract payment relevant data from 'data' input
    # @param paymentdata - payment data dictionary to be modified and returned
    # @param data - incident data where relevant values have to be extracted
@@ -250,19 +292,17 @@ class AfpFinTrans(AfpSelectionList):
    # @param data - incident data where entries are created from
    # @param storno - flag if incident should be cancelled
    def add_financial_transactions(self, data, storno = False):
-      print "AfpFinTrans.add_financial_transactions", storno
+      print "AfpFinanceTransactions.add_financial_transactions", storno
       today = self.globals.today()
       accdata = self.add_financial_transaction_data(data)
-      print "AfpFinTrans.add_financial_transactions accdata:", accdata
+      print "AfpFinanceTransactions.add_financial_transactions accdata:", accdata
       if accdata:
-         sel = self.get_selection()
          for acc in accdata:
             if not "Von" in acc: acc["Von"] = data.get_identifier()
             acc["Art"] = "Intern"
             acc["Eintrag"] = today
             if storno: acc = self.set_storno_values(acc)
-            index = sel.add_data_row(True)
-            sel.set_data_values(acc, index)
+            self.assimilate_transaction_data(acc)
    ## financial transaction data is delivered in a list of dictionaries from incident data \n
    # this routine splits into the different incident routines. \n
    # REMARK: as it is planned to hold the financial tarnsactions for all the different incidents central in this deck \n
@@ -272,7 +312,7 @@ class AfpFinTrans(AfpSelectionList):
    #[{"Datum":   .                                 "Konto":  ,                 "Gegenkonto ":   ,            "Betrag":  ,"Beleg":  ,     "Bem":  },{}, ...] \n
    # [date where accounting gets valid, first accountnumber, second accountnumber, balance, receiptnumber, remark]
    def add_financial_transaction_data(self, data):
-      print "AfpFinTrans.add_financial_transaction_data"
+      print "AfpFinanceTransactions.add_financial_transaction_data"
       if data.get_listname() == "Charter":
          accdata = self.add_transaction_data_charter(data)
       else:
@@ -284,7 +324,7 @@ class AfpFinTrans(AfpSelectionList):
    # @param data - incident data according to which payment has to be shifted
    def add_internal_payment(self, data):
       # shifts an already received payment to another account if necessary
-      print "AfpFinTrans.add_internal_payment"
+      print "AfpFinanceTransactions.add_internal_payment"
       accdata = {}
       listname = data.get_listname()
       if listname == "Charter":
@@ -297,26 +337,7 @@ class AfpFinTrans(AfpSelectionList):
          accdata["Von"] = data.get_identifier()  
          accdata["Beleg"] = "Intern"  
          accdata["Eintrag"] = today
-         sel = self.get_selection()
-         index = sel.add_data_row(True)
-         sel.set_data_values(accdata, index) 
-   ## overwritten 'store' of the AfpSelectionList, the parent 'store' is called and a common action-number spread.          
-   def store(self):
-      print "AfpFinTrans.store 0:",self.new, self.mainindex
-      self.view()
-      AfpSelectionList.store(self)
-      print "AfpFinTrans.store 1:",self.new, self.mainindex 
-      self.view()
-      if self.new:
-         self.new = False
-         VNr = self.get_value("BuchungsNr")
-         print "VorgangsNr:", VNr
-         changed_data = {"VorgangsNr": VNr}
-         for i in range(0, self.get_value_length()):
-            self.set_data_values(changed_data, None, i)
-         print "AfpFinTrans.store 2:",self.new, self.mainindex 
-         for d in self.selections: print d,":", self.selections[d].data
-         AfpSelectionList.store(self)
+         self.assimilate_transaction_data(accdata)
    ## Charter: deliver payment transaction data
    # @param paymentdata - payment data dictionary to be modified and returned
    # @param data - Charter data where relevant values have to be extracted
@@ -330,7 +351,7 @@ class AfpFinTrans(AfpSelectionList):
    ## Charter: deliver financial transaction data
    # @param data - Charter data where relevant values have to be extracted
    def add_transaction_data_charter(self, data):
-      print "AfpFinTrans.add_transaction_data_charter"
+      print "AfpFinanceTransactions.add_transaction_data_charter"
       accdata = []
       if data.exists_selection("RECHNG") or data.get_value("RechNr"):
          accdata = self.add_transaction_data_rechnung(data)
@@ -339,7 +360,7 @@ class AfpFinTrans(AfpSelectionList):
    # @param paymentdata - payment data dictionary to be modified and returned
    # @param data - Charter data where relevant values have to be extracted
    def add_internal_payment_charter(self, paymentdata, data):
-      print "AfpFinTrans.add_internal_payment_charter:"
+      print "AfpFinanceTransactions.add_internal_payment_charter:"
       #for d in self.selections: print d,":", self.selections[d].data
       #for d in data.selections: print d,":", data.selections[d].data
       zahlung = data.get_value("Zahlung.RECHNG")
@@ -356,16 +377,16 @@ class AfpFinTrans(AfpSelectionList):
    def add_payment_data_rechnung(self, paymentdata, data):
       paymentdata["Gegenkonto"] = data.get_value("Debitor.RECHNG") 
       paymentdata["GktName"] = data.get_name(True, "RechAdresse") 
-      print "AfpFinTrans.add_payment_data_rechnung:",paymentdata
+      print "AfpFinanceTransactions.add_payment_data_rechnung:",paymentdata
       if not paymentdata["Gegenkonto"]:
          paymentdata["Gegenkonto"]  = Afp_getIndividualAccount(self.get_mysql(), data.get_value("KundenNr"))
          paymentdata["GktName"] = data.get_name(True) 
-         print "AfpFinTrans.add_payment_data_rechnung fallback:", paymentdata
+         print "AfpFinanceTransactions.add_payment_data_rechnung fallback:", paymentdata
       return paymentdata 
    ## Rechnung (Invoice): deliver financial transaction data
    # @param data - Rechnung data where relevant values have to be extracted
    def add_transaction_data_rechnung(self, data):
-      print "AfpFinTrans.add_transaction_data_rechnung"
+      print "AfpFinanceTransactions.add_transaction_data_rechnung"
       accdata = []
       datum = data.get_value("Datum.RECHNG")
       preis =  data.get_value("RechBetrag.RECHNG")
@@ -399,4 +420,53 @@ class AfpFinTrans(AfpSelectionList):
             acc = {"Datum": datum,"Konto": konto, "Gegenkonto ": gkonto2,"Beleg": beleg,"Betrag": preis,"KtName": name,"GktName": gkt2,"KundenNr": kdnr,"Bem":  bem,"Von": von}
             accdata.append(acc)
       return accdata
+     
+## class to export financial transactions
+class AfpFinanceExport(AfpSelectionList):
+   ## initialize class
+   # @param globals - global values including the mysql connection - this input is mandatory
+   # @param period - [startdate, enddate] for data to be exported
+   # @param filename - name of exportfile
+   # @param tables - list of tables where data should be extracted 
+   # @param only_payment - flag if only payments shouzld be extracted
+   # - None: all entries are extracted
+   # - False: only internal transitions are extracted
+   # - True: only payments are extracted
+   def  __init__(self, globals, period, filename, tables = None, only_payment = None):
+      AfpSelectionList.__init__(self, globals, "Export", globals.is_debug())
+      self.file = open(filename, 'w')
+      self.transfer = None
+      self.singledate = None
+      self.tables = tables
+      self.only_payment = only_payment
+      self.period = period
+      if len(period) == 1: self.singledate = period[0]
+      if self.singledate:
+         # in case of a single date look for transactions already exported at that date
+         self.selects["BUCHUNG"] = [ "BUCHUNG", self.set_period_select("Export")]   
+      else:
+         # otherwise for transaction becoming valid in this period
+         self.selects["BUCHUNG"] = [ "BUCHUNG", self.set_period_select("Datum")] 
+      # tableselections possibly needed for direct transaction generation
+      self.selects["RECHNG"] = [ "RECHNG", self.set_period_select("Datum")]    
+      if self.debug: print "AfpFinanceExport Konstruktor"
+   ## destructor
+   def __del__(self):    
+      if self.debug: print "AfpFinanceExport Destruktor"
+   ## compose the period select string
+   # @param field - name of tablefield to be involved in this selection
+   def set_period_select(field):
+      select = ""
+      if self.singledate:
+         select = "\"" + field + "\" = " + Afp_toInternDateString(self.singledate) 
+      else:  
+         select = "\"" + field + "\" >= " + Afp_toInternDateString(self.period[0]) + " AND " 
+         select +=  "\"" + field + "\" <= " + Afp_toInternDateString(self.period[1])
+   return select
+     
+     
+        
+         
+   
+
                
