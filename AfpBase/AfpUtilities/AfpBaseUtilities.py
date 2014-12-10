@@ -28,7 +28,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
 #
 
-
+import imp
 import sys
 import os.path
 import os
@@ -48,7 +48,10 @@ def Afp_getGlobalVar(name):
          return None
    if name == "op-system": return platform.system()
    if name == "net-name": return platform.node()
-   if name == "path-delimiter": return os.sep
+   if name == "path-delimiter": 
+      deli = os.sep
+      if deli == '\\': deli = "\\"
+      return deli
    return None
 ## type check 'numeric'
 # @param wert - value to be checked
@@ -214,7 +217,29 @@ def Afp_daysFromTime(timedelta, day = None, hday = None):
       hours = 0.0
       days += 0.5
    return days, hours
- 
+
+## dynamic import of a python module from modulname or path, 
+# a handle to the modul will be returned
+# @param modul - name of modul to be imported
+# @param path - path to modul to be imported
+def AfpPy_Import(modul, path):
+   mod = None
+   pathname = None
+   try:
+      return sys.modules[modul]
+   except KeyError:
+      pass
+   try:
+      #print "AfpPy_Import:", modul, path
+      fp, pathname, description = imp.find_module(modul, [path])
+      #print "AfpPy_Import:", fp, pathname, description
+      mod = imp.load_module(modul, fp, pathname, description)   
+   except:
+       print "ERROR: dynamic modul " + modul + " not found!"
+       if pathname and Afp_existsFile(pathname):
+          print "File \"" + pathname + "\" exists, propably a syntax problem."
+   return mod
+
 ## import data of extern file and return it
 # @param fname - name of file
 def Afp_importFileData(fname):

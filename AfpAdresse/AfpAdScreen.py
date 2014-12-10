@@ -71,26 +71,24 @@ class AfpAdScreen(AfpScreen):
       panel = self.panel
       
       # BUTTON
+      self.button_Auswahl = wx.Button(panel, -1, label="Aus&wahl", pos=(692,50), size=(77,50), name="BAuswahl")
+      self.Bind(wx.EVT_BUTTON, self.On_Adresse_AuswErw, self.button_Auswahl)
+      self.button_Bearbeiten = wx.Button(panel, -1, label="&Bearbeiten", pos=(692,110), size=(77,50), name="Bearbeiten")
+      self.Bind(wx.EVT_BUTTON, self.On_Adresse_AendF, self.button_Bearbeiten)
+      self.button_Voll = wx.Button(panel, -1, label="&Volltext", pos=(692,170), size=(77,50), name="BVoll")
+      self.Bind(wx.EVT_BUTTON, self.On_Ad_Volltext, self.button_Voll)
+       
+      self.button_CommandButton31 = wx.Button(panel, -1, label="&Dokument", pos=(692,256), size=(77,50), name="BDokument")
+      self.Bind(wx.EVT_BUTTON, self.On_Adresse_Doku, self.button_CommandButton31)
+      self.button_Doppelt = wx.Button(panel, -1, label="Do&ppelte", pos=(692,338), size=(77,50), name="Doppelt")
+      self.Bind(wx.EVT_BUTTON, self.On_Adresse_Doppelt, self.button_Doppelt)
+      self.button_Listen = wx.Button(panel, -1, label="&Listen", pos=(692,405), size=(77,50), name="Listen")
+      self.Bind(wx.EVT_BUTTON, self.On_Adresse_Listen, self.button_Listen)
       self.button_Ende = wx.Button(panel, -1, label="Be&enden", pos=(692,470), size=(77,50), name="Ende")
       self.Bind(wx.EVT_BUTTON, self.On_Ende, self.button_Ende)
 
-      self.button_Auswahl = wx.Button(panel, -1, label="Aus&wahl", pos=(692,50), size=(77,50), name="BAuswahl")
-      self.Bind(wx.EVT_BUTTON, self.On_Adresse_AuswErw, self.button_Auswahl)
-        
-      self.button_Doppelt = wx.Button(panel, -1, label="Do&ppelte", pos=(692,338), size=(77,50), name="Doppelt")
-      self.Bind(wx.EVT_BUTTON, self.On_Adresse_Doppelt, self.button_Doppelt)
-        
-      self.button_Listen = wx.Button(panel, -1, label="&Listen", pos=(692,405), size=(77,50), name="Listen")
-      self.Bind(wx.EVT_BUTTON, self.On_Adresse_Listen, self.button_Listen)
-
-      self.button_BAdresse = wx.Button(panel, -1, label="A&dresse:", pos=(34,55), size=(115,20), name="BAdresse")
-      self.Bind(wx.EVT_BUTTON, self.On_Adresse_AendF, self.button_BAdresse)
-
-      self.button_Voll = wx.Button(panel, -1, label="&Volltext", pos=(692,116), size=(77,50), name="BVoll")
-      self.Bind(wx.EVT_BUTTON, self.On_Ad_Volltext, self.button_Voll)
-        
-      self.button_CommandButton31 = wx.Button(panel, -1, label="&Dokument", pos=(692,256), size=(77,50), name="BDokument")
-      self.Bind(wx.EVT_BUTTON, self.On_Adresse_Doku, self.button_CommandButton31)
+      #self.button_BAdresse = wx.Button(panel, -1, label="A&dresse:", pos=(34,55), size=(115,20), name="BAdresse")
+      #self.Bind(wx.EVT_BUTTON, self.On_Adresse_AendF, self.button_BAdresse)
         
       # COMBOBOX
       self.combo_Filter_Merk = wx.ComboBox(panel, -1, value="", pos=(529,16), size=(150,20), choices=[], style=wx.CB_DROPDOWN, name="Filter_Merk")
@@ -101,7 +99,8 @@ class AfpAdScreen(AfpScreen):
       self.Bind(wx.EVT_COMBOBOX, self.On_Filter_Archiv, self.combo_Archiv)
         
       # LABEL
-      self.label_Tel = wx.StaticText(panel, -1, label="Telefon:", pos=(35,154), size=(46,16), name="LTel")
+      self.label_Adresse = wx.StaticText(panel, -1, label="Adresse:", pos=(36,55), size=(115,16), name="LAdresse")
+      self.label_Tel = wx.StaticText(panel, -1, label="Telefon:", pos=(36,154), size=(46,16), name="LTel")
       self.label_Fax = wx.StaticText(panel, -1, label="Fax:", pos=(36,188), size=(27,16), name="LFax")
       self.label_Mail = wx.StaticText(panel, -1, label="E-Mail:", pos=(36,205), size=(42,16), name="LMail")
         

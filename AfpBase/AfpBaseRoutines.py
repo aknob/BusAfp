@@ -31,7 +31,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
 #
 
-import imp
 import sys
 import AfpDatabase.AfpSQL
 from AfpDatabase.AfpSQL import AfpSQLTableSelection
@@ -171,34 +170,21 @@ def Afp_startFile(filename, globals=None, debug = False, noWait = False):
    #Afp_startProgramFile(program, debug, filename, "--invisible")
    Afp_startProgramFile(program, debug, filename, None, noWait)
 
-##   dynamic import of a python module from modulname or path, 
-# a handle to the modul will be returned
-# @param modul -  name or path of modul to be imported
-#                             name will only work if modul has already been imported
-def AfpPy_Import(modul):
-   mod = None
-   pathname = None
-   try:
-      return sys.modules[modul]
-   except KeyError:
-      pass
-   try:
-      fp, pathname, description = imp.find_module(modul)
-      #print fp, pathname
-      mod = imp.load_module(modul, fp, pathname, description)   
-   except:
-       print "ERROR: dynamic modul " + modul + " not found!"
-       if pathname and Afp_existsFile(pathname):
-          print "File \"" + pathname + "\" exists, propably a syntax problem."
-   return mod
 ##   dynamic import of a python module from modulname,
 # a handle to the modul will be returned
 # @param modulname -  name of modul to be imported, in python modul syntax "package.modul"
-# @param globals - globas variables including the path delimiter to be used for filesystem pathes
+# @param globals - global variables including the path delimiter to be used for filesystem pathes
 def Afp_importPyModul(modulname, globals):
    deli = globals.get_value("path-delimiter")
-   modul = modulname.replace(".",deli)
-   return AfpPy_Import(modul)
+   path = globals.get_value("python-path")
+   print "Afp_importPyModul:", path
+   if not path[-1] == deli: path += deli
+   split = modulname.split(".")
+   modul = split[-1]
+   for i in range(len(split)-1):
+      path += split[i] + deli
+   #print "Afp_importPyModul:", modulname, modul, path
+   return AfpPy_Import(modul, path)
 ## dynamic import of 'Afp' modules,
 #  depending on the modul there are one to three pythonfiles to be imported
 # @param modulname - name of Afp-modul to be imported

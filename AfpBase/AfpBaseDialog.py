@@ -1269,6 +1269,8 @@ class AfpScreen(wx.Frame):
       self.filtermap = {}
       self.indexmap = {}
       self.no_keydown = []     
+      self.readonlycolor = self.GetBackgroundColour()
+      self.editcolor = (255,255,255)
       self.panel = wx.Panel(self, -1, style = wx.WANTS_CHARS) 
         
    ## connect to database and populate widgets
@@ -1278,6 +1280,7 @@ class AfpScreen(wx.Frame):
    # to allow syncronised display of screens (only works if 'sb' is given)
    def init_database(self, globals, sb, origin):
       self.create_menubar()
+      self.create_modul_buttons()
       self.globals = globals
       # set header
       self.SetTitle(self.GetTitle() + " " + globals.get_host_header())
@@ -1317,7 +1320,7 @@ class AfpScreen(wx.Frame):
       self.set_current_record()
       self.Populate()
     
-   ## create menubar an add common items \n
+   ## create menubar and add common items \n
    # menubar implementation has only be done to this point, specific Afp-modul menues are not yet implemented
    def create_menubar(self):
       self.menubar = wx.MenuBar()
@@ -1340,6 +1343,19 @@ class AfpScreen(wx.Frame):
       for id in self.menu_items:
          self.Bind(wx.EVT_MENU, self.On_Screenitem, self.menu_items[id])
          if self.menu_items[id].GetText() == self.typ: self.menu_items[id].Check(True)
+   
+   ## create buttons to switch modules 
+   def create_modul_buttons(self):
+      modules = Afp_ModulNames()
+      panel = self.panel
+      cnt = 0
+      self.button_modules = {}
+      for mod in modules:
+         self.button_modules[mod] = wx.Button(panel, -1, label=mod, pos=(35 + cnt*80,10), size=(75,30), name="B"+ mod)
+         self.Bind(wx.EVT_BUTTON, self.On_ScreenButton, self.button_modules[mod])
+         cnt += 1
+         if mod == self.typ:
+            self.button_modules[mod] .SetBackgroundColour(self.editcolor)
 
    ## resize grid rows
    # @param name - name of grid
@@ -1375,7 +1391,18 @@ class AfpScreen(wx.Frame):
          # Afp_writeTarget(self.globals, text, self.typ)
          Afp_loadScreen(self.globals, text, self.sb, self.typ)
          self.Close()
-      event.Skip()
+      #event.Skip() #invokes eventhandler twice on windows
+
+   ## Enventhandler BUTTON - switch modules
+   def On_ScreenButton(self,event):
+      if self.debug: print "AfpScreen Event handler `On_ScreenButton'!"
+      object = event.GetEventObject()
+      name = object.GetName()
+      text = name[1:]
+      if not text == self.typ:
+         Afp_loadScreen(self.globals, text, self.sb, self.typ)
+         self.Close()
+      #event.Skip() #invokes eventhandler twice on windows
       
  ## Eventhandler BUTTON - quit
    def On_Ende(self,event):
@@ -1529,11 +1556,11 @@ def Afp_loadScreen(globals, modulname, sb = None, origin = None):
    if modulname in moduls:
       screen = "Afp" + modulname[:2] + "Screen" 
       modname = "Afp" + modulname + "." + screen 
-      #print modname
+      #print "Afp_loadScreen:", modname
       pyModul =  Afp_importPyModul(modname, globals)
-      #print pyModul
+      #print "Afp_loadScreen:", pyModul
       pyBefehl = "Modul = pyModul." + screen + "()"
-      #print pyBefehl
+      #print "Afp_loadScreen:", pyBefehl
       exec pyBefehl
    if Modul:
       Modul.init_database(globals, sb, origin)

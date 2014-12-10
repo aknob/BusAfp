@@ -182,7 +182,7 @@ class AfpZahlung(object):
    # @param name - name of needed modul
    def get_modul(self, name):
       if not name in self.moduls:
-         modul = AfpPy_Import(name)
+         modul = Afp_importPyModul(name, self.globals)
          if modul: self.moduls[name] = modul
       if name in self.moduls:
          return self.moduls[name]

@@ -52,10 +52,10 @@ class AfpFinance(AfpSelectionList):
          self.new = False
          if BuchungsNr:
             self.mainindex = "BuchungsNr"
-            self.mainvalue = BuchungsNr
+            self.mainvalue = Afp_toString(BuchungsNr)
          elif VorgangsNr:
             self.mainindex = "VorgangsNr"
-            self.mainvalue = VorgangsNr
+            self.mainvalue = Afp_toString(VorgangsNr)
          else:
             self.mainindex = "Von"
             self.mainvalue = Von
@@ -435,7 +435,7 @@ class AfpFinanceExport(AfpSelectionList):
    def  __init__(self, globals, period, filename, tables = None, only_payment = None):
       AfpSelectionList.__init__(self, globals, "Export", globals.is_debug())
       self.file = open(filename, 'w')
-      self.transfer = None
+      self.finance = None
       self.singledate = None
       self.tables = tables
       self.only_payment = only_payment
@@ -462,7 +462,18 @@ class AfpFinanceExport(AfpSelectionList):
       else:  
          select = "\"" + field + "\" >= " + Afp_toInternDateString(self.period[0]) + " AND " 
          select +=  "\"" + field + "\" <= " + Afp_toInternDateString(self.period[1])
-   return select
+      return select
+   ## actually generate transactions to be exported
+   def generate_transactions(self):
+      if self.tables:
+         self.finance = AfpFinanceTransactions(self.globals)
+         for name in self.tables:
+            selection = self.get_selection(name)
+            if selection:
+               if not self.only_payment:
+                  self.finance.add_financial_transactions(selection)
+               
+      
      
      
         

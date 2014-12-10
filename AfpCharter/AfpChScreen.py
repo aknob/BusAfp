@@ -41,7 +41,7 @@ from AfpBase.AfpUtilities.AfpBaseUtilities import Afp_existsFile
 from AfpBase.AfpDatabase import *
 from AfpBase.AfpDatabase.AfpSQL import AfpSQL
 from AfpBase.AfpDatabase.AfpSuperbase import AfpSuperbase
-from AfpBase.AfpBaseRoutines import AfpPy_Import, Afp_archivName, Afp_startFile
+from AfpBase.AfpBaseRoutines import Afp_archivName, Afp_startFile
 from AfpBase.AfpBaseDialog import AfpReq_Info, AfpReq_Selection, AfpReq_Question, AfpLoad_DiReport, AfpScreen
 from AfpBase.AfpBaseAdDialog import AfpLoad_AdAusw, AfpLoad_DiAdEin_fromSb
 from AfpBase.AfpBaseFiDialog import AfpLoad_DiFiZahl

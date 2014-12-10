@@ -241,7 +241,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
       self.choice_Bus.AppendItems(values)
       super(AfpDialog_DiEinsatz, self).attach_data(data, new, editable)
       if self.data.is_typ("Miet"):
-         self.charter_modul = AfpPy_Import("AfpChDialog")
+         self.charter_modul = Afp_importPyModul("AfpCharter.AfpChDialog", self.globals)
       if self.typ_hasTime("Ab"):
          self.times["Ab"]  = self.get_typTime("Ab", True)
       if self.typ_hasTime("Stell"):
@@ -742,7 +742,7 @@ class AfpDialog_DiFahrer(AfpDialog):
    ##  check if time entry in widget has the correct format \n
    # complete time-text if necessary 
    # @param name - name of widget
-  def check_zeit(self, name):
+   def check_zeit(self, name):
       TextBox = self.FindWindowByName(name)
       timestring, days = Afp_ChZeit(TextBox.GetValue())
       if timestring: 
