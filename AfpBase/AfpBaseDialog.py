@@ -997,6 +997,8 @@ class AfpDialog_DiAusw(wx.Dialog):
       self.index = Index
       self.search = value
       # initialize grid
+      if self.globals.os_is_windows():
+         self.rows = int(1.5 * self.rows)
       felder = self.get_grid_felder()
       breite = self.grid_breite
       self.feldlist = ""
@@ -1057,9 +1059,9 @@ class AfpDialog_DiAusw(wx.Dialog):
       self.where = where
       self.cols = len(ColLabelValue) 
       panel = self.panel
-      self.grid_auswahl = wx.grid.Grid(panel, -1, pos=(8,37) , size=(breite, 185), name="Auswahl")
+      self.grid_auswahl = wx.grid.Grid(panel, -1, pos=(8,25) , size=(breite, 198), name="Auswahl")
       self.grid_auswahl.CreateGrid(self.rows, self.cols)
-      self.grid_auswahl.SetRowLabelSize(3)
+      self.grid_auswahl.SetRowLabelSize(0)
       self.grid_auswahl.SetColLabelSize(18)
       self.grid_auswahl.EnableEditing(0)
       #self.grid_auswahl.EnableDragColSize(0)
@@ -1082,16 +1084,25 @@ class AfpDialog_DiAusw(wx.Dialog):
    def Pop_grid(self):
       limit = str(self.offset) + ","+ str(self.rows)
       rows = self.mysql.select(self.feldlist,self.select,self.dateien, self.sortname, limit, self.where, self.link)
-      if len(rows) == self.rows:
-         self.ident = []
-         for row in range(0, self.rows):
-            for col in range(0,self.cols):
+      lgh = len(rows)
+      self.ident = []
+      #print "AfpDialog_DiAusw.Pop_grid lgh:", lgh
+      for row in range(0, self.rows):
+         for col in range(0,self.cols):
+            if row < lgh:
                self.grid_auswahl.SetCellValue(row, col,  Afp_toString(rows[row][col]))
+            else:
+               self.grid_auswahl.SetCellValue(row, col,  "")
+         if row < lgh:
             self.ident.append(rows[row][self.cols])
+   ## return if grid-rows are filled completely
+   def grid_is_complete(self):
+      return len(self.ident) >= self.rows
    ## step backwards on database table 
    # @param step - step length
    # @param last - flag in new selection is necessary
    def set_step_back(self, step, last = False):
+      #print "AfpDialog_DiAusw.set_step_back In:", step, last
       if self.offset >= step and not last:
          self.offset -= step
          return
@@ -1106,7 +1117,10 @@ class AfpDialog_DiAusw(wx.Dialog):
       ssplit = self.select.split()
       select = ssplit[0] + " < " + ssplit[2]
       rows = self.mysql.select(self.feldlist, select,self.dateien, self.sortname + " DESC", limit, self.where, self.link)
-      value = Afp_toInternDateString(rows[-1][self.valuecol])
+      if len(rows):
+         value = Afp_toInternDateString(rows[-1][self.valuecol])
+      else:
+         value = ""
       select = ssplit[0] + " " + ssplit[1] + " \"" + value + "\""
       offset = -1
       anz = 2*self.rows
@@ -1121,9 +1135,13 @@ class AfpDialog_DiAusw(wx.Dialog):
             anz += anz
          elif offset < 0:
             print "Warning: AfpDialog_DiAusw.set_step_back: identic entry not found ",anz
-            offset = 1
+            offset = 0
       self.select = select
-      self.offset = offset - step
+      if offset < step:
+         self.offset = 0
+      else:
+         self.offset = offset - step
+      #print "AfpDialog_DiAusw.set_step_back Out:", offset, step, self.offset
    ## return result
    def get_result(self):
       return self.result
@@ -1168,14 +1186,16 @@ class AfpDialog_DiAusw(wx.Dialog):
    ## event handler for the Select Next Entry button
    def On_Ausw_Next(self,event):
       if self.debug: print "Event handler `On_Ausw_Next'"
-      self.offset += 1
-      self.Pop_grid()
+      if self.grid_is_complete():
+         self.offset += 1
+         self.Pop_grid()
       event.Skip()
    ## event handler for the Select Next Page button
    def On_Ausw_NPage(self,event):
       if self.debug: print "Event handler `On_Ausw_NPage'"
-      self.offset += self.rows - 1
-      self.Pop_grid()
+      if self.grid_is_complete():
+         self.offset += self.rows - 1
+         self.Pop_grid()
       event.Skip()
    ## event handler for th Select Last button
    def On_Ausw_Last(self,event = None):
@@ -1269,8 +1289,8 @@ class AfpScreen(wx.Frame):
       self.filtermap = {}
       self.indexmap = {}
       self.no_keydown = []     
-      self.readonlycolor = self.GetBackgroundColour()
-      self.editcolor = (255,255,255)
+      self.buttoncolor = (230,230,230)
+      self.actuelbuttoncolor = (255,255,255)
       self.panel = wx.Panel(self, -1, style = wx.WANTS_CHARS) 
         
    ## connect to database and populate widgets
@@ -1355,7 +1375,9 @@ class AfpScreen(wx.Frame):
          self.Bind(wx.EVT_BUTTON, self.On_ScreenButton, self.button_modules[mod])
          cnt += 1
          if mod == self.typ:
-            self.button_modules[mod] .SetBackgroundColour(self.editcolor)
+            self.button_modules[mod] .SetBackgroundColour(self.actuelbuttoncolor)
+         else:
+            self.button_modules[mod] .SetBackgroundColour(self.buttoncolor)
 
    ## resize grid rows
    # @param name - name of grid

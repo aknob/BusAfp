@@ -59,8 +59,6 @@ def Afp_iniGlobalVars(settings):
       settings["database"] = "BusAfp"
    if not "database-user" in settings:
       settings["database-user"] = "server"      
-   #if not "database-word" in settings:
-      #settings["database-word"] = "busse".encode('base64')
    if not "database-host" in settings:
       settings["database-host"] = "127.0.0.1"
    if not "Umst" in settings:
@@ -309,4 +307,9 @@ class AfpGlobal(object):
    ## return the date of today
    def today(self):
       return self.get_value("today")
+   ## get the python program path
+   def get_programpath(self):
+      path = self.get_value("python-path")
+      if path is None: path = self.get_value("start-path")
+      return path
       

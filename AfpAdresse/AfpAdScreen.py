@@ -179,20 +179,18 @@ class AfpAdScreen(AfpScreen):
    ## Eventhandler BUTTON - select other address, either direkt or via attribut
    def On_Adresse_AuswErw(self,event):
       if self.debug: print "Event handler `On_Adresse_AuswErw'!"
-      self.sb.set_debug()
+      #self.sb.set_debug()
       index = self.sb.identify_index().get_name()
       where = AfpSelectEnrich_dbname(self.sb.identify_index().get_where(), self.sb_master)
       values = self.sb.identify_index().get_indexwert()
-      #values = self.sb.get_string_value(index)
-      #print "Ind:",index, "VAL:",values,"Where:", where
-      #vsplit = values.split()
+      #print "On_Adresse_AuswErw Ind:",index, "VAL:",values,"Where:", where
+      #print "On_Adresse_AuswErw Merkmal:", self.combo_Filter_Merk.GetValue()
       if self.sb_master == "ADRESATT": 
          value = values[1]
          attrib = values[0]
       else: 
          value = values[0]
          attrib = None
-      #auswahl = AfpLoad_DiAusw(self.mysql, self.sb_master, index, None, value, where)
       auswahl = AfpLoad_AdAusw(self.globals, self.sb_master, index, value, where, attrib)
       if not auswahl is None:
          KNr = int(auswahl)
@@ -203,7 +201,7 @@ class AfpAdScreen(AfpScreen):
          if self.sb_master == "ADRESATT":
             self.sb.select_key(KNr,"KundenNr","ADRESSE")
          self.Populate()
-      self.sb.unset_debug()
+      #self.sb.unset_debug()
       event.Skip()
    ## Eventhandler BUTTON - resolve duplicate addresses - not implemented yet!
    def On_Adresse_Doppelt(self,event):
@@ -233,8 +231,8 @@ class AfpAdScreen(AfpScreen):
       if self.debug: print "AfpAdScreen Event handler `On_Filter_Merk'", self.sb_master, value      
       where = ""
       changed = (value != "" and  self.sb_master == "ADRESSE") or (value == "" and  self.sb_master == "ADRESATT")
-      vorname =  self.sb.get_value("Vorname.ADRESSE")
-      name = self.sb.get_value("Name")
+      vorname =  self.sb.get_string_value("Vorname.ADRESSE")
+      name = self.sb.get_string_value("Name")
       KNr = self.sb.get_value("KundenNr")
       if value == "":   
          if self.sb_master == "ADRESATT":
@@ -253,13 +251,15 @@ class AfpAdScreen(AfpScreen):
          self.sb.CurrentIndexName(Index, self.sb_master)  
       if where != "" and self.sb_filter != where: 
          self.sb.select_where(where)
+         changed = True
       self.sb_filter = where
       if changed:
          #print "On_Filter_Merk", self.sb_master, s_key, value
          #self.sb.set_debug()
          self.sb.select_key(s_key)
-         while KNr != self.sb.get_value("KundenNr") and name ==  self.sb.get_value("Name") and vorname ==  self.sb.get_value("Vorname.ADRESSE") and self.sb.neof():
+         while KNr != self.sb.get_value("KundenNr") and name ==  self.sb.get_string_value("Name") and vorname ==  self.sb.get_string_value("Vorname.ADRESSE") and self.sb.neof():
            self.sb.select_next()
+         #self.sb.unset_debug()
       self.CurrentData()
       event.Skip()
    ## Eventhandler COMBOBOX - fill grid 'Archiv' due to the new setting
@@ -298,7 +298,7 @@ class AfpAdScreen(AfpScreen):
       values = []
       values.append("")
       for value in rows:
-         values.append(value[0])
+         if value[0]: values.append(value[0])
       values.sort()
       self.combo_Filter_Merk.AppendItems(values)
       

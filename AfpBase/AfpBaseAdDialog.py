@@ -128,14 +128,14 @@ def AfpLoad_AdAusw(globals, Datei, Index, value = "", where = None, attribut = N
       DiAusw = AfpDialog_AdAttAusw()
    else:
       DiAusw = AfpDialog_AdAusw()
-   #print Datei, Index, value, where
+   #print "AfpLoad_AdAusw:", Datei, Index, value, where
    if attribut:
       if len(attribut) > 4 and attribut[:5] == "Bitte":
          text = attribut
       else:
-         text = "Bitte " + attribut.decode("UTF-8") + "-Adresse auswählen:".decode("UTF-8")
+         text = "Bitte " + attribut + "-Adresse auswählen:".decode("UTF-8")
    else:
-      text = "Bitte Adresse auswählen:"
+      text = "Bitte Adresse auswählen:".decode("UTF-8")
    DiAusw.initialize(globals, Index, value, where, text)
    DiAusw.ShowModal()
    result = DiAusw.get_result()

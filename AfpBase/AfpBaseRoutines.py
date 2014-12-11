@@ -176,14 +176,13 @@ def Afp_startFile(filename, globals=None, debug = False, noWait = False):
 # @param globals - global variables including the path delimiter to be used for filesystem pathes
 def Afp_importPyModul(modulname, globals):
    deli = globals.get_value("path-delimiter")
-   path = globals.get_value("python-path")
-   print "Afp_importPyModul:", path
+   path = globals.get_programpath()
    if not path[-1] == deli: path += deli
    split = modulname.split(".")
    modul = split[-1]
    for i in range(len(split)-1):
       path += split[i] + deli
-   #print "Afp_importPyModul:", modulname, modul, path
+   if globals.is_debug(): print "Afp_importPyModul:", modulname, modul, path
    return AfpPy_Import(modul, path)
 ## dynamic import of 'Afp' modules,
 #  depending on the modul there are one to three pythonfiles to be imported
