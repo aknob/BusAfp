@@ -51,31 +51,57 @@ def AfpAdDi_selectAttributRow(Adresse):
    name = Adresse.get_name()
    liste = Afp_ArraytoString(liste)
    row, ok = AfpReq_Selection("Bitte Adressmerkmal für".decode("UTF-8") , name + " auswählen.".decode("UTF-8") , liste, "Merkmalauswahl", rows)
-   index = sel.get_feldindices("Attribut,Tag,Aktion,AttText")
+   index = sel.get_feldindices("Attribut,Tag,AttText")
    if not row[index[0]] and ok:
       attribut, ok = AfpReq_Text("Bitte Bezeichnung für neues Adressenmerkmal eingeben.","Dieses Merkmal wird " + name + " zugeordnet.")
       if ok: row[index[0]] = attribut
    else:
       attribut = row[index[0]]
-   if row[index[2]] and ok:
+   if ok:
       Tag =  row[index[1]] 
-      Tag, ok = AfpAdDi_spezialAttribut(attribut, Tag)
-      if ok:  row[index[1]]  = Tag
-   elif ok:
-      AttText = row[index[3]]
-      AttText, ok = AfpReq_Text("Bitte einen zusätzlichen Text für das Adressenmerkmal '".decode("UTF-8") + attribut + "'" ,"von " + name + " eingeben.",AttText)
-      if AttText and ok: row[index[3]] = AttText
+      AttText = row[index[2]]      
+      ok, AttText, Tag = AfpAdDi_spezialAttribut(name, attribut, AttText, Tag, True)
+      if ok:  
+         row[index[1]]  = Tag
+         row[index[2]] = AttText
    if ok: return row
    else: return None
    
-## handling routine to set special values needed for an attribut \n
-# - not used at the moment. will at least be necessary for the attribut 'Reisebüro' in a future toutistic afp-module
-# @param attribut - name of the attribut which needs special handling
-# @param tag - tag string holding all values for this special attribut
-def AfpAdDi_spezialAttribut(attribut, tag):
-   Ok = True
-   print "AfpAdDi_spezialAttribut:",attribut, tag, Ok
-   return tag, Ok
+## handling routine to set text and/or special values needed for an attribut \n
+# @param name - name of address this attribut belongs to
+# @param attribut - name of  attribut to be modified
+# @param text - additional text string for this attribut
+# @param tag - individual data string holding all values for this special attribut
+def AfpAdDi_spezialAttribut(name, attribut, text, tag, no_delete = False):
+   Ok = None
+   list = []
+   attribut = Afp_toString(attribut)
+   print "AfpAdDi_spezialAttribut:",attribut, type(attribut), tag, Ok
+   taglist = AfpAdresse_getAttributTagList(attribut)
+   split = tag.split(" ")
+   lspl = len(split)
+   for i in range(len(taglist)):
+      entry = [taglist[i] + ":"]
+      if i < lspl: entry.append(split[i])
+      else: entry.append("")
+      list.append(entry)
+   list.append(["(optional) Merkmaltext:", text])
+   #print "AfpAdDi_spezialAttribut Liste:", list
+   result = AfpReq_MultiLine("Für '".decode("UTF-8") + name + "' werden die folgenden " + attribut +"-Daten benötigt:".decode("UTF-8"), "", "Text", list, attribut, 400 , no_delete)
+   #print "AfpAdDi_spezialAttribut Result:", result
+   if not result is None: Ok = False
+   if result:
+      changed = False
+      for i in range(len(taglist)):
+         if not list[i][1] == result[i]:
+            changed = True
+      if changed: 
+         tag = Afp_genLineOfArr(result, len(result)-1)
+         Ok = True
+      if not list[-1][1] == result[-1]:
+         text = result[-1]
+         Ok = True
+   return Ok, text, tag
 
 ## dialog for selection of adress data \n
 # selects an entry from the adress table
@@ -365,7 +391,7 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
       rows = self.data.get_value_rows("ADRESATT", "Attribut,AttText")
       liste = []
       for row in rows:
-         liste.append(row[0] + " " + row[1])
+         liste.append(Afp_toString(row[0]) + " " + Afp_toString(row[1]))
       liste = Afp_ArraytoString(liste)
       self.list_attribut.Clear()
       self.list_attribut.InsertItems(liste, 0)
@@ -398,15 +424,28 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
       if self.debug: print "Event handler `On_DClick_Attribut'"
       index = self.list_attribut.GetSelections()[0]
       if self.is_editable() and index >= 0:
+         name = self.data.get_name()
          selection = self.data.get_selection("ADRESATT")
-         attribut = Afp_toString(selection.get_values("Attribut", index)[0][0])
-         print attribut
-         Ok = AfpReq_Question("Soll das Merkmal '" + attribut + "'", "für diese Adresse gelöscht werden?".decode("UTF-8"), "Löschen?".decode("UTF-8"))
-         if Ok:
-            mani = [index, None]
-            selection.manipulate_data([mani])
-            self.changes["Attribut"].append(mani)
-            self.Pop_Attribut()
+         #attribut = Afp_toString(selection.get_values("Attribut", index)[0][0])
+         row = selection.get_values("Attribut,AttText,Tag", index)[0]
+         print "AfpDialog_DiAdEin_SubMrk.On_DClick_Attribut:", row
+         attribut = Afp_toString(row[0])
+         text = Afp_toString(row[1])
+         tag = Afp_toString(row[2])
+
+         Ok, text, tag = AfpAdDi_spezialAttribut(name, attribut, text, tag)
+         if Ok is None:
+            Ok = AfpReq_Question("Soll das Merkmal '" + attribut + "'", "für diese Adresse gelöscht werden?".decode("UTF-8"), "Löschen?".decode("UTF-8"))
+            if Ok:
+               mani = [index, None]
+               selection.manipulate_data([mani])
+               self.changes["Attribut"].append(mani)
+         elif Ok:
+            selection.set_value("Tag", tag, index)
+            selection.set_value("AttText", text, index)
+            self.changes["Attribut"].append("Tag")
+            self.changes["Attribut"].append("AttText")
+         if Ok: self.Pop_Attribut()
       event.Skip()  
    ## Eventhandler LIST - double click in connected addresses list
    def On_DClick_Verbindung(self,event):
@@ -464,3 +503,4 @@ def AfpLoad_DiAdEin_SubMrk(Adresse):
    changed = DiAdMrk.has_changed()
    DiAdMrk.Destroy()
    return changed
+   

@@ -45,6 +45,16 @@ def AfpAdresse_StatusReMap(ind):
    for key in dict:
       if dict[key] == ind: return key
    return None
+## return names of textfields needed for special attribut dialogs
+# @param action - name of action item to define the special attribut dialog
+def AfpAdresse_getAttributTagList(attribut):
+   list = []
+   attribut = Afp_toString(attribut)
+   if attribut == "Reisebüro".decode("UTF-8"):
+      list = ["Provision","Reisebürokontierung".decode("UTF-8")]
+   elif attribut == "Reiseveranstalter":
+      list = ["Verrechungskonto", "Veranstalter (Debitor)","Veranstalter (Kreditor)","Reisekennung"]
+   return list
  
 ## baseclass for address handling      
 class AfpAdresse(AfpSelectionList):

@@ -148,18 +148,20 @@ def AfpReq_EditText(oldtext = "", header = "TextEditor", direct = False, size = 
    else: 
       return oldtext, False
 ## modify multiple entries of the same typ
-# (return selections/entries made if Ok is hit, otherwise return None)
+# - return a list of selections/entries made, if Ok is hit
+# - return an empty list, if Cancel is hit
+# - return None, if Delete is hit
 # @param text1, text2 - two lines of text to be displayed (used for historical reasons)
 # @param typ - typ of dialog entries, "Text" and "Check" are possible
 # @param liste - list with data for dialog entries; 
 # in case "Text" - [label, text], in case "Check" - checked text
 # @param header - header to be displayed on top ribbon of dialog
 # @param width - width of dialog
-def AfpReq_MultiLine(text1, text2, typ, liste, header = "Multi Editing", width = 250):
+def AfpReq_MultiLine(text1, text2, typ, liste, header = "Multi Editing", width = 250, no_delete = True):
    Ok = False
    values = None
    dialog = AfpDialog_MultiLines(None)
-   dialog.attach_data(text1 + '\n' + text2 , header, [typ], liste, width)
+   dialog.attach_data(text1 + '\n' + text2 , header, [typ], liste, width, no_delete)
    ret = dialog.ShowModal()
    result = dialog.get_result()
    return result
@@ -318,7 +320,7 @@ class AfpDialog_MultiLines(wx.Dialog):
       super(AfpDialog_MultiLines, self).__init__(*args, **kw) 
       self.Ok = False
       self.typ = None
-      self.result = None
+      self.result = []
       self.label = []
       self.texts = []
       self.check = []
@@ -327,11 +329,18 @@ class AfpDialog_MultiLines(wx.Dialog):
  
       self.button_Cancel = wx.Button(self, -1, label="&Abbruch", name="Abbruch")
       self.Bind(wx.EVT_BUTTON, self.On_Button_Cancel, self.button_Cancel)   
+      self.button_Delete = wx.Button(self, -1, label="&Löschen".decode("UTF-8"), name="Delete")
+      self.Bind(wx.EVT_BUTTON, self.On_Button_Delete, self.button_Delete)
       self.button_Ok = wx.Button(self, -1, label="&Ok", name="Ok")
       self.Bind(wx.EVT_BUTTON, self.On_Button_Ok, self.button_Ok)
       self.lower_sizer = wx.BoxSizer(wx.HORIZONTAL)
-      self.lower_sizer.Add(self.button_Cancel,1,wx.EXPAND)
-      self.lower_sizer.Add(self.button_Ok,1,wx.EXPAND)
+      #self.lower_sizer.AddStretchSpacer(1)
+      self.lower_sizer.Add(self.button_Cancel,2,wx.EXPAND)
+      #self.lower_sizer.AddStretchSpacer(1)
+      self.lower_sizer.Add(self.button_Delete,2,wx.EXPAND)
+      #self.lower_sizer.AddStretchSpacer(1)
+      self.lower_sizer.Add(self.button_Ok,2,wx.EXPAND)
+      #self.lower_sizer.AddStretchSpacer(1)
    ## attach data to dialog
    # @param text - text to be displayed above action part
    # @param header - header to be display in the dialogts top ribbon
@@ -340,25 +349,30 @@ class AfpDialog_MultiLines(wx.Dialog):
    # @param datas - input data depending on typ -
    # "Text" typ: [label, text], "Check" typ: text of checkbox - default is set to 'CHECKED'
    # @param width - width of dialog (default = 250)
-   def attach_data(self, text, header, types, datas, width = 250):
+   def attach_data(self, text, header, types, datas, width = 250, no_delete = True):
       self.statictext.SetLabel(text)
       self.SetTitle(header)
       self.types = types
       self.lines = len(datas)
+      if no_delete: self.button_Delete.Hide()
       if len(self.types) < self.lines: 
          while len(self.types) < self.lines:
             self.types.append(self.types[-1])
+      height = 70
       for i in range(self.lines):
          data = datas[i]
+         print "attach_data:", data
          if self.types[i] == "Text":
             self.label.append(wx.StaticText(self, -1, label=data[0], name=data[0]))
-            self.texts.append(wx.TextCtrl(self, -1, label=data[1], name=data[1]))
+            self.texts.append(wx.TextCtrl(self, -1, value=data[1], name=data[1]))
             self.sizers.append(wx.BoxSizer(wx.HORIZONTAL))
             self.sizers[-1].Add(self.label[-1],1,wx.EXPAND)
             self.sizers[-1].Add(self.texts[-1],1,wx.EXPAND)
+            height += 30
          elif self.types[i] == "Check":
             self.check.append(wx.CheckBox(self, -1, label=data, name=data))
             self.check[-1].SetValue(True)
+            height += 20
       self.sizer=wx.BoxSizer(wx.VERTICAL)
       self.sizer.Add(self.statictext, 2, wx.EXPAND)
       for i in range(self.lines):
@@ -370,7 +384,7 @@ class AfpDialog_MultiLines(wx.Dialog):
       self.SetSizer(self.sizer)
       self.SetAutoLayout(1)
       self.sizer.Fit(self)
-      height = 20*self.lines + 70
+      #height = 20*self.lines + 70
       self.SetSize((width, height))
    ## extract output values from graphic elements \n
    # first textboxes are sampled, second checkboxes,
@@ -389,11 +403,20 @@ class AfpDialog_MultiLines(wx.Dialog):
             ind_c += 1
       self.result = values
    ## return results, to be called from calling routine
+   # - returns a list of entries, if Ok is hit
+   # - returns an empty list, if Cancel is hit
+   # - returns None, if Delete is hit
    def get_result(self):
       return self.result 
    ## Eventhandler BUTTON - Cancel button pushed
    # @param event - event which initiated this action
    def On_Button_Cancel(self,event ):
+      event.Skip()
+      self.Destroy()
+   ## Eventhandler BUTTON - Delete button pushed
+   # @param event - event which initiated this action
+   def On_Button_Delete(self,event ):
+      self.result = None
       event.Skip()
       self.Destroy()
    ## Eventhandler BUTTON - Ok button pushed
