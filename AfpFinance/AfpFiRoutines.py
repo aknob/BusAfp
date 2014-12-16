@@ -315,6 +315,8 @@ class AfpFinanceTransactions(AfpSelectionList):
       print "AfpFinanceTransactions.add_financial_transaction_data"
       if data.get_listname() == "Charter":
          accdata = self.add_transaction_data_charter(data)
+      elif data.get_listname() == "Rechnung":
+         accdata = self.add_transaction_data_rechnung(data)
       else:
          return None
       for acc in accdata:

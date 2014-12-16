@@ -242,21 +242,24 @@ class AfpSQL(object):
    def write_no_unique(self, select_clause, felder, data):
       split_clause = select_clause.split(" FROM ")
       if len(split_clause) == 2:
-         self.write_delete(split_clause[1])
+         self.write_delete(select_clause)
          split_dat = split_clause[1].split(" WHERE ")
          dateien = split_dat[0].split(",")
          if len(dateien) > 1 : print "AfpSQL.write_no_unique: multiple tables not yet possible!"
          datei = dateien[0].split(" ")[0]
          self.write_insert(datei, felder, data)
    ## delete data from database
-   # @param select_where - select clause for database entries to be deleted 
-   def write_delete(self, select_where):
-     # delete data from database
-      Befehl = "DELETE FROM " + select_where
-      if self.debug: print Befehl
-      res = self.db_cursor.execute (Befehl)     
-      self.db_cursor.execute("COMMIT;")
-      if self.debug: print  "Deleted Rows:",res
+   # @param select_clause - select clause for database entries to be deleted \n
+   # "SELECT * FROM database.table WHERE ..."
+   def write_delete(self, select_clause):
+      split_clause = select_clause.split(" FROM ")
+      if len(split_clause) == 2:
+        # delete data from database
+         Befehl = "DELETE FROM " + split_clause[1]
+         if self.debug: print Befehl
+         res = self.db_cursor.execute (Befehl)     
+         self.db_cursor.execute("COMMIT;")
+         if self.debug: print  "Deleted Rows:",res
    ## update data in database, \n
    # for tables with a primary key
    # @param datei - name of table
@@ -330,6 +333,16 @@ class AfpSQLTableSelection(object):
    ## return an initialized copy of this TableSelection
    def create_initialized_copy(self):
       return AfpSQLTableSelection(self.mysql, self.tablename, self.debug, self.unique_feldname, self.feldnamen)
+   ## returns if data of this TableSelection has been deleted last load or write
+   # @param row - if given, index of row which should be checked
+   def has_been_deleted(self, row = None):
+      deleted = False
+      if self.manipulation:
+         for mani in self.manipulation:
+            if mani[0] == "delete":
+               if row is None or row == mani[1]:
+                  deleted = True
+      return deleted
    ## returns if this TableSelection has been altered since last load or write
    # @param feld - if given it will be checked if this column has been changed
    def has_changed(self, feld = None):
@@ -412,7 +425,12 @@ class AfpSQLTableSelection(object):
       self.data.append(data)
       if not no_criteria: self.set_select_criteria()
       return self.get_data_length() - 1
-   ## delete indicated row
+   ## add indicated data in a new row
+   # @param row - data to be inserted
+   def add_row(self, row):
+      mani = [-1, row]
+      self.manipulate_data([mani])
+  ## delete indicated row
    # @param row - index of row to be deleted
    def delete_row(self, row = 0):
       if row >= 0 and row < self.get_data_length():
@@ -589,7 +607,12 @@ class AfpSQLTableSelection(object):
             else:
                select = self.unique_feldname + " = " + Afp_toString(unique_value)
                print "AfpSQLTableSelection.store unique value already set:", select, self.get_values(None, row)[0]
-               self.mysql.write_unique( self.tablename,  self.feldnamen, self.get_values(None, row)[0], select)            
+               self.mysql.write_unique( self.tablename,  self.feldnamen, self.get_values(None, row)[0], select)  
+         if self.get_data_length() == 0:
+            # check if data has been deleted
+            if self.has_been_deleted():
+               print "AfpSQLTableSelection.store delete unique:", self.select_clause
+               self.mysql.write_delete(self.select_clause)
       else:
          new = False 
          if self.select_clause is None: 
@@ -606,7 +629,7 @@ class AfpSQLTableSelection(object):
             print "AfpSQLTableSelection.store insert:", self.get_values()
             self.mysql.write_insert( self.tablename, self.feldnamen, self.get_values())
          else:
-            print "AfpSQLTableSelection.store() no_unique:", self.get_values()            
+            print "AfpSQLTableSelection.store no_unique:", self.get_values()            
             self.mysql.write_no_unique(self.select_clause, self.feldnamen, self.get_values())
       self.new = False
       self.manipulation = []

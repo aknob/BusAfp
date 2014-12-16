@@ -84,10 +84,13 @@ def AfpReq_Info(text1, text2, header = ""):
 # @param text1, text2 - two lines of text to be displayed (used for historical reasons)
 # @param header - header to be displayed on top ribbon of dialog
 # @param use_Yes - flag to user Yes/No instead of Ok/Cancel
-def AfpReq_Question(text1, text2, header = "", use_Yes = False):
+def AfpReq_Question(text1, text2, header = "", use_Yes = True):
    Ok = False
    if not header: header = "Frage"
-   dialog = wx.MessageDialog(None, text1 + '\n' + text2, header, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+   if use_Yes:
+      dialog = wx.MessageDialog(None, text1 + '\n' + text2, header, wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+   else:
+      dialog = wx.MessageDialog(None, text1 + '\n' + text2, header, wx.ICON_QUESTION)
    ret = dialog.ShowModal()
    if ret == wx.ID_OK or ret == wx.ID_YES: Ok = True
    return Ok
@@ -157,6 +160,7 @@ def AfpReq_EditText(oldtext = "", header = "TextEditor", direct = False, size = 
 # in case "Text" - [label, text], in case "Check" - checked text
 # @param header - header to be displayed on top ribbon of dialog
 # @param width - width of dialog
+# @param no_delete - flag if 'delete' button should be hidden
 def AfpReq_MultiLine(text1, text2, typ, liste, header = "Multi Editing", width = 250, no_delete = True):
    Ok = False
    values = None
@@ -334,13 +338,13 @@ class AfpDialog_MultiLines(wx.Dialog):
       self.button_Ok = wx.Button(self, -1, label="&Ok", name="Ok")
       self.Bind(wx.EVT_BUTTON, self.On_Button_Ok, self.button_Ok)
       self.lower_sizer = wx.BoxSizer(wx.HORIZONTAL)
-      #self.lower_sizer.AddStretchSpacer(1)
+      self.lower_sizer.AddStretchSpacer(1)
       self.lower_sizer.Add(self.button_Cancel,2,wx.EXPAND)
-      #self.lower_sizer.AddStretchSpacer(1)
+      self.lower_sizer.AddStretchSpacer(1)
       self.lower_sizer.Add(self.button_Delete,2,wx.EXPAND)
-      #self.lower_sizer.AddStretchSpacer(1)
+      self.lower_sizer.AddStretchSpacer(1)
       self.lower_sizer.Add(self.button_Ok,2,wx.EXPAND)
-      #self.lower_sizer.AddStretchSpacer(1)
+      self.lower_sizer.AddStretchSpacer(1)
    ## attach data to dialog
    # @param text - text to be displayed above action part
    # @param header - header to be display in the dialogts top ribbon
@@ -349,6 +353,7 @@ class AfpDialog_MultiLines(wx.Dialog):
    # @param datas - input data depending on typ -
    # "Text" typ: [label, text], "Check" typ: text of checkbox - default is set to 'CHECKED'
    # @param width - width of dialog (default = 250)
+   # @param no_delete - flag if 'delete' button should be hidden
    def attach_data(self, text, header, types, datas, width = 250, no_delete = True):
       self.statictext.SetLabel(text)
       self.SetTitle(header)
@@ -361,13 +366,14 @@ class AfpDialog_MultiLines(wx.Dialog):
       height = 70
       for i in range(self.lines):
          data = datas[i]
-         print "attach_data:", data
          if self.types[i] == "Text":
             self.label.append(wx.StaticText(self, -1, label=data[0], name=data[0]))
             self.texts.append(wx.TextCtrl(self, -1, value=data[1], name=data[1]))
             self.sizers.append(wx.BoxSizer(wx.HORIZONTAL))
-            self.sizers[-1].Add(self.label[-1],1,wx.EXPAND)
-            self.sizers[-1].Add(self.texts[-1],1,wx.EXPAND)
+            self.sizers[-1].AddStretchSpacer(1)
+            self.sizers[-1].Add(self.label[-1],9,wx.EXPAND)
+            self.sizers[-1].Add(self.texts[-1],9,wx.EXPAND) 
+            self.sizers[-1].AddStretchSpacer(1)
             height += 30
          elif self.types[i] == "Check":
             self.check.append(wx.CheckBox(self, -1, label=data, name=data))
@@ -380,11 +386,11 @@ class AfpDialog_MultiLines(wx.Dialog):
             self.sizer.Add(self.sizers[i], 1, wx.EXPAND)
          elif self.types[i] == "Check":
             self.sizer.Add(self.check[i], 1, wx.EXPAND)
+      self.sizer.AddStretchSpacer(1)
       self.sizer.Add(self.lower_sizer, 2, wx.EXPAND)
       self.SetSizer(self.sizer)
       self.SetAutoLayout(1)
       self.sizer.Fit(self)
-      #height = 20*self.lines + 70
       self.SetSize((width, height))
    ## extract output values from graphic elements \n
    # first textboxes are sampled, second checkboxes,
@@ -1338,7 +1344,7 @@ class AfpScreen(wx.Frame):
          self.einsatz = Afp_importAfpModul("Einsatz", globals)
       else:
          self.einsatz = None
-      print "AfpScreen.init_database:", self.einsatz
+      print "AfpScreen.init_database Einsatz:", self.einsatz
       # Keyboard Binding
       self.no_keydown = self.get_no_keydown()
       self.panel.Bind(wx.EVT_KEY_DOWN, self.On_KeyDown)
@@ -1585,6 +1591,7 @@ class AfpScreen(wx.Frame):
    ## get grid rows to populate grids \n
    # default - empty, to be overwritten if grids are to be displayed on screen
    # @param typ - name of grid to be populated
+   # - REMARK: last column will not be shown, but stored for identifiction
    def get_grid_rows(self, typ):
       return []
 # End of class AfpScreen

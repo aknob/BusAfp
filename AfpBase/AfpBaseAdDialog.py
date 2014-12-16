@@ -72,11 +72,12 @@ def AfpAdDi_selectAttributRow(Adresse):
 # @param attribut - name of  attribut to be modified
 # @param text - additional text string for this attribut
 # @param tag - individual data string holding all values for this special attribut
+# @param no_delete - flag if 'delete' button should be hidden
 def AfpAdDi_spezialAttribut(name, attribut, text, tag, no_delete = False):
    Ok = None
    list = []
    attribut = Afp_toString(attribut)
-   print "AfpAdDi_spezialAttribut:",attribut, type(attribut), tag, Ok
+   #print "AfpAdDi_spezialAttribut:",attribut, type(attribut), tag, Ok
    taglist = AfpAdresse_getAttributTagList(attribut)
    split = tag.split(" ")
    lspl = len(split)
@@ -86,9 +87,7 @@ def AfpAdDi_spezialAttribut(name, attribut, text, tag, no_delete = False):
       else: entry.append("")
       list.append(entry)
    list.append(["(optional) Merkmaltext:", text])
-   #print "AfpAdDi_spezialAttribut Liste:", list
    result = AfpReq_MultiLine("Für '".decode("UTF-8") + name + "' werden die folgenden " + attribut +"-Daten benötigt:".decode("UTF-8"), "", "Text", list, attribut, 400 , no_delete)
-   #print "AfpAdDi_spezialAttribut Result:", result
    if not result is None: Ok = False
    if result:
       changed = False
@@ -342,16 +341,12 @@ def AfpLoad_DiAdEin(Adresse, name = None):
 # @param name - name to be set in dialog
 def AfpLoad_DiAdEin_fromSb(globals, sb, name = None):
    Adresse = AfpAdresse(globals, None, sb, sb.debug)
-   ken = Adresse.get_value("Kennung.ADRESSE")
-   print "AfpLoad_DiAdEin_fromSb", ken, type(ken)
    return AfpLoad_DiAdEin(Adresse, name)
 ## loader routines for dialog DiAdEin with ident number (KundenNr) input
 # @param globals - global variables including database connection
 # @param KNr - address ident number (KundenNr)
 def AfpLoad_DiAdEin_fromKNr(globals, KNr):
    Adresse = AfpAdresse(globals, KNr, None, globals.debug)
-   ken = Adresse.get_value("Kennung.ADRESSE")
-   print "AfpLoad_DiAdEin_fromKNr",  ken, type(ken)
    return AfpLoad_DiAdEin(Adresse)
    
 ## Class for attribut sub-dialog , it displays dialog to show and manipulate attribut-data (AdresAtt) and handles interactions \n
@@ -437,9 +432,10 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
          if Ok is None:
             Ok = AfpReq_Question("Soll das Merkmal '" + attribut + "'", "für diese Adresse gelöscht werden?".decode("UTF-8"), "Löschen?".decode("UTF-8"))
             if Ok:
-               mani = [index, None]
-               selection.manipulate_data([mani])
-               self.changes["Attribut"].append(mani)
+               #mani = [index, None]
+               #selection.manipulate_data([mani])
+               selection.delete_row(index)
+               self.changes["Attribut"].append(index)
          elif Ok:
             selection.set_value("Tag", tag, index)
             selection.set_value("AttText", text, index)
@@ -456,9 +452,10 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
          name = selection.get_values("Vorname", index) + " " + selection.get_values("Name", index)
          Ok = AfpReq_Question("Soll die Verbindung zu '" + name + "'", "für diese Adresse gelöscht werden?".decode("UTF-8"), "Löschen?".decode("UTF-8"))
          if Ok:
-            mani = [index, None]
-            selection.manipulate_data([mani])
-            self.changes["Verbindung"].append(mani)
+            #mani = [index, None]
+            #selection.manipulate_data([mani])
+            selection.delete_row(index)
+            self.changes["Verbindung"].append(index)
             self.Pop_Verbindung()
       event.Skip()  
    ## Eventhandler BUTTON - add new entry to attribut list   
@@ -467,9 +464,10 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
       row = AfpAdDi_selectAttributRow(self.data)
       #print row
       if row:
-         mani = [-1, row]
-         self.data.get_selection("ADRESATT").manipulate_data([mani])
-         self.changes["Attribut"].append(mani)
+         #mani = [-1, row]
+         #self.data.get_selection("ADRESATT").manipulate_data([mani])
+         self.data.get_selection("ADRESATT").add_row(row)
+         self.changes["Attribut"].append(row)
          self.Pop_Attribut()
       event.Skip()
    ## Eventhandler BUTTON - add new entry to connected addresses list   

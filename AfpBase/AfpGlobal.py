@@ -95,7 +95,7 @@ class AfpSettings(object):
    # @param homedir - if given, path to home directory, where configuration files are found
    # - only used for modul specific settings
    def  __init__(self, debug, conf_path = None, modulname = None, homedir = None):
-      print "AfpSettings.init:", debug, conf_path, modulname, homedir
+      #print "AfpSettings.init:", debug, conf_path, modulname, homedir
       self.debug = debug
       self.modul = None
       self.config = conf_path       
@@ -118,7 +118,7 @@ class AfpSettings(object):
       else:
          # load variables from database
          # self.load(modulname)
-         print "AfpSettings.load(" + modulname + ") not implemented!"
+         print "AfpSettings.load(" + modulname + ") loading from database not implemented!"
       if self.debug: print "AfpSettings Konstruktor",self.modul
    ## destructor
    def __del__(self):

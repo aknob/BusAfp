@@ -336,6 +336,26 @@ class AfpSelectionList(object):
    ## return main index of this SelectionList
    def get_mainindex(self):
       return self.mainindex
+   ## return the names of all Tableselections
+   # @param include_mainselection - flas if mainselection name should be included
+   def get_selection_names(self, include_mainselection = False):
+      names = []
+      for sel in self.selects:
+         append = True
+         if sel == self.mainselection and not include_mainselection: append = False
+         if append:
+            names.append(sel)
+      return names
+   ## return column name to be connected to mainindex for indicated selection
+   # @param selname - name of selection where target column is extracted
+   def get_select_target(self, selname):
+      target = None
+      if self.selects[selname]:
+         select = self.selects[selname][1]
+         split = select.split("=")
+         target = split[0].strip()
+         if  "." in target: target = target.split(".")[0]
+      return target
    ## return an afp-unique identifier of this SelectionList
    def get_identifier(self):
       return self.listname + self.get_string_value()
@@ -426,7 +446,7 @@ class AfpSelectionList(object):
       else: new = False
       selection = self.constitute_selection(select)
       select_clause = self.evaluate_selects(select)
-      print "AfpSelectionList.create_selection:", select_clause, new, selection
+      print "AfpSelectionList.create_selection:", select, select_clause, new, selection
       if selection is None and select_clause == []:
          if new: selection = self.spezial_selection(select, True)
          else:   selection = self.spezial_selection(select)
@@ -526,7 +546,6 @@ class AfpSelectionList(object):
    # - felder == 'Name1, Name2, ...': data from columns 'Name1, Name2, ... of selection
    # @param row - index of row in TableSelection
    def get_value_rows(self, sel = None, felder = None, row = -1):
-      print "get_value_rows called, maybe get_string_rows needed!"
       if sel is None and felder is None and row == -1:
          return self.mainvalue
       if sel is None:

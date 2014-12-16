@@ -37,14 +37,14 @@ import wx.grid
 import AfpBase
 from AfpBase import *
 from AfpBase.AfpUtilities import *
-from AfpBase.AfpUtilities.AfpStringUtilities import AfpSelectEnrich_dbname
+from AfpBase.AfpUtilities.AfpStringUtilities import AfpSelectEnrich_dbname, Afp_ArraytoString, Afp_toString
 from AfpBase.AfpUtilities.AfpBaseUtilities import Afp_existsFile
 from AfpBase.AfpDatabase import *
 from AfpBase.AfpDatabase.AfpSQL import AfpSQL
 from AfpBase.AfpDatabase.AfpSuperbase import AfpSuperbase
 #from AfpBase.AfpBaseRoutines import AfpPy_Import, Afp_archivName, Afp_startFile
-from AfpBase.AfpBaseDialog import AfpReq_Information, AfpScreen
-from AfpBase.AfpBaseAdRoutines import AfpAdresse_StatusMap
+from AfpBase.AfpBaseDialog import AfpReq_Information, AfpScreen, AfpReq_Info, AfpReq_Question
+from AfpBase.AfpBaseAdRoutines import AfpAdresse_StatusMap, AfpAdresse
 from AfpBase.AfpBaseAdDialog import AfpLoad_DiAdEin_fromSb, AfpLoad_AdAusw
 
 ## Class_Adresse shows Window Adresse and handles interactions
@@ -58,7 +58,7 @@ class AfpAdScreen(AfpScreen):
       self.sb_filter = ""
       self.archiv_rows = 10
       self.archiv_min_rows = 10
-      self.archiv_colnames = [["Datum","Art","Ablage","Fach","Bem."],["ReiseNr","Datum","Zielort","Anmeldung","Preis"],["Zustand","Datum","Zielort","FahrtNr","Preis"],["RechNr","Datum","Text","Preis","Zahlung"],["RechNr","Datum","Text","Preis","Zahlung"],["Merkmal","Text","-","-","-"],["Name","Vorname","Strasse","Ort","Telefon"]]
+      self.archiv_colnames = [["Datum","Art","Ablage","Fach","Bem."],["AnmeldNr","Datum","Zielort","Preis","Zahlung"],["Zustand","Datum","Zielort","Art","Preis"],["RechNr","Datum","Text","Preis","Zahlung"],["RechNr","Datum","Text","Preis","Zahlung"],["Merkmal","Text","-","-","-"],["Name","Vorname","Strasse","Ort","Telefon"]]
       self.archiv_colname = self.archiv_colnames[0]
       self.archiv_id = []
       # self properties
@@ -77,19 +77,19 @@ class AfpAdScreen(AfpScreen):
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_AendF, self.button_Bearbeiten)
       self.button_Voll = wx.Button(panel, -1, label="&Volltext", pos=(692,170), size=(77,50), name="BVoll")
       self.Bind(wx.EVT_BUTTON, self.On_Ad_Volltext, self.button_Voll)
+      self.button_Voll.Enable(False)
        
-      self.button_CommandButton31 = wx.Button(panel, -1, label="&Dokument", pos=(692,256), size=(77,50), name="BDokument")
-      self.Bind(wx.EVT_BUTTON, self.On_Adresse_Doku, self.button_CommandButton31)
+      self.button_Dokument = wx.Button(panel, -1, label="&Dokument", pos=(692,256), size=(77,50), name="BDokument")
+      self.Bind(wx.EVT_BUTTON, self.On_Adresse_Doku, self.button_Dokument)
+      self.button_Dokument.Enable(False)
       self.button_Doppelt = wx.Button(panel, -1, label="Do&ppelte", pos=(692,338), size=(77,50), name="Doppelt")
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_Doppelt, self.button_Doppelt)
       self.button_Listen = wx.Button(panel, -1, label="&Listen", pos=(692,405), size=(77,50), name="Listen")
       self.Bind(wx.EVT_BUTTON, self.On_Adresse_Listen, self.button_Listen)
+      self.button_Listen.Enable(False)        
       self.button_Ende = wx.Button(panel, -1, label="Be&enden", pos=(692,470), size=(77,50), name="Ende")
       self.Bind(wx.EVT_BUTTON, self.On_Ende, self.button_Ende)
 
-      #self.button_BAdresse = wx.Button(panel, -1, label="A&dresse:", pos=(34,55), size=(115,20), name="BAdresse")
-      #self.Bind(wx.EVT_BUTTON, self.On_Adresse_AendF, self.button_BAdresse)
-        
       # COMBOBOX
       self.combo_Filter_Merk = wx.ComboBox(panel, -1, value="", pos=(529,16), size=(150,20), choices=[], style=wx.CB_DROPDOWN, name="Filter_Merk")
       self.Bind(wx.EVT_COMBOBOX, self.On_Filter_Merk, self.combo_Filter_Merk)
@@ -206,6 +206,25 @@ class AfpAdScreen(AfpScreen):
    ## Eventhandler BUTTON - resolve duplicate addresses - not implemented yet!
    def On_Adresse_Doppelt(self,event):
       print "Event handler `On_Adresse_Doppelt' not implemented!"
+      name = self.sb.get_string_value("Name.ADRESSE")
+      vorname = self.sb.get_string_value("Vorname.ADRESSE")
+      KdNr = self.sb.get_value("KundenNr.ADRESSE")
+      text = "Bitte Adressduplikat für '".decode("UTF-8") + vorname + " " +  name +" (" + Afp_toString(KdNr) + ") auswählen!".decode("UTF-8")  
+      auswahl = AfpLoad_AdAusw(self.globals, "ADRESSE", "NamSort", name, None, text)
+      if auswahl:
+         if auswahl == KdNr:
+            AfpReq_Info("Identische Adresse ausgewählt,".decode("UTF-8"), "keine Übernahme möglich!".decode("UTF-8"),"Adressduplikat")
+         else:
+            Adresse = AfpAdresse(self.globals, None, self.sb, self.sb.debug)
+            victim = AfpAdresse(self.globals, auswahl, None, self.globals.is_debug())
+            text0 = ""
+            if auswahl < KdNr: text0 = "VORSICHT: ältere Adresse wird durch neuere Adresse ersetzt!\n\n".decode("UTF-8")
+            text1 = "Die Adresse: \n(" + Afp_toString(auswahl) + ") "+ victim.get_name() + ", "  + victim.get_string_value("Strasse") + ", "  + victim.get_string_value("Plz") + " " + victim.get_string_value("Ort")
+            text2 = "ersetzen durch: \n(" + Afp_toString(KdNr) + ") "+ Adresse.get_name() + ", "  + Adresse.get_string_value("Strasse") + ", "  + Adresse.get_string_value("Plz") + " " + Adresse.get_string_value("Ort") + "?"
+            text3 = "\n\nVORSICHT, diese Aktion ist nicht rückgängig zu machen!!".decode("UTF-8")
+            ok = AfpReq_Question(text0 + text1,text2 + text3,"Adressduplikat")
+            if ok:
+               Adresse.hostile_takeover(victim)
       event.Skip()
    ## Eventhandler BUTTON - show different lists, not implemented yet!
    def On_Adresse_Listen(self,event):
@@ -358,20 +377,18 @@ class AfpAdScreen(AfpScreen):
             rows = self.mysql.select_strings("Datum,Art,Typ,Gruppe,Bem,Extern",select,"ARCHIV")
          elif typ == "Anmeldungen":
             self.archiv_colname = self.archiv_colnames[1]
-            select += " and AnmeldNr > 0"
-            rows = self.mysql.select_strings("Datum,Art,Typ,Gruppe,Bem,AnmeldNr",select,"ARCHIV")
+            select += " and FahrtNr.REISEN = FahrtNr.ANMELD"
+            rows = self.mysql.select_strings("RechNr.ANMELD,Anmeldung,Zielort.REISEN,Preis.ANMELD,Zahlung.ANMELD,AnmeldNr",select,"ANMELD REISEN")
          elif typ == "Mietfahrten":
             self.archiv_colname = self.archiv_colnames[2]
-            select += " and MietNr > 0"
-            rows = self.mysql.select_strings("Datum,Art,Typ,Gruppe,Bem,MietNr",select,"ARCHIV")
+            rows = self.mysql.select_strings("Zustand,Abfahrt,Zielort,Art,Preis,FahrtNr",select,"FAHRTEN")
          elif typ == "Rechnungs-Ausgang":
             self.archiv_colname = self.archiv_colnames[3]
-            select += " and RechNr > 0"
-            rows = self.mysql.select_strings("Datum,Art,Typ,Gruppe,Bem,RechNr",select,"ARCHIV")
+            rows = self.mysql.select_strings("RechNr,Datum,Wofuer,RechBetrag,Zahlung,RechNr",select,"RECHNG")
          elif typ == "Rechnungs-Eingang":
             self.archiv_colname = self.archiv_colnames[4]
             select += " and VerbNr > 0"
-            rows = self.mysql.select_strings("Datum,Art,Typ,Gruppe,Bem,VerbNr",select,"ARCHIV") 
+            rows = self.mysql.select_strings("ExternNr,Datum,Wofuer,RechBetrag,Zahlung,VerbNr",select,"VERBIND") 
          elif typ == "Merkmale":
             self.archiv_colname = self.archiv_colnames[5]
             rows = self.mysql.select_strings("Attribut,AttText,Attribut",select,"ADRESATT") 
@@ -388,4 +405,5 @@ class AfpAdScreen(AfpScreen):
                KNr = int(row[0][5])
          for col in range(0,5):
             self.grid_archiv.SetColLabelValue(col, self.archiv_colname[col])
+      #print "get_grid_rows:", rows
       return rows

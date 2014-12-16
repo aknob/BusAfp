@@ -46,7 +46,7 @@ def AfpAdresse_StatusReMap(ind):
       if dict[key] == ind: return key
    return None
 ## return names of textfields needed for special attribut dialogs
-# @param action - name of action item to define the special attribut dialog
+# @param attribut - name of attribut to define the special dialog
 def AfpAdresse_getAttributTagList(attribut):
    list = []
    attribut = Afp_toString(attribut)
@@ -89,15 +89,20 @@ class AfpAdresse(AfpSelectionList):
       if not self.mainselection in self.selections:
          self.create_selection(self.mainselection)
       self.selects["ADRESATT"] = [ "ADRESATT","KundenNr = KundenNr.ADRESSE"] 
+      self.selects["ANFRAGE"] = [ "ANFRAGE","KundenNr = KundenNr.ADRESSE"] 
       self.selects["Bez"] = []   
-      if sb:
-         if sb.is_open("ANMELD"): self.selects["ANMELD"] = [ "ANMELD","KundenNr = KundenNr.ADRESSE"] 
-         if sb.is_open("FAHRTEN"): self.selects["FAHRTEN"] = [ "FAHRTEN","KundenNr = KundenNr.ADRESSE"] 
-         if sb.is_open("RECHNG"): self.selects["RECHNG"] = [ "RECHNG","KundenNr = KundenNr.ADRESSE"] 
-         if sb.is_open("VERBIND"): self.selects["VERBIND"] = [ "VERBIND","KundenNr = KundenNr.ADRESSE"] 
-      self.mainselection = "ADRESSE"
-      if not self.mainselection in self.selections:
-         self.create_selection(self.mainselection)
+      self.selects["ARCHIV"] = [ "ARCHIV","KundenNr = KundenNr.ADRESSE"] 
+      self.selects["BUCHUNG"] = [ "BUCHUNG","KundenNr = KundenNr.ADRESSE"] 
+      self.selects["FAHRTEN"] = [ "FAHRTEN","KundenNr = KundenNr.ADRESSE"] 
+      self.selects["FahrtKontakt"] = [ "FAHRTEN","KontaktNr = KundenNr.ADRESSE"] 
+      self.selects["FAHRTVOR"] = [ "FAHRTVOR","KundenNr = KundenNr.ADRESSE"] 
+      self.selects["FAHRER"] = [ "FAHRER","FahrerNr = KundenNr.ADRESSE"] 
+      self.selects["EINSATZ"] = [ "EINSATZ","FremdNr = KundenNr.ADRESSE"] 
+      self.selects["RECHNG"] = [ "RECHNG","KundenNr = KundenNr.ADRESSE"] 
+      self.selects["ANMELD"] = [ "ANMELD","KundenNr = KundenNr.ADRESSE"] 
+      self.selects["AnmeldAgent"] = [ "ANMELD","AgentNr = KundenNr.ADRESSE"] 
+      self.selects["REISEN"] = [ "REISEN","AgentNr = KundenNr.ADRESSE"] 
+      self.selects["VERBIND"] = [ "VERBIND","KundenNr = KundenNr.ADRESSE"] 
       if complete: self.create_selections()
       if self.debug: print "AfpAdresse Konstruktor, KundenNr:", self.mainvalue
    ## destructor
@@ -162,4 +167,35 @@ class AfpAdresse(AfpSelectionList):
       vorname = self.get_string_value("Vorname")
       name = self.get_string_value("Name")
       return vorname[0].lower() + name[:2].lower()
+   ##  merge given address into this address, all dependent data is taken over by replacing the address identification number \n
+   # the given address is deleted, address dependent data (like name or accountnumbers) is replaced by values of this address
+   # @param victim - 'Adresse' selecion list, which should be merged and deleted
+   def hostile_takeover(self, victim):
+      if self.get_listname() == victim.get_listname():
+         KNr = self.get_value("KundenNr")
+         name = self.get_name(True)
+         debitor = Afp_getIndividualAccount(self.get_mysql(), KNr, "Debitor")
+         kreditor = Afp_getIndividualAccount(self.get_mysql(), KNr, "Kreditor")
+         selects = self.get_selection_names()
+         names = {"ADRESATT": "Name","ANMELDER": "AgentName","REISEN":"AgentName", "VERBIND":"Name", "FAHRTEN":"Name","AnmeldAgent":"AgentName"}
+         debitors = {"ANMELDER": "AgentDebitor", "RECHNG":"Debitor", "REISEN":"Debitor"}
+         kreditors = {"VERBIND": "Kreditor","REISEN":"Kreditor"}
+         # move through all selections and replave the values
+         for sel in selects:
+            selection = victim.get_selection(sel)
+            target = victim.get_select_target(sel)
+            if selection and target:
+               selection.spread_value(target, KNr)
+               if sel in names:  selection.spread_value(names[sel], name)
+               if sel in debitors:  selection.spread_value(debitors[sel], debitor)
+               if sel in kreditors:  selection.spread_value(kreditors[sel], kreditor)
+         # flag the address to be deleted
+         victim.get_selection().delete_row()
+         # write values to database
+         if seld.debug: print "AfpAdresse.hostile_takeover:", auswahl,"->", KdNr
+         print "AfpAdresse.hostile_takeover:", auswahl,"->", KdNr
+         #victim.view()  
+         victim.store()
+
+
       
