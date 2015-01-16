@@ -216,7 +216,7 @@ class AfpDialog_DiChEin(AfpDialog):
         self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Kontakt, self.button_BKontakt)
         self.button_BRechAd = wx.Button(panel, -1, label="&Rechnung", pos=(460,88), size=(100,24), name="BRechAd")
         self.Bind(wx.EVT_BUTTON, self.On_Fahrt_RechAd, self.button_BRechAd)
-        self.button_Neu = wx.Button(panel, -1, label="&Neu", pos=(460,130), size=(100,30), name="Neu")
+        self.button_Neu = wx.Button(panel, -1, label="Ko&pie", pos=(460,130), size=(100,30), name="Neu")
         self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Neu, self.button_Neu)
         self.button_Zahlung = wx.Button(panel, -1, label="&Zahlung", pos=(460,160), size=(100,30), name="Zahlung")
         self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Zahl, self.button_Zahlung)
@@ -404,7 +404,7 @@ class AfpDialog_DiChEin(AfpDialog):
     def ch_km(self):
         if self.distance:
             select = self.choice_Art.GetCurrentSelection()
-            if select > 0:
+            if select == 2:
                 self.text_Km.SetValue(Afp_toString(2*self.distance))
             else:
                 self.text_Km.SetValue(Afp_toString(self.distance))
@@ -506,7 +506,7 @@ class AfpDialog_DiChEin(AfpDialog):
     ## event handler when one of the durance relevant textboxes is left 
     def On_Check_Dauer(self,event):
         if self.debug: print "Event handler `On_Check_Dauer'"
-        self.ch_durance()
+        self.ch_durance(True)
         self.On_KillFocus(event)
         event.Skip()
 

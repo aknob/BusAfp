@@ -33,15 +33,122 @@
 import sys
 import MySQLdb
 import datetime
-
+import dbfpy
+from dbfpy import dbf
 
 from AfpBase import AfpUtilities
 from AfpBase.AfpUtilities import *
 from AfpBase.AfpUtilities.AfpBaseUtilities import *
 from AfpBase.AfpUtilities.AfpStringUtilities import *
+
+## writes data to different fileformats
+# @param data - TableSelection holding the data to be written
+# @param filename - name of file data is written to, \n
+#  at the moment the following formats are supported \n
+#  - .asc - ASCII file, static length \n
+#  - .csv - ASCII file, comma separated values \n
+#  - .dbf - DBF database file \n
+# @param template - if given, is used as follows:
+# - .asc - length of each fiels
+# - .csv - field delimiter, text bracket, separated by spaces
+# - .dbf - template file which is used to create output 
+# @param parameter - is used as follows:
+# - .asc,csv - array with names of values read from data
+# - .dbf - dictionary how data is mapped into output file (output[entry] = value(parameter[entry])), \n 
+# -        if no template is given only stated fields will be created in DBF file according to the entry [name, typ, parameter] for each field
+def Afp_writeToFile(data, filename, template, parameter = None):
+    print "Testcode for DBF.module: File:", Afp_existsFile(filename), " Template:", Afp_existsFile(template)," Parameter:",  type(parameter)
+    print "Parameter:", parameter
+    split = filename.split(".")
+    if split[-1].lower() == "dbf":
+         Afp_writeToDBFFile(data, filename, template, parameter)
+    else:
+        print "WARNING: Output to a file of type \"." + split[-1] + "\" not yet implemented!"
+
+## writes data to dbf_file
+# @param data - TableSelection holding the data to be written
+# @param filename - name of file data is written to, \n
+# @param template - if given,template file which is used to create output 
+# @param parameter -  dictionary how data is mapped into output file (output[entry] = value(parameter[entry])), \n 
+# -        if no template is given only stated fields will be created in DBF file according to the entry [name, typ, parameter] for each field
+def Afp_writeToDBFFile(data, filename, template, parameter = None):
+    file = None
+    if data:
+        typ = type(parameter)
+        if parameter and typ == list and type(parameter[0]) == list: typ = "field definition"
+        if template and Afp_existsFile(template):
+            Afp_copyFile(template, filename)
+            file = dbf.Dbf(filename)
+        elif typ == "field definition":
+            # create empty DBF, set fields
+            file = Afp_createDbfFile(filename, parameter)
+    print "File:", file, typ, "\n"
+    if not file is None:
+        print "recording", typ, typ == dict
+        felder = ""
+        cols = []
+        for entry in parameter:
+            cols.append(entry)
+            if typ == dict: 
+                name = parameter[entry]
+            elif typ == "field definition": 
+                name = entry[0]
+            else: 
+                name = entry
+            print entry, name
+            felder +=  name + ","
+        if felder: 
+            felder = felder[:-1]
+            print "Felder:", felder, cols
+            daten = data.get_values(felder)
+            print "Daten:", daten
+            for i in range(len(daten)):
+                rec = file.newRecord()
+                for j in range(len(cols)):
+                    rec[cols[j]] = Afp_toDbfFormat(daten[i][j])
+                print"Record:", rec
+                rec.store()
+        file.close()
+        # read DBF and print records
+        Afp_viewDbfFile(filename)
+## create a new dbf-file and return handle
+# @param filename - name of file to be created
+# @param parameter - parameter of file creation, list of  [name, typ, parameter 1, parameter 2, parameter 3]  for each field to be created
+def Afp_createDbfFile(filename, parameter):
+    file = dbf.Dbf(filename, new=True)
+    for entry in parameter:
+        print "entry:", entry
+        if len(entry) == 4:
+            # ("BRUTTO", "N", 12, 2),
+            file.addField((entry[0],entry[1],entry[2],entry[3]))
+        elif len(entry) == 3:
+            # ("NAME", "C", 15),
+            file.addField((entry[0],entry[1],entry[2]))
+        elif len(entry) == 2:
+            # ("BIRTHDATE", "D"),
+            file.addField((entry[0],entry[1]))
+    return file
+## convert data into dbf-compatible format
+# @param data - data to be converted
+def Afp_toDbfFormat(data):
+    if type(data) == datetime.date:
+        data = data.strftime("%y%m%d")
+    return data
+## print out content of dbf-file
+# @param filename - name of file to be printed
+def Afp_viewDbfFile(filename):
+    if Afp_existsFile(filename):
+        file = dbf.Dbf(filename)
+        index = 0
+        for rec in file:
+            print "Record:", index
+            print rec
+            index += 1
+        print
+
  
 ##   provides a low level interface to MySql \n
-# mostly not used directliy, interaction takes place through the AfpSQLTableSelection objects
+# mostly not used directly, interaction takes place through the AfpSQLTableSelection objects
 class AfpSQL(object):
     ## constructor
     # @param dbhost, dbuser, dbword, dbname - host, user, password for connection, name of databse
@@ -506,9 +613,11 @@ class AfpSQLTableSelection(object):
                 split = felder.split(",")
                 index = []
                 for feld in split:
-                    if feld in self.feldnamen: index.append(self.feldnamen.index(feld))
+                    if feld.strip() in self.feldnamen: index.append(self.feldnamen.index(feld.strip()))
                 if self.data:
+                    #print "AfpSQLTableSelection.get_values:",felder, split, index
                     #print "AfpSQLTableSelection.get_values:",self.data, self.feldnamen
+                    #print "AfpSQLTableSelection.get_values feldnamen:", self.feldnamen
                     if row < 0:
                         for data in self.data:
                             result.append(Afp_extractPureValues(index,data))
