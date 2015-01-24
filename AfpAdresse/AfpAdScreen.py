@@ -191,7 +191,7 @@ class AfpAdScreen(AfpScreen):
         else: 
             value = values[0]
             attrib = None
-        auswahl = AfpLoad_AdAusw(self.globals, self.sb_master, index, value, where, attrib)
+        auswahl = AfpLoad_AdAusw(self.globals, self.sb_master, index, value, where, attrib, True)
         if not auswahl is None:
             KNr = int(auswahl)
             if self.sb_filter: self.sb.select_where(self.sb_filter, "KundenNr", self.sb_master)

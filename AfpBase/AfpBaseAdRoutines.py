@@ -56,6 +56,20 @@ def AfpAdresse_getAttributTagList(attribut):
         list = ["Verrechungskonto", "Veranstalter (Debitor)","Veranstalter (Kreditor)","Reisekennung"]
     return list
  
+##  get the list of indecies of address table,
+# @param mysql - database where values are retrieved from
+# @param index  -  name sort criterium initially selected
+def AfpAdresse_getOrderlistOfTable(mysql, index, datei = "ADRESSE"):
+    if datei == "ADRESATT":
+        keep = ["Name","KundenNr"]
+        indirect = None
+    else: 
+        keep = ["NamSort","KundenNr"]
+        indirect = ["Name","Plz","Ort"]
+    liste = Afp_getOrderlistOfTable(mysql, datei, keep, indirect)
+    return liste
+
+ 
 ## baseclass for address handling      
 class AfpAdresse(AfpSelectionList):
     ## initialize AfpAdresse class

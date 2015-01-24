@@ -327,23 +327,25 @@ def Afp_getOrderlistOfTable(mysql, datei, keep = None, indirect = None, special 
         if not entry == name:
             name = entry
             if entry == "PRIMARY": name = columns[indices.index(entry)]
-            ind = fields.index(name)
-            if keep is None or name in keep:
-                if "text" in types[ind] or "char" in types[ind]:
-                    typ = "string"
-                elif "int" in types[ind]:
-                    typ = "int"
-                elif "date" in types[ind]:
-                    typ = "date"
-                elif "time" in types[ind]:
-                    typ = "time"
-                elif "float" in types[ind]:
-                    typ = "float"
+            ind = None
+            if name in fields:
+                ind = fields.index(name)
+                if keep is None or name in keep:
+                    if "text" in types[ind] or "char" in types[ind]:
+                        typ = "string"
+                    elif "int" in types[ind]:
+                        typ = "int"
+                    elif "date" in types[ind]:
+                        typ = "date"
+                    elif "time" in types[ind]:
+                        typ = "time"
+                    elif "float" in types[ind]:
+                        typ = "float"
+                    else:
+                        typ = "string"
+                    liste[name]  = typ
                 else:
-                    typ = "string"
-                liste[name]  = typ
-            else:
-                liste[name] = None
+                    liste[name] = None
     if special:
         for entry in special:
             if entry in liste:

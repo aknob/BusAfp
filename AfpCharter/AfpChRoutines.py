@@ -72,7 +72,7 @@ def AfpCharter_isOperational(zustand):
     list = AfpCharter_getOperateList()
     return zustand in list
     
-##  get the list of indecies of named table,
+##  get the list of indecies of charter table,
 # @param mysql - database where values are retrieved from
 # @param index  -  name sort criterium initially selected
 def AfpCharter_getOrderlistOfTable(mysql, index):

@@ -96,7 +96,7 @@ class AfpDialog_ChAusw(AfpDialog_DiAusw):
 # @param index - column which should give the order
 # @param value -  if given,initial value to be searched
 # @param where - if given, filter for search in table
-def AfpLoad_ChAusw(globals, index, value = "", where = None, ask = True):
+def AfpLoad_ChAusw(globals, index, value = "", where = None, ask = False):
     result = None
     Ok = True
     if ask:
@@ -115,7 +115,7 @@ def AfpLoad_ChAusw(globals, index, value = "", where = None, ask = True):
     elif Ok is None:
         # flag for direct selection
         result = Afp_selectGetValue(globals.get_mysql(), "FAHRTEN", "FahrtNr", index, value)
-        print result
+        #print result
     return result      
 
 ## allows the display and manipulation of a charter entry

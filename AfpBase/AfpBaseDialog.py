@@ -315,7 +315,7 @@ def AfpReq_Information(globals):
 def Afp_autoEingabe(value, index, sort_list, name):
     name = name.decode("UTF-8")
     value, format, Ok = AfpReq_Eingabe("Bitte Auswahlkriteium für die ".decode("UTF-8") + name + "auswahl eingeben.","", value, name +"auswahl")
-    print Ok, value, format, sort_list
+    print "Afp_autoEingabe:", Ok, value, format, sort_list
     if Ok:
         #print sort_list
         if format[0] == "!":
@@ -328,7 +328,7 @@ def Afp_autoEingabe(value, index, sort_list, name):
             for entry in sort_list:
                 if sort_list[entry] and sort_list[entry] == format:
                     index = entry
-        #print "index:", index, value
+        print "index:", index, value
         if sort_list[index] is None:
             Ok = None
     return value, index, Ok

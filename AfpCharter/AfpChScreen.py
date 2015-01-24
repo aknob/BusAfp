@@ -225,7 +225,7 @@ class AfpChScreen(AfpScreen):
         where = AfpSelectEnrich_dbname(self.sb.identify_index().get_where(), "FAHRTEN")
         #value = self.sb.get_string_value(index, True)
         value = self.sb.get_string_value(index)
-        auswahl = AfpLoad_ChAusw(self.globals, index, value, where)
+        auswahl = AfpLoad_ChAusw(self.globals, index, value, where, True)
         if not auswahl is None:
             FNr = int(auswahl)
             if self.sb_filter: self.sb.select_where(self.sb_filter, "FahrtNr", "FAHRTEN")

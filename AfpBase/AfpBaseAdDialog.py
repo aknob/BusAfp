@@ -148,24 +148,33 @@ class AfpDialog_AdAttAusw(AfpDialog_DiAusw):
         return Felder
 
 ## loader routine for adress selection dialog
-def AfpLoad_AdAusw(globals, Datei, Index, value = "", where = None, attribut = None):
-    if Datei == "ADRESATT":
-        DiAusw = AfpDialog_AdAttAusw()
-    else:
-        DiAusw = AfpDialog_AdAusw()
-    #print "AfpLoad_AdAusw:", Datei, Index, value, where
-    if attribut:
-        if len(attribut) > 4 and attribut[:5] == "Bitte":
-            text = attribut
+def AfpLoad_AdAusw(globals, Datei, index, value = "", where = None, attribut = None, ask = False):
+    result = None
+    Ok = True
+    if ask:
+        sort_list = AfpAdresse_getOrderlistOfTable(globals.get_mysql(), index, Datei)
+        value, index, Ok = Afp_autoEingabe(value, index, sort_list, "Adressen")
+    if Ok:
+        if Datei == "ADRESATT":
+            DiAusw = AfpDialog_AdAttAusw()
         else:
-            text = "Bitte " + attribut + "-Adresse auswählen:".decode("UTF-8")
-    else:
-        text = "Bitte Adresse auswählen:".decode("UTF-8")
-    DiAusw.initialize(globals, Index, value, where, text)
-    DiAusw.ShowModal()
-    result = DiAusw.get_result()
-    #print result
-    DiAusw.Destroy()
+            DiAusw = AfpDialog_AdAusw()
+        #print "AfpLoad_AdAusw:", Datei, Index, value, where
+        if attribut:
+            if len(attribut) > 4 and attribut[:5] == "Bitte":
+                text = attribut
+            else:
+                text = "Bitte " + attribut + "-Adresse auswählen:".decode("UTF-8")
+        else:
+            text = "Bitte Adresse auswählen:".decode("UTF-8")
+        DiAusw.initialize(globals, index, value, where, text)
+        DiAusw.ShowModal()
+        result = DiAusw.get_result()
+        #print result
+        DiAusw.Destroy()
+    elif Ok is None:
+        # flag for direct selection
+        result = Afp_selectGetValue(globals.get_mysql(), Datei, "KundenNr", index, value)
     return result
 ## loader routine to select adress data from attribut table
 def AfpLoad_AdAttAusw(globals, attribut, value = ""):     
