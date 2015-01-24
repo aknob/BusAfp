@@ -71,7 +71,23 @@ def AfpCharter_isPayable(zustand):
 def AfpCharter_isOperational(zustand):
     list = AfpCharter_getOperateList()
     return zustand in list
-   
+    
+##  get the list of indecies of named table,
+# @param mysql - database where values are retrieved from
+# @param index  -  name sort criterium initially selected
+def AfpCharter_getOrderlistOfTable(mysql, index):
+    keep = ["Abfahrt"]
+    if index == "Name":
+        keep.append("Name")
+    else:
+        keep.append("Zielort")
+    if index == "Vorgang":
+        keep.append("Vorgang")
+    else:
+        keep.append("SortNr")
+    indirect = ["Zielort","Name","SortNr"]
+    liste = Afp_getOrderlistOfTable(mysql, "FAHRTEN", keep, indirect)
+    return liste
 ## samples a charter info line from input in 'Fahrtinfo' format
 # @param datum, zeit - date and time of info   
 # @param dirflags - common string to hold driving direction ("Hin","Her", "Aus") and start or endflag ("Ab","An")   

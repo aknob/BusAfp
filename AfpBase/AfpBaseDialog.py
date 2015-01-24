@@ -38,7 +38,7 @@ import wx
 import wx.grid
 
 import AfpUtilities.AfpBaseUtilities
-from AfpUtilities.AfpBaseUtilities import Afp_existsFile, Afp_copyFile
+from AfpUtilities.AfpBaseUtilities import Afp_existsFile, Afp_copyFile, Afp_isTime, Afp_isDate, Afp_isNumeric
 import AfpUtilities.AfpStringUtilities
 from AfpUtilities.AfpStringUtilities import Afp_pathname, Afp_addRootpath, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum
 import AfpGlobal
@@ -131,6 +131,58 @@ def AfpReq_Date(text1, text2, text = "", header = "", only_past = False):
                 text = datum
                 loop = True
     return text, Ok
+## text input needed, text is checked to have valuable format (return value, format, Ok == True/False) \n
+# date input has to have readeble format, output will be set to intern date format for selection. \n
+# the returned format array will be filled as follows:
+# - [0] - format name: string, int, float, date, time
+# - [1] - parameter fo format: string, float - length
+# - [2] - parameter 2 for format: float - number of decimals
+# - a leading "!" will be removed and a "special" in format[0] will prepend the name
+# @param text1, text2 - two lines of text to be displayed (used for historical reasons)
+# @param text - text to be modified, if supplied
+# @param header - header to be displayed on top ribbon of dialog
+def AfpReq_Eingabe(text1, text2, text = "", header = ""):
+    Ok = False
+    value = text
+    frm_name = ""
+    frm_len = None
+    frm_deci = None
+    if not header: header = "Eingabe"
+    text, Ok = AfpReq_Text(text1, text2, text, header)
+    if Ok:
+        if text[0] == "!":
+            text = text[1:]
+            frm_name = "!"
+        value = Afp_fromString(text)
+        if Afp_isTime(value):
+            frm_name += "time"
+        elif Afp_isDate(value):
+            frm_name += "date"
+        elif Afp_isNumeric(value):
+            if type(value) == float:
+                deci = value - int(value)
+                # look for dates only partly written (at least one separator)
+                if value < 32  and value >= 1 and deci >= 0.01 and deci <= 0.12:
+                    text = Afp_ChDatum(text)
+                    value = Afp_fromString(text)
+                    frm_name += "date"
+                else:
+                    frm_name += "float"
+                    split = Afp_split(text,[".",","])
+                    frm_len = len(text)
+                    frm_deci = len(split[-1])
+            else:
+                frm_name += "int"
+        else:
+            frm_name += "string"
+            #frm_len = len(text)
+    format = frm_name
+    if frm_len: 
+        format += "(" + str(frm_len)
+        if frm_deci: 
+            format += "," + str(frm_deci)
+        format +=")"
+    return value, format, Ok   
 ## Edit multilineText (return text, Ok == True/False)
 # @param oldtext - text to be modified, if supplied
 # @param header - header to be displayed on top ribbon of dialog
@@ -254,6 +306,32 @@ def AfpReq_Information(globals):
     translator = globals.get_string_value("translator")
     if translator: info.AddDocWriter(translator)
     wx.AboutBox(info)   
+ 
+##  handles automatic and manual sort cirterium selection for data search
+#  @param value - initial value for search
+#  @param index - initial sort criterium
+#  @param sort_list - dictionatry of possible sort criteria, with automatic selection format in the values
+#  @param name - name of purpose of this selection
+def Afp_autoEingabe(value, index, sort_list, name):
+    name = name.decode("UTF-8")
+    value, format, Ok = AfpReq_Eingabe("Bitte Auswahlkriteium für die ".decode("UTF-8") + name + "auswahl eingeben.","", value, name +"auswahl")
+    print Ok, value, format, sort_list
+    if Ok:
+        #print sort_list
+        if format[0] == "!":
+            liste = sort_list.keys()
+            res,Ok = AfpReq_Selection("Bitte Sortierkriterium für die ".decode("UTF-8") + name + "auswahl auswählen.".decode("UTF-8"),"",liste,"Sortierung")
+            #print Ok, res
+            if Ok:
+                index = res
+        else:
+            for entry in sort_list:
+                if sort_list[entry] and sort_list[entry] == format:
+                    index = entry
+        #print "index:", index, value
+        if sort_list[index] is None:
+            Ok = None
+    return value, index, Ok
    
 ## Baseclass Texteditor Requester 
 class AfpDialog_TextEditor(wx.Dialog):
@@ -1018,6 +1096,7 @@ class AfpDialog_DiAusw(wx.Dialog):
     # @param where - filter for this selection
     # @param text - text to be displayed above selection list
     def initialize(self, globals, Index, value, where, text):
+        value = Afp_toInternDateString(value)
         self.globals = globals
         self.mysql = globals.get_mysql()
         self.debug = self.mysql.get_debug()

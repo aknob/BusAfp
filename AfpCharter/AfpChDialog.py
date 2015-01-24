@@ -96,15 +96,26 @@ class AfpDialog_ChAusw(AfpDialog_DiAusw):
 # @param index - column which should give the order
 # @param value -  if given,initial value to be searched
 # @param where - if given, filter for search in table
-def AfpLoad_ChAusw(globals, index, value = "", where = None):
-    DiAusw = AfpDialog_ChAusw()
-    #print Index, value, where
-    text = "Bitte Mietfahrt auswählen:"
-    DiAusw.initialize(globals, index, value, where, text)
-    DiAusw.ShowModal()
-    result = DiAusw.get_result()
-    #print result
-    DiAusw.Destroy()
+def AfpLoad_ChAusw(globals, index, value = "", where = None, ask = True):
+    result = None
+    Ok = True
+    if ask:
+        sort_list = AfpCharter_getOrderlistOfTable(globals.get_mysql(), index)
+        value, index, Ok = Afp_autoEingabe(value, index, sort_list, "Mietfahrt")
+        print "AfpLoad_ChAusw index:", index, value, Ok
+    if Ok:
+        DiAusw = AfpDialog_ChAusw()
+        #print Index, value, where
+        text = "Bitte Mietfahrt auswählen:"
+        DiAusw.initialize(globals, index, value, where, text)
+        DiAusw.ShowModal()
+        result = DiAusw.get_result()
+        #print result
+        DiAusw.Destroy()
+    elif Ok is None:
+        # flag for direct selection
+        result = Afp_selectGetValue(globals.get_mysql(), "FAHRTEN", "FahrtNr", index, value)
+        print result
     return result      
 
 ## allows the display and manipulation of a charter entry

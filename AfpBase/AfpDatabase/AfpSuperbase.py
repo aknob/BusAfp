@@ -83,22 +83,39 @@ def AfpSb_genDict(keys, values):
 def AfpSb_countDuplicates(rows, direct, ind, ref = 0):
     count = -1
     ref_ind = -1
+    all = False
+    complete = False
     prev = Afp_combineValues(ind,rows[ref])
-    if direct:
-        for row in rows:
-            value = Afp_combineValues(ind,row)
-            if prev == value:
-                count += 1
-                if  rows.index(row) == ref:
-                    ref_ind = count
-    else:
-        for row in rows:
-            value = Afp_combineValues(ind,row)
-            if Afp_compareSql(prev, value):
-                count += 1
-                if  rows.index(row) == ref:
-                    ref_ind = count      
-    # print prev,count,ref_ind
+    if ref == 0: 
+        # shortcut when complete array holds same values, or when last holds different value
+        last = Afp_combineValues(ind,rows[-1])
+        if direct: all = prev == last
+        else: all = Afp_compareSql(prev, last)
+        if all:
+            count = len(rows) - 1
+        elif len(rows) > 1:
+            secondlast = Afp_combineValues(ind,rows[-2])
+            if direct: complete = prev == secondlast
+            else: complete = Afp_compareSql(prev, secondlast)
+            if complete:
+                count = len(rows) - 2
+        if count > -1: ref_ind = 0
+    if count < 0:
+        if direct:
+            for row in rows:
+                value = Afp_combineValues(ind,row)
+                if prev == value:
+                    count += 1
+                    if  rows.index(row) == ref:
+                        ref_ind = count
+        else:
+            for row in rows:
+                value = Afp_combineValues(ind,row)
+                if Afp_compareSql(prev, value):
+                    count += 1
+                    if  rows.index(row) == ref:
+                        ref_ind = count      
+    #print "AfpSb_countDuplicates:", all, complete, direct, len(rows), count, ref_ind, prev 
     return count,ref_ind
 
 ## Index class to hold all values of current record (current row) of one table retrieved form database. \n
@@ -124,6 +141,7 @@ class AfpSbIndex(object):
         self.datei = dateiname  # name of 'Datei' where index belongs to
       
         self.debug = False
+        self.cache_threshold = 200
         self.imaxident = 2            # max. number of identic index-entries up to now
         self.index_ind =[]             # indices of fields used to generate this index
         self.index_bez = None      # names of fields used to generate this index
@@ -219,6 +237,7 @@ class AfpSbIndex(object):
             while not equal and not self.endoffile and self.indexwert == indexwert:
                 self.select_plus_step(1)
                 equal =  self.is_equal(index)
+                #print "sync_to_index", equal, self.indexwert, indexwert,  self.endoffile 
             return equal
         else: 
             return False
@@ -392,6 +411,35 @@ class AfpSbIndex(object):
             self.indexdups = None
             self.indexwert =  Afp_extractValues(None, indices)
         #print "AfpSbIndex,gen_next_indexwert:",self.indexwert
+    def cached_select(self, Befehl):
+        rows = None
+        use_cache = False
+        ident = Afp_getToLastChar(Befehl, ",")
+        anz = int(Befehl[len(ident):])
+        #print "AfpSbIndex.cached_select:", self.imaxident, anz, self.cache_threshold
+        #print "AfpSbIndex.cached_select ident:", ident
+        if anz > self.cache_threshold:
+            use_cache = True
+            if self.cache:
+                if self.cache.is_valid(ident):
+                    lgh = self.cache.get_length()
+                    if lgh < anz-1:
+                        Add = ident[:-2] + str(lgh) + "," + str(anz) 
+                        if self.debug: print "AfpSbIndex.cached_select add:", Add
+                        self.db_cursor.execute (Add)     
+                        added = self.db_cursor.fetchall ()
+                        self.cache.add_array(ident, added)
+                    rows = self.cache.read_array(ident)  
+        else:
+            use_cache = False
+            self.cache = None
+        if rows is None:
+            if self.debug: print "AfpSbIndex.cached_select:", Befehl
+            self.db_cursor.execute (Befehl)     
+            rows = self.db_cursor.fetchall ()
+            if use_cache:
+                self.cache = AfpArrayCache(ident, rows, self.debug)
+        return rows
     def select_first_last(self, order):
         where_clause = ""
         if not self.where is None: 
@@ -460,24 +508,31 @@ class AfpSbIndex(object):
         where_clause = ""
         if not self.where is None: where_clause = "(" + self.where + ") and "
         anz = self.imaxident + step
+        #print "AfpSbIndex.select_plus_step", self.imaxident
+        #if self.imaxident > 8300: 
+            #test = where_clause + anz
         while anz > 0:          
             limit =  (" LIMIT 0,%d") % anz
             Befehl = "SELECT * FROM " + self.db + "." + self.datei +" WHERE "+ where_clause + index_clause + limit
             if self.debug: print "AfpSbIndex.select_plus_step:",Befehl, offset
-            self.db_cursor.execute (Befehl)     
-            rows = self.db_cursor.fetchall () 
+            rows = self.cached_select(Befehl)
+            #self.db_cursor.execute (Befehl)     
+            #rows = self.db_cursor.fetchall () 
             dup = 0
             ref = 0
             dup_next = 0 
+            #print "AfpSbIndex.select_plus_step: 1",Afp_getNow(), dup
             if len(rows) > 1:
                 dup, ref = AfpSb_countDuplicates(rows,self.is_numeric(),self.index_ind)        
             offstep = offset + step 
+            #print "AfpSbIndex.select_plus_step: 2",Afp_getNow(), dup, offset
             if in_step < 0:
                 rows = self.reverse_dup_bloc(rows,self.index_ind, offstep)
             # dup has to be checked for one step in advance
             if offstep > dup and offstep < len(rows):
                 dup_next, reff = AfpSb_countDuplicates(rows,self.is_numeric(),self.index_ind,offstep) 
                 dup_next += 1
+            #print "AfpSbIndex.select_plus_step 3:",Afp_getNow(), dup, dup_next, anz, dup+dup_next == anz-1
             if dup+dup_next == anz-1:
                 anz += dup+dup_next
             else:

@@ -33,7 +33,7 @@
 
 import sys
 import AfpDatabase.AfpSQL
-from AfpDatabase.AfpSQL import AfpSQLTableSelection
+from AfpDatabase.AfpSQL import AfpSQL, AfpSQLTableSelection
 
 import AfpUtilities
 from AfpUtilities import *
@@ -295,6 +295,64 @@ def Afp_getIndividualAccount(mysql, KNr, typ = "Debitor"):
         if rows:
             return rows[0][0]
     return 0
+## returns a single value from database for given criterium, mostly this value ought to be the unique identifier of the table \n
+# if value does not exist in table, the value of the next row in sort order will be extracted
+# @param mysql - database where values are retrieved from
+# @param table  - name of database table where value has to be retrieved from
+# @param column - column where value has to be retrieved from-
+# @param index -  sort criterium
+# @param value -  value of sort criterium to be searched
+def Afp_selectGetValue(mysql, table, column, index, value):
+    string = Afp_toInternDateString(value)
+    rows = mysql.select(column, index + " >= " + string, table, index, "0,1")
+    if rows:
+        if rows[0]:
+            return rows[0][0]
+    return None
+##  get the list of indecies of named table,
+# return a dictionary of names with typ as value. \n
+# following types are possible: \n
+# - string, int, date, time, float
+# @param mysql - database where values are retrieved from
+# @param datei  -  name of database table
+# @param keep  -  if given, array with name of entries whose values are kept - others will be set to 'None'
+# @param indirect  -  if given, array with name of entries whose values will be set to  "" instead of 'None'
+# @param special  -  if given, dictionary with special values for string evaluation
+def Afp_getOrderlistOfTable(mysql, datei, keep = None, indirect = None, special = None):
+    fields, types = mysql.get_info(datei, "fields",  [0, 1])
+    indices, columns = mysql.get_info(datei, "index", [2, 4])
+    liste = {}
+    name = ""
+    for entry in indices:
+        if not entry == name:
+            name = entry
+            if entry == "PRIMARY": name = columns[indices.index(entry)]
+            ind = fields.index(name)
+            if keep is None or name in keep:
+                if "text" in types[ind] or "char" in types[ind]:
+                    typ = "string"
+                elif "int" in types[ind]:
+                    typ = "int"
+                elif "date" in types[ind]:
+                    typ = "date"
+                elif "time" in types[ind]:
+                    typ = "time"
+                elif "float" in types[ind]:
+                    typ = "float"
+                else:
+                    typ = "string"
+                liste[name]  = typ
+            else:
+                liste[name] = None
+    if special:
+        for entry in special:
+            if entry in liste:
+                liste[entry] = special[entry]
+    if indirect:
+        for entry in indirect:
+            if entry in liste and liste[entry] is None:
+                liste[entry] = ""
+    return liste
 
 ##   base class of all Afp-database objects
 # common class to hold and manipulate the data for a given afp-module 

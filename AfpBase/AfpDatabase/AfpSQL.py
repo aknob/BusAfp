@@ -146,7 +146,6 @@ def Afp_viewDbfFile(filename):
             index += 1
         print
 
- 
 ##   provides a low level interface to MySql \n
 # mostly not used directly, interaction takes place through the AfpSQLTableSelection objects
 class AfpSQL(object):
@@ -208,6 +207,30 @@ class AfpSQL(object):
         self.db_cursor.execute (Befehl)     
         rows = self.db_cursor.fetchall ()
         return rows[0][0]
+    ## return information of database table
+    # @param datai - name of table
+    # @param typ - type of information ('fields' and 'index' implemented)
+    # @param col_array - if given, array of colum indices to be extracted
+    def get_info(self, datei, typ = "fields", col_array = None):
+        if typ == "index":
+            Befehl = "SHOW INDEX FROM " + datei
+        else:
+            Befehl = "SHOW FIELDS FROM " + datei
+        if self.debug: print Befehl
+        self.db_cursor.execute (Befehl)     
+        rows = self.db_cursor.fetchall ()
+        result = []
+        if col_array:
+            for col in col_array:
+                result.append([])
+                for row in rows:
+                    if col >= 0 and col < len(row):
+                        result[-1].append(row[col])
+                    else:
+                        result[-1].append(None)
+        else:
+            result = rows
+        return result
     ## extract different parts of the mysql select clause for  database access \n
     # returns a list holding:
     # - feld_clause: part of the clause indicating the desired columns of the tables

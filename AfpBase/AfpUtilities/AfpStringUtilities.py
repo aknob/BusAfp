@@ -447,6 +447,18 @@ def Afp_getWords(in_string, including=None):
     if including is None:
         words = currentwords
     return words
+## removes end of string behind last occurence of char
+# @param string - string to be cut
+# @param char - char where string should be cut
+def Afp_getToLastChar(string, char):
+    if char in string:
+        split = string.split(char)
+        result = ""
+        for i in range(len(split)-1):
+            result += split[i] + char
+        return result
+    else:
+        return string
 ## get letters in front of numeric figures
 # @param  string - string where letters have to be extracted
 def Afp_getStartLetters(string):

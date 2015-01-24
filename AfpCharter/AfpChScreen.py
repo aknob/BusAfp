@@ -223,7 +223,8 @@ class AfpChScreen(AfpScreen):
         self.sb.set_debug()
         index = self.sb.identify_index().get_name()
         where = AfpSelectEnrich_dbname(self.sb.identify_index().get_where(), "FAHRTEN")
-        value = self.sb.get_string_value(index, True)
+        #value = self.sb.get_string_value(index, True)
+        value = self.sb.get_string_value(index)
         auswahl = AfpLoad_ChAusw(self.globals, index, value, where)
         if not auswahl is None:
             FNr = int(auswahl)
@@ -337,7 +338,7 @@ class AfpChScreen(AfpScreen):
     ## Eventhandler COMBOBOX - sort index
     def On_Anmiet_Index(self,event):
         value = self.combo_Sortierung.GetValue()
-        if self.debug: print "Event handler `On_Anmiet_Index()'",value
+        if self.debug: print "Event handler `On_Anmiet_Index'",value
         index = self.indexmap[value]
         FNr = self.sb.get_value("FahrtNr")
         self.sb.set_index(index)

@@ -103,6 +103,9 @@ def Afp_extractPureValues(indices, array):
 ## return today
 def Afp_getToday():
     return datetime.date.today()
+## return today
+def Afp_getNow():
+    return datetime.datetime.now()
 ## add number of days to given date
 # @param date - initial date
 # @param ndays - number of days to be added
@@ -331,3 +334,77 @@ def Afp_configLogger(level, to_file):
 def Afp_getLogger(name):
     return logging.getLogger(name)
 
+##   class to hold cached database requests fro multiple use
+class AfpArrayCache(object):
+    ## initialize AfpArrayCache class
+    # @param identifier - if given, identifier string for cached array
+    # @param array - if given, data of array to be cached
+    # @param debug - flag for debug information
+    def  __init__(self, identifier = None, array = None, debug = False):
+        self.lifetime  = 10
+        self.step = 1
+        self.debug = debug        
+        self.identifier = None
+        self.cache = None
+        self.birth = None
+        self.death = None
+        self.last_use = None
+        self.looks = 0
+        if identifier and array:
+            self.set_array(identifier, array)
+        if self.debug: print "AfpArrayCache Konstruktor",identifier
+    ## destructor
+    def __del__(self):   
+        if self.debug: print "AfpArrayCache Destruktor" , Afp_getNow(), "Looks:", self.looks
+    ## get length of cached array
+    def get_length(self):
+        if self.cache:
+            return len(self.cache)
+        else:
+            return None
+    ## check if cache still is valid
+    # @param identifier - identifier string for array looked for
+    def is_valid(self, identifier):
+        valid = False
+        now = Afp_getNow()
+        if self.identifier and self.identifier == identifier:
+            if now < self.death: valid = True
+            elif now < self.last_use + self.interval: valid = True
+        if valid:
+            self.last_use = now
+            self.looks += 1
+            #print "AfpArrayCache use:", now, self.identifier, "Birth:", self.birth, "Death:", self.death, "Looks:", self.looks, self.get_length()
+        else:
+            if self.debug: print "AfpArrayCache clear:", now, self.identifier, "Birth:", self.birth, "Death:", self.death, "Looks:", self.looks
+            self.identifier = None
+            self.cache = None
+            self.looks = 0
+        return valid
+    ## fill cache
+    # @param identifier - identifier string for cached array
+    # @param array - data of array to be cached
+    def set_array(self, identifier, array):
+        self.identifier = identifier
+        self.cache = array
+        self.birth = Afp_getNow()
+        self.death = self.birth + datetime.timedelta(seconds=self.lifetime)
+        self.interval = datetime.timedelta(seconds=self.step)
+        self.last_use = self.birth
+        self.looks = 0
+        if self.debug: print "AfpArrayCache create:", self.birth, self.identifier, "Birth:", self.birth, "Death:", self.death
+    ## retrieve array from cache if possible
+    # @param identifier - identifier for array intended to be read
+    def read_array(self, identifier):
+        if self.is_valid(identifier):
+            return self.cache
+        return None
+    ## add array to current cache
+    # @param identifier - if identifier string for given array
+    # @param array - data of array to be cached
+    def add_array(self, identifier, array):
+        if self.is_valid(identifier):
+            if self.cache:
+                self.cache += array
+        else:
+            self.set_array(identifier, array)
+        
