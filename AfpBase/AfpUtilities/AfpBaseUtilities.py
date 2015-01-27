@@ -6,6 +6,7 @@
 # it does not hold any classes
 #
 #   History: \n
+#        20 Jan. 2015 - add array cache - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
 

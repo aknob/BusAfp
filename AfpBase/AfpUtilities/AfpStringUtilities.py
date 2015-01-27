@@ -280,6 +280,16 @@ def Afp_isString(wert):
     typ = type(wert)
     if typ == str or typ == unicode: return True
     return False
+## flag is value is a string not enclosed by quotes
+# @param wert - value to be analysed
+def Afp_isPlainString(wert):
+    if Afp_isString(wert):
+        wert = wert.strip()
+        if (wert[0] == "\""and wert[-1] == "\"") or (wert[0] == "'"and wert[-1] == "'"):
+            return False
+        else:
+            return True
+    return False
 ## flag is sign indicates a	comparison
 # @param sign - string to be analysed
 def Afp_isCompare(sign):

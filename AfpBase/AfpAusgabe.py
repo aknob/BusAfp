@@ -8,6 +8,7 @@
 # - AfpAusgabe
 #
 #   History: \n
+#        27 Jan. 2015 - correct condition evaluation- Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        17 Mar. 2013 - inital code generated - Andreas.Knoblauch@afptech.de
 #
@@ -165,6 +166,7 @@ class AfpAusgabe(object):
             condition = False
             if action[0][0:2] == "IF":
                 phrase = action[0][3:].strip()
+                print "AfpAusgabe.execute_line:", action, phrase, netto
                 condition = self.evaluate_condition(phrase)
                 if condition:
                     self.write_line(netto)
@@ -290,7 +292,7 @@ class AfpAusgabe(object):
     # @param form - formula to be evaluated
     def evaluate_formula(self, form):
         vars, signs = Afp_splitFormula(form)
-        print "AfpAusgabe.evaluate_formula:", vars, signs, self.is_date_formula(vars)
+        #print "AfpAusgabe.evaluate_formula:", vars, signs, self.is_date_formula(vars)
         if self.is_date_formula(vars):
             # special handling for date formulas
             value = self.evaluate_date_formula(vars, signs[0])
@@ -418,12 +420,12 @@ class AfpAusgabe(object):
     ## check if value exists in cache, possibly load value into cache
     # @param fieldname - name of database column to be loaded
     def in_values(self, fieldname):
-        #print "in_values", fieldname
+        #print "AfpAusgabe.in_values", fieldname
         if fieldname in self.values:
             return True
         else:
             wert = self.retrieve_value(fieldname)
-            #print "in_values retrieve", fieldname, wert
+            #print "AfpAusgabe.in_values retrieve", fieldname, wert
             if not wert is None: 
                 self.values[fieldname] = wert
                 return True
@@ -431,11 +433,12 @@ class AfpAusgabe(object):
     ## retrieve value from database (values from file are loaded once at start)
     # @param fieldname - name of database column to be loaded
     def retrieve_value(self, fieldname):
-        if self.data is None:
-            print "WARNING: value for", fieldname, "not delivered in datafile"
-            val = 0
-        else:
-            val = self.data.get_ausgabe_value(fieldname)
+        val = None
+        if Afp_isPlainString(fieldname):
+            if self.data is None:
+                print "WARNING: value for", fieldname, "not delivered in datafile"
+            else:
+                val = self.data.get_ausgabe_value(fieldname)
         #print fieldname,":",val
         return val
     ## load values from input file into data cache

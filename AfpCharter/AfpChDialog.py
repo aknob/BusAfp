@@ -5,6 +5,7 @@
 # AfpChDialog module provides the dialogs and appropriate loader routines needed for charter handling
 #
 #   History: \n
+#        15 Jan. 2015 - add auto selection- Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
 
