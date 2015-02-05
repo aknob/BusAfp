@@ -31,6 +31,9 @@
 import AfpBase
 from AfpBase import AfpBaseRoutines
 from AfpBase.AfpBaseRoutines import *
+from AfpBase import AfpDatabase
+from AfpBase.AfpDatabase import AfpSQL
+from AfpBase.AfpDatabase.AfpSQL import Afp_writeToFile
 
 ## class to handle finance depedencies, 
 class AfpFinance(AfpSelectionList):
@@ -288,6 +291,17 @@ class AfpFinanceTransactions(AfpSelectionList):
         if data.get_listname() == "Charter":
             paymentdata = self.add_payment_data_charter(paymentdata, data)
         return paymentdata
+    ## financial transaction entries for payment are generated according to incident data given
+    # @param data - incident data where entries are created from
+    # @param storno - flag if incident should be cancelled
+    def add_payment_transactions(self, data, storno = False):
+        print "AfpFinanceTransactions.add_paymenmt_transactions", storno
+        today = self.globals.today()
+        amount, payment, paydate = data.get_payment_values()
+        KdNr = data.get_value("KundenNr")
+        name = data.get_name(True)
+        beleg = "PT" + Afp_toInternDateString(today)
+        self.add_payment(payment, paydate, beleg ,KdNr, name, data, storno)
     ## financial transaction entries are generated according to incident data given
     # @param data - incident data where entries are created from
     # @param storno - flag if incident should be cancelled
@@ -434,52 +448,127 @@ class AfpFinanceExport(AfpSelectionList):
     # - None: all entries are extracted
     # - False: only internal transitions are extracted
     # - True: only payments are extracted
-    def  __init__(self, globals, period, filename, tables = None, only_payment = None):
+    def  __init__(self, globals, period, selectionlists = None, only_payment = None):
         AfpSelectionList.__init__(self, globals, "Export", globals.is_debug())
-        self.file = open(filename, 'w')
+        self.filename = None
+        self.template = None
+        self.accounting = None
         self.finance = None
         self.singledate = None
-        self.tables = tables
-        self.only_payment = only_payment
-        self.period = period
-        if len(period) == 1: self.singledate = period[0]
+        self.selectionlists = selectionlists
+        self.use_payments = True
+        self.use_transactions = True
+        self.addressappend = None
+        self.exportparameter = None
+        if only_payment:
+            self.use_transactions = False
+        if period:
+            if selectionlists: print "WARNING:AfpFinanceExport selectionlist given - only period used!"
+            self.period  = period
+            if len(period) == 1: self.singledate = period[0]
+        else:
+            if not selectionlists: print "WARNING:AfpFinanceExport no selectionlist and no period given!"
+            self.singledata = globals.today()
         if self.singledate:
             # in case of a single date look for transactions already exported at that date
             self.selects["BUCHUNG"] = [ "BUCHUNG", self.set_period_select("Export")]   
         else:
             # otherwise for transaction becoming valid in this period
-            self.selects["BUCHUNG"] = [ "BUCHUNG", self.set_period_select("Datum")] 
-        # tableselections possibly needed for direct transaction generation
-        self.selects["RECHNG"] = [ "RECHNG", self.set_period_select("Datum")]    
+            self.selects["BUCHUNG"] = [ "BUCHUNG", self.set_period_select("Datum")]   
+        self.mainselection = "BUCHUNG"
         if self.debug: print "AfpFinanceExport Konstruktor"
     ## destructor
     def __del__(self):    
         if self.debug: print "AfpFinanceExport Destruktor"
     ## compose the period select string
     # @param field - name of tablefield to be involved in this selection
-    def set_period_select(field):
+    def set_period_select(self, field):
         select = ""
         if self.singledate:
-            select = "\"" + field + "\" = " + Afp_toInternDateString(self.singledate) 
+            select = field + " = \"" + Afp_toInternDateString(self.singledate)  + "\""
         else:  
-            select = "\"" + field + "\" >= " + Afp_toInternDateString(self.period[0]) + " AND " 
-            select +=  "\"" + field + "\" <= " + Afp_toInternDateString(self.period[1])
+            select =  field + " >= \"" + Afp_toInternDateString(self.period[0]) + "\" AND " 
+            select +=   field + " <= \"" + Afp_toInternDateString(self.period[1]) + "\""
+            select = "!"+ select
         return select
+    def set_output(self, filename, template):
+        self.filename = filename
+        #print"AfpFinanceExport.set_output:", template, Afp_existsFile(template)
+        if Afp_existsFile(template):
+            self.template = template
+    ## set parameter to extend data with adressdata
+    # @param parameter - dictionary to be used for data extension, see 'append_address_data'
+    def set_addressappend(self, parameter):
+        self.adressappend = parameter
+    ## set parameter for export
+    # @param parameter - dependent on export type, see AfpSQL.Afp_writeToFile
+    def set_exportparameter(self, parameter):
+        self.exportparameter = parameter
     ## actually generate transactions to be exported
     def generate_transactions(self):
-        if self.tables:
+        if self.selectionlists:
             self.finance = AfpFinanceTransactions(self.globals)
-            for name in self.tables:
-                selection = self.get_selection(name)
-                if selection:
-                    if not self.only_payment:
-                        self.finance.add_financial_transactions(selection)
-               
-      
-     
-     
+            for liste in self.selectionlists:
+                sellist = self.selectionlists[liste]
+                if sellist:
+                    if self.use_transactions:
+                        self.finance.add_financial_transactions(sellist)
+                    if self.use_payments:
+                        self.finance.add_payment_transactions(sellist)
+    ## get the appropriate table selections
+    def get_accounting(self):
+        print "AfpFinanceExport.get_accounting:", self.mainselection, self.selects, self.selections
+        if self.accounting:
+            return self.accounting
+        if self.finance:
+            return self.finance.get_selection()
+        else:
+            return self.get_selection()
+    ## append address data to each accounting row
+    # @param names - dicionary of names of appendend columns, holding the fieldnames of addressdata to be appended (["Name,Vorname","Strasse"])
+    def append_address_data(self, names):
+        if names:
+            select = self.get_accounting()
+            #print "AfpFinanceExport.append_address_data 1:", select.data, select.feldnamen
+            indices = []
+            rowinds = [0]
+            count = 0
+            felder = ""
+            for name in names:
+                if not name in select.feldnamen:
+                    select.feldnamen.append(name)
+                indices.append(select.feldnamen.index(name))
+                fields = names[name].replace(" ",",")
+                print name, fields, fields.count(",")
+                count += fields.count(",") + 1
+                rowinds.append(count)
+                felder +=  fields + ","
+            felder = felder[:-1]
+            print "AfpFinanceExport.append_address_data indices:", names, indices, rowinds, felder
+            for i in range(select.get_data_length()):
+                KNr = select.get_values("KundenNr", i)[0][0]
+                row = self.mysql.select(felder,"KundenNr = " + Afp_toString(KNr), "ADRESSE")[0]
+                for j in range(len(names)):
+                    data = Afp_ArraytoLine(row[rowinds[j]:rowinds[j+1]])
+                    if len(select.data[i]) <= indices[j]:
+                        select.data[i].append(data)
+                    else:
+                        select.data[i][indices[j]] = data
+            self.accounting = select
+            print "AfpFinanceExport.append_address_data 2:", select.data, select.feldnamen
+    ## perform export
+    def export(self):
+        if self.selectionlists:
+            self.generate_transactions()
+        if self.addressappend is None:
+            type = "export." + self.filename.split(".")[-1]
+            self.addressappend  =  Afp_ArrayfromLine(self.get_globals().get_value(type+ ".adresse","Finance"))
+        self.append_address_data(self.addressappend )
+        select = self.get_accounting()
+        #print "AfpFinanceExport.export:", select.data
+        if self.filename:
+            if self.exportparameter is None:
+                self.exportparameter = Afp_ArrayfromLine(self.get_globals().get_value(type,"Finance"))
+            Afp_writeToFile(select, self.filename, self.template, self.exportparameter, self.debug)
         
-         
-   
-
-               
+        

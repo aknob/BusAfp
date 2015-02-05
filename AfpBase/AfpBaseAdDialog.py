@@ -96,7 +96,7 @@ def AfpAdDi_spezialAttribut(name, attribut, text, tag, no_delete = False):
             if not list[i][1] == result[i]:
                 changed = True
         if changed: 
-            tag = Afp_genLineOfArr(result, len(result)-1)
+            tag = Afp_ArraytoLine(result, " ", len(result)-1)
             Ok = True
         if not list[-1][1] == result[-1]:
             text = result[-1]

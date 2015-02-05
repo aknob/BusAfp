@@ -441,7 +441,7 @@ class AfpSelectionList(object):
     # this routine may (or rather should) be overwritten
     def line(self): 
         row = self.get_value_rows(None, None, 0)
-        zeile = Afp_genLineOfArr(row)
+        zeile = Afp_ArraytoLine(row)
         return zeile
     ## generate the customised select_clause of this SelectionList for indicated TableSelection
     # @param selname - name of TableSelection
@@ -798,9 +798,9 @@ class AfpSelectionList(object):
         return info
     
     ## routine to retrieve payment data from SelectionList \n
-    # may be overwritten, default implementation: return "Preis" and "Zahlung" column from main selection
+    # may be overwritten, default implementation: return "Preis", "Zahlung" and "ZahlDat" column from main selection
     def get_payment_values(self):
-        return self.get_value("Preis"),self.get_value("Zahlung")
+        return self.get_value("Preis"),self.get_value("Zahlung"),self.get_value("ZahlDat")
     ## routine to set payment data in SelectionList \n
     # may be overwritten, default implementation: "Zahlung" and "ZahlDat" columns of main selection are set
     # @param payment - amount that already has been payed

@@ -260,16 +260,47 @@ def Afp_ArraytoString(array):
             else:
                 new_array.append(Afp_toString(row))
     return new_array
-##merges an array int one string, separated by blanks
+## analyses a line and fills entries into array, dictionary or single values
+# @param line - string to be anaysed
+def Afp_ArrayfromLine(line):
+    if line:
+        line = line.strip()
+        if line[0] == "\"" and line[-1] == "\"":
+             line = line[1:-1]
+        if line[0] == "{" and line[-1] == "}":
+            # dictionary        
+            result = {}
+            line = line[1:-1]
+            split = line.split(",")
+            for entry in split:
+                spentry = entry.split(":")
+                if len(spentry) > 1:
+                    name = spentry[0].strip()
+                    value = Afp_fromString(spentry[1].strip())
+                    result[name] = value
+        elif line[0] == "[" and line[-1] == "]":
+            # array
+            result = []
+            line = line[1:-1]
+            split = line.split(",")
+            for entry in split:
+                value = Afp_fromString(entry.strip())
+                result.append(value)
+        else:
+            result = Afp_fromString(line)
+    else:
+        result = None
+    return result
+##merges an array into one string, separated by blanks
 # @param liste - list of values to be merged
 # @param max - maximum number of elements used for merging
-def Afp_genLineOfArr(liste, max = None):
-    if max is None: max = len(liste)
+def Afp_ArraytoLine(liste, separator = " ", max = None):
+    if max is None: max = len(liste) 
     count = 0
     zeile = ""
     for entry in liste:
         if count < max:
-            zeile += Afp_toString(entry) + " "
+            zeile += Afp_toString(entry) + separator
             count += 1
     return zeile[:-1]
 

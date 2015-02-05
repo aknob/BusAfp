@@ -56,12 +56,13 @@ from AfpBase.AfpUtilities.AfpStringUtilities import *
 # - .asc,csv - array with names of values read from data
 # - .dbf - dictionary how data is mapped into output file (output[entry] = value(parameter[entry])), \n 
 # -        if no template is given only stated fields will be created in DBF file according to the entry [name, typ, parameter] for each field
-def Afp_writeToFile(data, filename, template, parameter = None):
-    print "Testcode for DBF.module: File:", Afp_existsFile(filename), " Template:", Afp_existsFile(template)," Parameter:",  type(parameter)
-    print "Parameter:", parameter
+def Afp_writeToFile(data, filename, template, parameter = None, debug = False):
+    print "Testcode for DBF.module: File:", filename, " Template:", template," Parameter:",  parameter
+    #print "Testcode for DBF.module: EXISTS:", Afp_existsFile(filename), " Template:", Afp_existsFile(template)," Parameter:",  type(parameter)
+    #print "Parameter:", parameter
     split = filename.split(".")
     if split[-1].lower() == "dbf":
-         Afp_writeToDBFFile(data, filename, template, parameter)
+         Afp_writeToDBFFile(data, filename, template, parameter, debug)
     else:
         print "WARNING: Output to a file of type \"." + split[-1] + "\" not yet implemented!"
 
@@ -71,7 +72,7 @@ def Afp_writeToFile(data, filename, template, parameter = None):
 # @param template - if given,template file which is used to create output 
 # @param parameter -  dictionary how data is mapped into output file (output[entry] = value(parameter[entry])), \n 
 # -        if no template is given only stated fields will be created in DBF file according to the entry [name, typ, parameter] for each field
-def Afp_writeToDBFFile(data, filename, template, parameter = None):
+def Afp_writeToDBFFile(data, filename, template, parameter = None, debug = False):
     file = None
     if data:
         typ = type(parameter)
@@ -82,9 +83,9 @@ def Afp_writeToDBFFile(data, filename, template, parameter = None):
         elif typ == "field definition":
             # create empty DBF, set fields
             file = Afp_createDbfFile(filename, parameter)
-    print "File:", file, typ, "\n"
-    if not file is None:
-        print "recording", typ, typ == dict
+    if debug: print "Afp_writeToDBFFile File:", file, typ, "\n"
+    if not file is None and not parameter is None:
+        if debug: print "Afp_writeToDBFFile recording:", typ, typ == dict
         felder = ""
         cols = []
         for entry in parameter:
@@ -100,13 +101,14 @@ def Afp_writeToDBFFile(data, filename, template, parameter = None):
         if felder: 
             felder = felder[:-1]
             print "Felder:", felder, cols
+            #print "Data:", data.data
             daten = data.get_values(felder)
             print "Daten:", daten
             for i in range(len(daten)):
                 rec = file.newRecord()
                 for j in range(len(cols)):
                     rec[cols[j]] = Afp_toDbfFormat(daten[i][j])
-                print"Record:", rec
+                if debug: print"Record", rec
                 rec.store()
         file.close()
         # read DBF and print records
@@ -537,7 +539,7 @@ class AfpSQLTableSelection(object):
     # @param data - data to be attached
     # @param select - select clause for this  data
     def set_data(self, data, select=None):
-        self.select = select      
+        if select: self.select = select      
         self.data = map(list, data) 
     ## attach empty data
     # @param empty - flag if data should be comletely empty (true) or if one empty row should be inserted (false)
@@ -675,7 +677,7 @@ class AfpSQLTableSelection(object):
         lines = []
         rows = self.get_values(felder)
         for row in rows:
-            lines.append(Afp_genLineOfArr(row))
+            lines.append(Afp_ArraytoLine(row))
         return lines
     ## spread value of indicated column to all rows
     # @param feldname - indicated column name

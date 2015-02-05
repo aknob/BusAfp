@@ -173,7 +173,7 @@ class AfpDialog_DiFiZahl(AfpDialog):
             text = "Rechnung"
         rows = Afp_selectSameKundenNr(self.data.get_mysql(), tablename, KundenNr, self.debug, felder, filter_feld, filter)
         for row in rows:
-            liste.append(Afp_genLineOfArr(row, 4))
+            liste.append(Afp_ArraytoLine(row, " ", 4))
             ident.append(row[4])
         value,ok = AfpReq_Selection("Bitte " + text + " für Zahlung auswählen!","",liste, text + " für Zahlung", ident)
         if ok and value:

@@ -120,7 +120,7 @@ class AfpZahlung(object):
     ## append given data to participate from this payment
     # @param data - SelectionList holding data for payment
     def append_payment_data(self, data):
-        amount, partial = data.get_payment_values()
+        amount, partial, dummy = data.get_payment_values()
         self.amount.append(amount)
         self.partial.append(partial)
         if self.partial[-1] is None: self.partial[-1] = 0.0      

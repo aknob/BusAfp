@@ -272,7 +272,13 @@ class AfpGlobal(object):
     # @param modul - if given, name of afp-module otherwise get value from common variables
     def get_value(self, name, module = None):
         set = self.get_setting(module)
-        return set.get(name)
+        if set is None and module:
+            set = AfpSettings(self.is_debug(), None, module, self.get_value("homedir"))
+            self.add_setting(module, set)
+        if set:
+            return set.get(name)
+        else:
+            return None
     ##  show all entries, for debug purpose
     def view(self):
         print "AfpGlobal.view: Global", self.setting.settings

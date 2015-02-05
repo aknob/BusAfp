@@ -292,7 +292,9 @@ def Afp_genEmptyFile(filename):
 ## check if file exists
 # @param filename - name of file
 def Afp_existsFile(filename):
-    return os.path.exists(filename)
+    if filename:
+        return os.path.exists(filename)
+    return None
 ## return timestamp from file
 # @param filename - name of file
 def Afp_getFileTimestamp(filename):
