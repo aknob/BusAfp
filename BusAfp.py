@@ -3,7 +3,7 @@
 
 ## @package BusAfp
 # BusAfp is a software to manage coach and travel acivities \n
-#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch) \n
+#    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch) \n
 # \n
 #   History: \n
 #        19 Okt.2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
@@ -14,7 +14,7 @@
 #  AfpTechnologies (afptech.de)
 #
 #    BusAfp is a software to manage coach and travel acivities
-#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
+#    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ class BusAfp(wx.App):
     def initialize(self, debug, startpath, confpath, dbhost, dbuser, dbword): 
         name = 'BusAfp'
         version = "6.0.1 alpha"       
-        copyright = '(C) 1989 - 2014 AfpTech.de'
+        copyright = '(C) 1989 - 2015 AfpTech.de'
         website = 'http://www.busafp.de'
         description = """BusAfp ist eine Verwaltungsprogramm für den Buseinsatz 
         für Mietfahrten, sowie der Organisation von eigenen Reisen.
@@ -63,7 +63,7 @@ class BusAfp(wx.App):
         rechtssichere englische Version:
       
          BusAfp is a software to manage coach and travel acivities
-         Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
+         Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch)
 
          This program is free software: you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by

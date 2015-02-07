@@ -6,6 +6,7 @@
 # no display and user interaction in this modul.
 #
 #   History: \n
+#        04 Feb. 2015 - add data export - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        14 Feb. 2014 - inital code generated - Andreas.Knoblauch@afptech.de
 
@@ -14,7 +15,7 @@
 #  AfpTechnologies (afptech.de)
 #
 #    BusAfp is a software to manage coach and travel acivities
-#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
+#    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -31,9 +32,6 @@
 import AfpBase
 from AfpBase import AfpBaseRoutines
 from AfpBase.AfpBaseRoutines import *
-from AfpBase import AfpDatabase
-from AfpBase.AfpDatabase import AfpSQL
-from AfpBase.AfpDatabase.AfpSQL import Afp_writeToFile
 
 ## class to handle finance depedencies, 
 class AfpFinance(AfpSelectionList):
@@ -451,15 +449,12 @@ class AfpFinanceExport(AfpSelectionList):
     def  __init__(self, globals, period, selectionlists = None, only_payment = None):
         AfpSelectionList.__init__(self, globals, "Export", globals.is_debug())
         self.filename = None
-        self.template = None
-        self.accounting = None
+        self.information = None
         self.finance = None
         self.singledate = None
         self.selectionlists = selectionlists
         self.use_payments = True
         self.use_transactions = True
-        self.addressappend = None
-        self.exportparameter = None
         if only_payment:
             self.use_transactions = False
         if period:
@@ -491,19 +486,18 @@ class AfpFinanceExport(AfpSelectionList):
             select +=   field + " <= \"" + Afp_toInternDateString(self.period[1]) + "\""
             select = "!"+ select
         return select
+    ## set output files
+    # @param filename - name of file where data should be written (see AfpBaseRoutines.AfpExport)
+    # @param template - if given, name of templatefile to be used for output (only used for dbf output)
     def set_output(self, filename, template):
         self.filename = filename
         #print"AfpFinanceExport.set_output:", template, Afp_existsFile(template)
         if Afp_existsFile(template):
-            self.template = template
-    ## set parameter to extend data with adressdata
-    # @param parameter - dictionary to be used for data extension, see 'append_address_data'
-    def set_addressappend(self, parameter):
-        self.adressappend = parameter
-    ## set parameter for export
-    # @param parameter - dependent on export type, see AfpSQL.Afp_writeToFile
-    def set_exportparameter(self, parameter):
-        self.exportparameter = parameter
+            self.information = template
+    ## set information data for export
+    # @param info - information data (see AfpBaseRoutines.AfpExport)
+    def set_information(self, info):
+        self. information = info
     ## actually generate transactions to be exported
     def generate_transactions(self):
         if self.selectionlists:
@@ -517,58 +511,18 @@ class AfpFinanceExport(AfpSelectionList):
                         self.finance.add_payment_transactions(sellist)
     ## get the appropriate table selections
     def get_accounting(self):
-        print "AfpFinanceExport.get_accounting:", self.mainselection, self.selects, self.selections
-        if self.accounting:
-            return self.accounting
+        #print "AfpFinanceExport.get_accounting:", self.mainselection, self.selects, self.selections
         if self.finance:
             return self.finance.get_selection()
         else:
             return self.get_selection()
-    ## append address data to each accounting row
-    # @param names - dicionary of names of appendend columns, holding the fieldnames of addressdata to be appended (["Name,Vorname","Strasse"])
-    def append_address_data(self, names):
-        if names:
-            select = self.get_accounting()
-            #print "AfpFinanceExport.append_address_data 1:", select.data, select.feldnamen
-            indices = []
-            rowinds = [0]
-            count = 0
-            felder = ""
-            for name in names:
-                if not name in select.feldnamen:
-                    select.feldnamen.append(name)
-                indices.append(select.feldnamen.index(name))
-                fields = names[name].replace(" ",",")
-                print name, fields, fields.count(",")
-                count += fields.count(",") + 1
-                rowinds.append(count)
-                felder +=  fields + ","
-            felder = felder[:-1]
-            print "AfpFinanceExport.append_address_data indices:", names, indices, rowinds, felder
-            for i in range(select.get_data_length()):
-                KNr = select.get_values("KundenNr", i)[0][0]
-                row = self.mysql.select(felder,"KundenNr = " + Afp_toString(KNr), "ADRESSE")[0]
-                for j in range(len(names)):
-                    data = Afp_ArraytoLine(row[rowinds[j]:rowinds[j+1]])
-                    if len(select.data[i]) <= indices[j]:
-                        select.data[i].append(data)
-                    else:
-                        select.data[i][indices[j]] = data
-            self.accounting = select
-            print "AfpFinanceExport.append_address_data 2:", select.data, select.feldnamen
     ## perform export
     def export(self):
         if self.selectionlists:
             self.generate_transactions()
-        if self.addressappend is None:
-            type = "export." + self.filename.split(".")[-1]
-            self.addressappend  =  Afp_ArrayfromLine(self.get_globals().get_value(type+ ".adresse","Finance"))
-        self.append_address_data(self.addressappend )
-        select = self.get_accounting()
-        #print "AfpFinanceExport.export:", select.data
-        if self.filename:
-            if self.exportparameter is None:
-                self.exportparameter = Afp_ArrayfromLine(self.get_globals().get_value(type,"Finance"))
-            Afp_writeToFile(select, self.filename, self.template, self.exportparameter, self.debug)
-        
+        select = self.get_accounting()            
+        Export = AfpExport(self.get_globals(), select, self.filename, "Finance", self.debug)
+        Export.set_information(self.information)
+        Export.append_data()
+        Export.write_to_file()
         

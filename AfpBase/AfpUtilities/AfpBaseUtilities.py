@@ -15,7 +15,7 @@
 #  AfpTechnologies (afptech.de)
 #
 #    BusAfp is a software to manage coach and travel acivities
-#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
+#    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -222,6 +222,14 @@ def Afp_daysFromTime(timedelta, day = None, hday = None):
         days += 0.5
     return days, hours
 
+## check if standard python modul has been installed
+# @param modul - name of standard modul to be checked
+def AfpPy_checkModule(modul):
+    try:
+        imp.find_module(modul)
+        return True
+    except ImportError:
+        return False
 ## dynamic import of a python module from modulname or path, 
 # a handle to the modul will be returned
 # @param modul - name of modul to be imported

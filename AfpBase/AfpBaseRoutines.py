@@ -8,6 +8,7 @@
 # - AfpSelectionList
 #
 #   History: \n
+#        04 Feb. 2015 - add data export to dbf - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
 
@@ -17,7 +18,7 @@
 #  AfpTechnologies (afptech.de)
 #
 #    BusAfp is a software to manage coach and travel acivities
-#    Copyright (C) 1989 - 2014  afptech.de (Andreas Knoblauch)
+#    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -840,4 +841,106 @@ class AfpSelectionList(object):
             selection.set_data_values(new_data, row)
         else:
             print "WARNING SelectionList.add_to_Archiv called but not implemented for", self.listname
+            
+##  class to export Afp-database entries to other formats 
+class AfpExport(object):
+    ## initialize AfpExport class
+    # @param globals - global values including the mysql connection - this input is mandatory
+    # @param data - TableSelection holding the data to be written    
+    # @param filename - name of file data is written to, \n
+    #  at the moment the following formats are supported \n
+    #  - .asc - ASCII file, static length \n
+    #  - .csv - ASCII file, comma separated values \n
+    #  - .dbf - DBF database file \n
+    # @param caller - if given, Afp-modul name from where export is called (may be used to retieve default parameter from globas)
+    # @param debug - flag for debug information
+    def  __init__(self, globals, data, filename, caller = None, debug = False):
+        self.globals = globals
+        self.mysql = globals.get_mysql()
+        self.data = data
+        self.filename = filename
+        self.caller_modul  = caller
+        self.fieldlist = None
+        self.information = None
+        self.export_available = False
+        self.module = None
+        self.debug = debug
+        split = filename.split(".")
+        self.type = split[-1].lower()
+        if self.type == "asc" or self.type == "csv":
+            self.export_available = True
+        elif self.type == "dbf":
+            if AfpPy_checkModule('dbfpy'):
+                self.module = Afp_importPyModul("AfpBase.AfpDatabase.AfpDBF", globals)
+            if self.module:
+                self.export_available = True
+        if self.debug: print "AfpExport Konstruktor",filename
+        if not self.export_available:
+            print "WARNING Export-modul for file of type \"." +self.type + "\" not available!"
+    ## destructor
+    def __del__(self):   
+        if self.debug: print "AfpExport Destruktor" 
+    ## set filed list for export \n
+    # if not set, it is tried to get values from globals
+    # @param parameter - is used as follows:
+    # - .asc,csv - array with names of values read from data
+    # - .dbf - dictionary how data is mapped into output file (output[entry] = value(parameter[entry])), \n 
+    # -        if no template is given only stated fields will be created in DBF file according to the entry [name, typ, parameter] for each field
+    def set_fieldlist(self, liste):
+        self.fieldlist = liste
+    ## set information for export
+    # @param info - if given, is used as follows:
+    # - .asc - length of each fields (default: 50)
+    # - .csv - field delimiter, text bracket, separated by spaces (default: delimiter - ",", no brackets)
+    # - .dbf - template file which is used to create output 
+    def set_information(self, info):
+        self.information = info
+    ## append data to each accounting row
+    # @param table - name of table where additional data should be extracted from (default: "ADRESSE")
+    # @param ident - name of column which provides the connection value between both tables (default: "KundenNr")
+    # @param liste - if given, dicionary of names of appendend columns, holding the fieldnames of addressdata to be appended (["Name,Vorname","Strasse"]) \n
+    #                         otherwise, it will be tried to read list from globals
+    def append_data(self, table = "ADRESSE", ident = "KundenNr", liste = None):
+        if liste is None:
+            variable = "export." + self.type + "." + table
+            liste =  Afp_ArrayfromLine(self.globals.get_value(variable, self.caller_modul))
+        if liste:
+            select = self.data
+            #print "AfpExport.append_data 1:", select.data, select.feldnamen
+            indices = []
+            rowinds = [0]
+            count = 0
+            felder = ""
+            for name in liste:
+                if not name in select.feldnamen:
+                    select.feldnamen.append(name)
+                indices.append(select.feldnamen.index(name))
+                fields = liste[name].replace(" ",",")
+                #print name, fields, fields.count(",")
+                count += fields.count(",") + 1
+                rowinds.append(count)
+                felder +=  fields + ","
+            felder = felder[:-1]
+            #print "AfpExport.append_data indices:", liste, indices, rowinds, felder
+            for i in range(select.get_data_length()):
+                val = select.get_values(ident, i)[0][0]
+                row = self.mysql.select(felder,ident + " = " + Afp_toInternDateString(val), table)[0]
+                for j in range(len(liste)):
+                    data = Afp_ArraytoLine(row[rowinds[j]:rowinds[j+1]])
+                    if len(select.data[i]) <= indices[j]:
+                        select.data[i].append(data)
+                    else:
+                        select.data[i][indices[j]] = data
+            self.data = select
+    ## writes data to different fileformats
+    def write_to_file(self):
+        if self.fieldlist is None:
+            name = "export." + self.type
+            self.fieldlist = Afp_ArrayfromLine(self.globals.get_value(name, self.caller_modul))
+        if self.type == "dbf":
+            if self.module:
+                self.module.Afp_writeToDBFFile(self.data, self.filename, self.information, self.fieldlist, self.debug)
+        else:
+            print "WARNING: Output to a file of type \"." + self.type + "\" not yet implemented!"
+
      
