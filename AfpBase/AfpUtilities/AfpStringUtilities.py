@@ -260,9 +260,11 @@ def Afp_ArraytoString(array):
             else:
                 new_array.append(Afp_toString(row))
     return new_array
-## analyses a line and fills entries into array, dictionary or single values
+## analyses a line and fills entries into array, dictionary or single values \n
+# 2 dimensional-arrays are supported, if each entry holds another array, deeper recursion does actually not work!
 # @param line - string to be anaysed
 def Afp_ArrayfromLine(line):
+    #print "Entry:", line
     if line:
         line = line.strip()
         if line[0] == "\"" and line[-1] == "\"":
@@ -281,11 +283,23 @@ def Afp_ArrayfromLine(line):
         elif line[0] == "[" and line[-1] == "]":
             # array
             result = []
-            line = line[1:-1]
-            split = line.split(",")
-            for entry in split:
-                value = Afp_fromString(entry.strip())
-                result.append(value)
+            line = line[1:-1].strip()
+            if line[0] == "[" and line[-1] == "]":
+                # inner list, invoke recursion
+                split = Afp_split(line,["],[", "], [", "] ,[", "] , ["])
+                split[0] = split[0][1:]
+                split[-1] = split[-1][:-1]
+                for entry in split:
+                    entry = "[" + entry + "]"
+                    #print "recursive:", entry
+                    value = Afp_ArrayfromLine(entry)
+                    result.append(value)
+            else:
+                split = line.split(",")
+                for entry in split:
+                    #print "value:", entry
+                    value = Afp_fromString(entry.strip())
+                    result.append(value)
         else:
             result = Afp_fromString(line)
     else:

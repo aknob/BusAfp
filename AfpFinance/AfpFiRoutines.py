@@ -449,6 +449,7 @@ class AfpFinanceExport(AfpSelectionList):
     def  __init__(self, globals, period, selectionlists = None, only_payment = None):
         AfpSelectionList.__init__(self, globals, "Export", globals.is_debug())
         self.filename = None
+        self.type = None
         self.information = None
         self.finance = None
         self.singledate = None
@@ -491,6 +492,7 @@ class AfpFinanceExport(AfpSelectionList):
     # @param template - if given, name of templatefile to be used for output (only used for dbf output)
     def set_output(self, filename, template):
         self.filename = filename
+        self.type = filename.split(".")[-1]
         #print"AfpFinanceExport.set_output:", template, Afp_existsFile(template)
         if Afp_existsFile(template):
             self.information = template
@@ -521,8 +523,13 @@ class AfpFinanceExport(AfpSelectionList):
         if self.selectionlists:
             self.generate_transactions()
         select = self.get_accounting()            
-        Export = AfpExport(self.get_globals(), select, self.filename, "Finance", self.debug)
-        Export.set_information(self.information)
-        Export.append_data()
-        Export.write_to_file()
+        Export = AfpExport(self.get_globals(), select, self.filename, self.debug)
+        vname = "export." + self.type 
+        #print "AfpFinanceExport.export:", vname
+        append =  Afp_ArrayfromLine(self.get_globals().get_value(vname + ".ADRESSE", "Finance"))
+        Export.append_data(append)
+        fieldlist =  Afp_ArrayfromLine(self.get_globals().get_value(vname, "Finance"))
+        if not self.information:
+            self.information = self.get_globals().get_value(vname + ".info", "Finance")
+        Export.write_to_file(fieldlist, self.information)
         

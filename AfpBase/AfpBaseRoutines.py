@@ -854,12 +854,11 @@ class AfpExport(object):
     #  - .dbf - DBF database file \n
     # @param caller - if given, Afp-modul name from where export is called (may be used to retieve default parameter from globas)
     # @param debug - flag for debug information
-    def  __init__(self, globals, data, filename, caller = None, debug = False):
+    def  __init__(self, globals, data, filename, debug = False):
         self.globals = globals
         self.mysql = globals.get_mysql()
         self.data = data
         self.filename = filename
-        self.caller_modul  = caller
         self.fieldlist = None
         self.information = None
         self.export_available = False
@@ -880,30 +879,12 @@ class AfpExport(object):
     ## destructor
     def __del__(self):   
         if self.debug: print "AfpExport Destruktor" 
-    ## set filed list for export \n
-    # if not set, it is tried to get values from globals
-    # @param parameter - is used as follows:
-    # - .asc,csv - array with names of values read from data
-    # - .dbf - dictionary how data is mapped into output file (output[entry] = value(parameter[entry])), \n 
-    # -        if no template is given only stated fields will be created in DBF file according to the entry [name, typ, parameter] for each field
-    def set_fieldlist(self, liste):
-        self.fieldlist = liste
-    ## set information for export
-    # @param info - if given, is used as follows:
-    # - .asc - length of each fields (default: 50)
-    # - .csv - field delimiter, text bracket, separated by spaces (default: delimiter - ",", no brackets)
-    # - .dbf - template file which is used to create output 
-    def set_information(self, info):
-        self.information = info
     ## append data to each accounting row
+    # @param liste - dicionary of names of appendend columns, holding the fieldnames of addressdata to be appended (["Name,Vorname","Strasse"]) 
     # @param table - name of table where additional data should be extracted from (default: "ADRESSE")
     # @param ident - name of column which provides the connection value between both tables (default: "KundenNr")
-    # @param liste - if given, dicionary of names of appendend columns, holding the fieldnames of addressdata to be appended (["Name,Vorname","Strasse"]) \n
-    #                         otherwise, it will be tried to read list from globals
-    def append_data(self, table = "ADRESSE", ident = "KundenNr", liste = None):
-        if liste is None:
-            variable = "export." + self.type + "." + table
-            liste =  Afp_ArrayfromLine(self.globals.get_value(variable, self.caller_modul))
+    def append_data(self, liste, table = "ADRESSE", ident = "KundenNr"):
+        #print "AfpExport.append_data enty:",liste 
         if liste:
             select = self.data
             #print "AfpExport.append_data 1:", select.data, select.feldnamen
@@ -916,7 +897,7 @@ class AfpExport(object):
                     select.feldnamen.append(name)
                 indices.append(select.feldnamen.index(name))
                 fields = liste[name].replace(" ",",")
-                #print name, fields, fields.count(",")
+               # print name, fields, fields.count(",")
                 count += fields.count(",") + 1
                 rowinds.append(count)
                 felder +=  fields + ","
@@ -932,15 +913,81 @@ class AfpExport(object):
                     else:
                         select.data[i][indices[j]] = data
             self.data = select
-    ## writes data to different fileformats
-    def write_to_file(self):
-        if self.fieldlist is None:
-            name = "export." + self.type
-            self.fieldlist = Afp_ArrayfromLine(self.globals.get_value(name, self.caller_modul))
-        if self.type == "dbf":
-            if self.module:
-                self.module.Afp_writeToDBFFile(self.data, self.filename, self.information, self.fieldlist, self.debug)
+    ## writes data to fixed lenght ascii file
+    # @param fieldlist - array with names of values read from data 
+    # @param info - length of each fields (default: 50)
+    def write_ascii_field(self, data, fixed, separator, paranthesis):
+        string = Afp_toString(data)
+        if fixed:
+            lgh = len(string)
+            if lgh < fixed:
+                if Afp_isNumeric(data):
+                    num = True
+                else:
+                    num = False
+                for i in range(lgh,fixed):
+                    if num: string = " " + string
+                    else: string += " "
+            if lgh > fixed: string = string[:fixed]
         else:
-            print "WARNING: Output to a file of type \"." + self.type + "\" not yet implemented!"
+            if paranthesis:
+                string = paranthesis + string + paranthesis
+            string += separator
+        return string
+   ## writes data to fixed lenght ascii file
+    # @param fieldlist - array with names of values read from data 
+    # @param info - linfo for ascii output, as follows
+    # - .asc - length of each fields (default: 50)
+    # - .csv - field delimiter, text bracket, separated by spaces (default: delimiter - ",", no brackets)
+    def write_to_ascii_file(self, fieldlist, info):
+        if fieldlist: write = True
+        else: write = False
+        cut = False
+        fix = 0
+        sep = ","
+        paras = None
+        if self.type == "asc":
+            if info: fix = int(info)
+            if fix < 1: fix = 50
+        elif self.type == "csv": 
+            if info:
+                split = info.split()
+                if split[0]: sep = split[0]
+                if len(split) > 1 and split[1]:
+                    paras = split[1]
+            cut = True
+        else:
+            write = False
+        if write:
+            fout = open(self.filename, 'w')
+            felder = Afp_ArraytoLine(fieldlist,",")
+            daten = self.data.get_values(felder)
+            for row in daten:
+                line = ""
+                for entry in row: 
+                    string = self.write_ascii_field(entry, fix, sep, paras)
+                    line += string
+                if cut: line = line[:-1]
+                #print "exportline:",line
+                fout.write(line + '\n')
+            fout.close()
+    ## writes data to different fileformats
+    # @param fieldlist - is used as follows: \n
+    # - .asc,csv - array with names of values read from data \n
+    # - .dbf - dictionary how data is mapped into output file (output[entry] = value(parameter[entry])), \n 
+    # @param info - if given, is used as follows:
+    # - .asc - length of each fields (default: 50)
+    # - .csv - field delimiter, text bracket, separated by spaces (default: delimiter - ",", no brackets)
+    # - .dbf - template file which is used to create output, 
+    #            if type is list, description for generation of dbf-file fields: [name, typ, parameter]
+    def write_to_file(self, fieldlist, info):
+        if self.debug: print "AfpExport.write_to_file:",fieldlist, info
+        if self.type == "asc" or self.type == "csv" :
+            self.write_to_ascii_file(fieldlist, info)
+        elif self.type == "dbf":
+            if self.module:
+                self.module.Afp_writeToDBFFile(self.data, self.filename, info, fieldlist, self.debug)
+        else:
+            print "WARNING: AfpExport, output to a file of type \"." + self.type + "\" not yet implemented!"
 
      

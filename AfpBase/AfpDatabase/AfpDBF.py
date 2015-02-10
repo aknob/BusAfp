@@ -43,47 +43,44 @@ from AfpBase.AfpDatabase.AfpSQL import *
 ## writes data to dbf_file
 # @param data - TableSelection holding the data to be written
 # @param filename - name of file data is written to, \n
-# @param template - if given,template file which is used to create output 
-# @param parameter -  dictionary how data is mapped into output file (output[entry] = value(parameter[entry])), \n 
-# -        if no template is given only stated fields will be created in DBF file according to the entry [name, typ, parameter] for each field
+# @param template - template file which is used to create output, if type == list: description how to generate dbf-file fields [name, typ, parameter] 
+# @param parameter -  dictionary how data is mapped into output file (output[entry] = value(parameter[entry])),
 def Afp_writeToDBFFile(data, filename, template, parameter = None, debug = False):
-    print "Testcode for DBF.module: File:", filename, " Template:", template," Parameter:",  parameter
+    if debug: print "Afp_writeToDBFFile Entry: File:", filename, " Template:", template," Parameter:",  parameter
+    #print "Afp_writeToDBFFile Entry: Data:", data.data
     file = None
     if data:
-        typ = type(parameter)
-        if parameter and typ == list and type(parameter[0]) == list: typ = "field definition"
-        if template and Afp_existsFile(template):
-            Afp_copyFile(template, filename)
-            file = dbf.Dbf(filename)
-        elif typ == "field definition":
-            # create empty DBF, set fields
-            file = Afp_createDbfFile(filename, parameter)
-    if debug: print "Afp_writeToDBFFile File:", file, typ, "\n"
+        typ = type(template)
+        if template: 
+            if typ == list and type(template[0]) == list: 
+                # create empty DBF, set fields
+                file = Afp_createDbfFile(filename, template)
+            elif Afp_existsFile(template):
+                Afp_copyFile(template, filename)
+                file = dbf.Dbf(filename)
+            else:
+                print "WARNING: Afp_writeToDBFFile, template file does not exist!"
     if not file is None and not parameter is None:
-        if debug: print "Afp_writeToDBFFile recording:", typ, typ == dict
         felder = ""
         cols = []
         for entry in parameter:
             cols.append(entry)
-            if typ == dict: 
-                name = parameter[entry]
-            elif typ == "field definition": 
-                name = entry[0]
-            else: 
-                name = entry
-            #print entry, name
+            name = parameter[entry]
+            #print "Afp_writeToDBFFile Entry:", entry, name
             felder +=  name + ","
         if felder: 
             felder = felder[:-1]
-            #print "Felder:", felder, cols
-            #print "Data:", data.data
+            #print "Afp_writeToDBFFile Felder:", felder, cols
+            #print "Afp_writeToDBFFile Data:", data.data
             daten = data.get_values(felder)
-            #print "Daten:", daten
+            #print "Afp_writeToDBFFile Daten:", daten
             for i in range(len(daten)):
                 rec = file.newRecord()
+                lgh = len(daten[i])
                 for j in range(len(cols)):
-                    rec[cols[j]] = Afp_toDbfFormat(daten[i][j])
-                if debug: print"Recording:", rec
+                    if j < lgh:
+                        rec[cols[j]] = Afp_toDbfFormat(daten[i][j])
+                if debug: print"Afp_writeToDBFFile Recording:", rec
                 rec.store()
         file.close()
 ## create a new dbf-file and return handle
