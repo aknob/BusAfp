@@ -241,8 +241,10 @@ class AfpChScreen(AfpScreen):
         if self.debug and event: print "Event handler `On_Fahrt_Ausgabe'"
         Charter = self.get_charter()
         zustand = Charter.get_string_value("Zustand").strip()
-        prefix = "Charter_" + zustand + "_"
-        AfpLoad_DiReport(Charter, self.globals, zustand, prefix)
+        prefix = "Charter " + zustand
+        archiv = Charter.get_string_value("Art").strip()
+        if archiv == "Tagesfahrt" : archiv = ""
+        AfpLoad_DiReport(Charter, self.globals, zustand, prefix, archiv)
         if event:
             self.Reload()
             event.Skip()
@@ -299,7 +301,6 @@ class AfpChScreen(AfpScreen):
             #print"On_Fahrt_Neu", Ok
             if Ok: 
                 FNr = Charter.get_value("FahrtNr")
-                print "AfpChScreen.load_direct not yet tested, please ashure", FNr, "is shown!"
                 self.load_direct(FNr)
                 self.On_Fahrt_Ausgabe(None)
                 self.Reload()
@@ -380,7 +381,8 @@ class AfpChScreen(AfpScreen):
         self.sb.select_key(FNr,"FahrtNr","FAHRTEN")
         self.sb.set_index(index, "FAHRTEN", "FahrtNr")
         self.sb.CurrentIndexName(index)
-      
+        self.set_current_record()
+     
     # routines to be overwritten
     ## load global veriables for this afp-module
     # (overwritten from AfpScreen) 

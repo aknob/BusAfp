@@ -199,7 +199,7 @@ class AfpDialog_DiChEin(AfpDialog):
         self.label_ReName = wx.StaticText(panel, -1, label="", pos=(315,90), size=(120,18), name="ReName")
         self.labelmap["ReName"] = "Name.RechAdresse"
         self.conditioned_display["ReName"] = "KundenNr.RECHNG != KundenNr.FAHRTEN"
-        self.choice_Art = wx.Choice(panel, -1,  pos=(290,6), size=(150,24),  choices=["Tagesfahrt","MTF","Transfer"],  name="CArt")      
+        self.choice_Art = wx.Choice(panel, -1,  pos=(290,6), size=(150,24),  choices=AfpCharter_getArtList(),  name="CArt")      
         self.choicemap["CArt"] = "Art.FAHRTEN"
         self.Bind(wx.EVT_CHOICE, self.On_CArt, self.choice_Art)
         self.label_T_Gebucht = wx.StaticText(panel, -1, label="Gebucht:", pos=(290,260), size=(60,18), name="T_Gebucht")

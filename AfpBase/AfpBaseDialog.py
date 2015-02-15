@@ -723,6 +723,7 @@ class AfpDialog_DiReport(wx.Dialog):
         self.datasindex = None # current index in datas of actuel assigned data
         self.globals = None
         self.prefix = ""
+        self.postfix = ""
         self.textmap = {}
         self.labelmap = {}
         self.choicevalues = {}
@@ -762,9 +763,9 @@ class AfpDialog_DiReport(wx.Dialog):
     # @param data - SelectionList holding data to be filled into output
     # @param globals - globas variables including prefix of typ
     # @param header - header to be display in the dialogts top ribbon
-    # @param prefix - if given prefix of resultfile
+    # @param prepostfix - if given prefix and postfix of resultfile separated by a space
     # @param datas - if given array of SelectionLists, which are assigned sucessively to data
-    def attach_data(self, data, globals, header, prefix, datas = None):
+    def attach_data(self, data, globals, header, prepostfix, datas = None):
         if header: 
             self.SetTitle(self.GetTitle() + ": " + header)
             self.label_Ablage.SetLabel(header)      
@@ -774,8 +775,11 @@ class AfpDialog_DiReport(wx.Dialog):
             self.data = data 
         self.debug = self.data.debug
         self.globals = globals
-        if prefix:
-            self.prefix = prefix
+        if prepostfix:
+            split = prepostfix.split()
+            self.prefix = split[0]
+            if len(split) > 1:
+                self.postfix = split[1]
         else:
             self.prefix = self.globals.get_value("prefix", data.typ)
         if datas: 
@@ -831,6 +835,10 @@ class AfpDialog_DiReport(wx.Dialog):
         self.list_Report.Clear()
         self.list_Report.InsertItems(self.reportname, 0)
         return None
+    ## fille preset value into archiv description
+    # @param text - text to be displayed
+    def preset_text_bem(self, text):
+        self.text_Bem.SetValue(text)
     ## common Eventhandler TEXTBOX - when leaving the textbox
     # @param event - event which initiated this action
     def On_KillFocus(self,event):
@@ -879,8 +887,9 @@ class AfpDialog_DiReport(wx.Dialog):
         if index >= 0 and self.reportflag[index]:
             if archiv:
                 max = 0
+                print "get_result_name:", self.reportlist
                 for entry in self.reportlist:
-                    if "." in entry:
+                    if entry and "." in entry:
                         split = entry.split(".")
                         nb = int(split[0][-2:]) 
                         if nb > max: max = nb
@@ -888,7 +897,10 @@ class AfpDialog_DiReport(wx.Dialog):
                 if self.datasindex: max += self.datasindex
                 if max < 10:  null = "0"
                 else:  null = ""
-                fresult = self.prefix + self.data.get_string_value() + "_" + null + str(max) + ".odt"
+                if self.postfix:
+                    fresult = self.prefix  + "_" + self.data.get_string_value() + "_" + self.postfix + "_" + null + str(max) + ".odt"
+                else:
+                    fresult = self.prefix  + "_" + self.data.get_string_value() + "_" + null + str(max) + ".odt"
                 self.archivname = fresult
                 fresult = Afp_addRootpath(self.globals.get_value("archivdir"), fresult)
             else:
@@ -906,7 +918,7 @@ class AfpDialog_DiReport(wx.Dialog):
         else: index = -.1
         return index
     ## start editing of generated document in extern editor
-    # qparam fresult - result filename
+    # @param fresult - result filename
     def execute_Ausgabe(self, fresult):
         Afp_startFile(fresult, self.globals, self.debug)
     ## gernerate entry in archieve
@@ -1015,11 +1027,18 @@ class AfpDialog_DiReport(wx.Dialog):
         self.Destroy()
         event.Skip()
 
-## loader routine for dialog DiReport
+## loader routine for dialog DiReport \n
 # for multiple output use 'datalist' as input for a list of 'AfpSelectionList's
-def AfpLoad_DiReport(selectionlist, globals, header = "", prefix = "", datalist = None):
+# @param data - SelectionList to be used for output
+# @param globals - global variables to hold path values for output
+# @param header - if given, text displayed in header of dialog
+# @param prefix - if given, prefix for output name creation and archiv entry
+# @param archivtext - if given, preset text for archiv entry
+# @param datalist - if given, list of SelectionLists to , entries are filled consecutively into  'selectionlist' for multiple putput
+def AfpLoad_DiReport(selectionlist, globals, header = "", prefix = "", archivtext = None, datalist = None):
     DiReport = AfpDialog_DiReport(None)
     DiReport.attach_data(selectionlist, globals, header, prefix, datalist)
+    if archivtext: DiReport.preset_text_bem(archivtext)
     DiReport.ShowModal()
     DiReport.Destroy()
 

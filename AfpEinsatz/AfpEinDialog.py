@@ -241,7 +241,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
         self.choice_Bus.AppendItems(values)
         super(AfpDialog_DiEinsatz, self).attach_data(data, new, editable)
         if self.data.is_typ("Miet"):
-            self.charter_modul = Afp_importPyModul("AfpCharter.AfpChDialog", self.globals)
+            self.charter_modul = Afp_importPyModul("AfpCharter.AfpChDialog", data.get_globals())
         if self.typ_hasTime("Ab"):
             self.times["Ab"]  = self.get_typTime("Ab", True)
         if self.typ_hasTime("Stell"):
@@ -517,7 +517,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
                 datalist = self.data.create_FahrerList()
             if len(datalist) > 0:
                 datalist[0].add_Ausgabe()
-                AfpLoad_DiReport(None, self.data.globals, header, prefix, datalist)
+                AfpLoad_DiReport(None, self.data.globals, header, prefix, None, datalist)
         event.Skip()
 
 ## loader routine for dialog DiEinsatz \n

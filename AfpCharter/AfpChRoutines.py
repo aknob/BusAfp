@@ -56,6 +56,12 @@ def AfpCharter_getPayableList():
 # This is the definition routine for the above 'Zustand' values
 def AfpCharter_getOperateList():
     return ["Angebot", "Auftrag","Rechnung","Mahnung"]
+## returns the different kinds of Charters \n
+# - Tagesfahrt - one day trip
+# - MTF - (MehrTagesFahrt) journey over serveral days
+# - Transfer - just bring and take the group
+def AfpCharter_getArtList():
+    return ["Tagesfahrt","MTF","Transfer"]
  
 ## check if 'Zustand' needs financial transactions   
 # @param zustand - value to be checked
@@ -239,6 +245,7 @@ class AfpCharter(AfpSelectionList):
                 data["Nach"] = self.get_value("Nach") 
         data["Zustand"] = AfpCharter_getZustandList()[0]
         data["Art"] = self.get_value("Art")
+        if data["Art"] is None:  data["Art"] = AfpCharter_getArtList()[0]
         if not "Von" in data: data["Von"] = "von"
         if not "Nach" in data: data["Nach"] = "nach"
         data["Datum"] = self.globals.today()

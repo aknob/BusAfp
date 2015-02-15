@@ -116,8 +116,8 @@ class AfpDialog_AdAusw(AfpDialog_DiAusw):
     # Felder = [[Field .Table .Alias,Width], ... , [Field1.Table1,None]]     
     def get_grid_felder(self):  
     #                   Field  Table    Alias  Width     
-        Felder = [["Name.Adresse.Name",30], 
-                            ["Vorname.Adresse.Name", 20], 
+        Felder = [["Name.Adresse.Namen",30], 
+                            ["Vorname.Adresse.Namen", 20], 
                             ["Strasse.Adresse",30], 
                             ["Ort.Adresse",20], 
                             ["KundenNr.Adresse",None]] # Ident column)  
