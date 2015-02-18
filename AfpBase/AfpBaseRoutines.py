@@ -990,4 +990,80 @@ class AfpExport(object):
         else:
             print "WARNING: AfpExport, output to a file of type \"." + self.type + "\" not yet implemented!"
 
+##   smtp mail sender
+class AfpMailSender(object):
+    ## initialize AfpMailSender class
+    # @param globals - globals variables possibly holding smtp-server data
+    # @param debug - flag for debug information
+    def  __init__(self, globals, debug = False):
+        self.globals = globals
+        self.subject = None
+        self.sender = None
+        self.recipients = []
+        self.debug = debug
+        self.message = None
+        self.htmltext = None
+        self.attachments = []
+        self.server = None
+        self.serverport = 25
+        self.starttls = None
+        self.user = None
+        self.word = None
+    ## set emali-addresses 
+    # @param sender -  sender mailaddress
+    # @param recipient - if given, recipient mailaddress
+    def set_addresses(self, sender, recipient = None):
+        if Afp_isMailAddress(sender):
+            self.sender = sender
+        if recipient:
+            self.add_recipient(recipient)
+    ## set plain text message body
+    # @param subject - subject of message
+    # @param message - message body
+    def set_message(self, subject, message):
+        if subject: self.subject = subject
+        self.message = message
+    ## set html text message body
+    # @param subject - subject of message
+    # @param message - message body
+    def set_html_message(self, subject, message):
+        if subject: self.subject = subject
+        self.htmltext = message
+    ## add attachment file to message (may be invoked several times)
+    # @param filename - path of file to be attached
+    def add_attachment(self, filename):
+        if Afp_existsFile(filename):
+            self.attachments.append(filename)
+    ## add attachment file to message (may be invoked several times)
+    # @param filename - path of file to be attached
+    def add_recipient(self, recipient):
+        if Afp_isMailAddress(recipient):
+            self.recipients.append(recipient)
+    ## set connection information of smtp-server where mail has to be delivered
+    # @param host - string defining host[:port] to be connected
+    # @param user - if given, username to be used for login
+    # @param word - if given, password to be used for login (login will only be invoked if user and word are given)
+    # @param tls - flag if starttls connection has to be used DEFAULT: False
+    def set_server(self, host, user = None, word = None, tls = False):
+        split = host.split(":")
+        self.server = split[0]
+        if len(split) > 1:
+            self.serverport = int(split[1])
+        self.user = user
+        self.word = word
+        self.starttls = tls
+    ## deliver mail
+    def send_mail(self):
+        if self.server is None:
+            split = self.globals.get_value("smtp-host").split(":")
+            self.server = split[0]
+            if len(split) > 1:
+                self.serverport = int(split[1])
+        if self.starttls is None:
+            self.starttls =  self.globals.get_value("smtp-starttls")
+        if self.user is None:
+            self.user =  self.globals.get_value("smtp-user")
+            self.word =  self.globals.get_value("smtp-word")
+        Afp_sendOverSMTP(self.sender, self.recipients, self.subject, self.message, self.htmltext,  self.attachments, self.server, self.serverport, self.debug, self.starttls, self.user, self.word)
+
      

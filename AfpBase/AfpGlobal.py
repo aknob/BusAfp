@@ -63,9 +63,12 @@ def Afp_iniGlobalVars(settings):
         settings["database-host"] = "127.0.0.1"
     if not "Umst" in settings:
         settings["Umst"] = 19
-    # decode password for database, when loaded from file
+    # decode passwords, when loaded from file
     if "database-word" in settings:
         settings["database-word"] = settings["database-word"].decode('base64')
+    if "smtp-word" in settings:
+        settings["smtp-word"] = settings["smtp-word"].decode('base64')
+    # set directory pathes
     if not "afpdir" in settings:
         settings["afpdir"] = settings["homedir"]
     if not "templatedir" in settings:

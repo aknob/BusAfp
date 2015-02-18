@@ -37,6 +37,12 @@ import platform
 import datetime
 import logging
 import shutil
+# for email sending
+import smtplib
+from email.mime.text import MIMEText
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEBase import MIMEBase
+from email import Encoders
 
 ##  get system infos
 # @param name - name of value to be extracted
@@ -345,7 +351,71 @@ def Afp_configLogger(level, to_file):
 def Afp_getLogger(name):
     return logging.getLogger(name)
 
-##   class to hold cached database requests fro multiple use
+## send an email over a SMTP-server \n
+# sender, recipient, smtphost and message or html_message have to be given.
+# @param sender - string giving sender mailaddress
+# @param recipients - list of target mailadresses
+# @param subject - string describing subject of mail
+# @param message - plain text message body
+# @param html_message - html text message body
+# @param attachments - list of filepathes of files to be attached
+# @param smtphost - string defining host[:port] to be connected
+# @param smtpport - if given, integer defining the port of server, if not given, port 25 will be used
+# @param debug - flag for debug information DEFAULT: False
+# @param tls - flag if starttls connection has to be used, port 587 will be used, if not given explicit in 'smtpport' DEFAULT: False
+# @param user - if given, username to be used for login
+# @param word - if given, password to be used for login (login will only be invoked if user and word are given)
+def Afp_sendOverSMTP(sender, recipients, subject, message, html_message, attachments, smtphost, smtpport = None, debug = False, tls = False, user = None, word = None):
+    if sender and recipients and smtphost and (message or html_message):
+        port = 25
+        if smtpport:
+            port = smtpport
+        elif tls:
+            port = 587
+        msg = MIMEMultipart()
+        msg['Subject'] = subject 
+        msg['From'] = sender
+        msg['To'] = ', '.join(recipients)
+        if message:
+            part = MIMEText(message, 'plain')
+            msg.attach(part)
+        if html_message:
+            part = MIMEText(html_message, 'html')
+            msg.attach(part)
+        if attachments:
+            for attach in attachments:
+                part = MIMEBase('application', "octet-stream")
+                part.set_payload(open(attach, "rb").read())
+                Encoders.encode_base64(part)
+                part.add_header('Content-Disposition', 'attachment; filename=' +attach)
+                msg.attach(part)
+        if debug: print "Afp_sendOverSMTP Server:",smtphost + ":" + str(port)
+        server = smtplib.SMTP(smtphost, port)
+        if debug: server.set_debuglevel(1)
+        if tls: 
+            if debug: print "Afp_sendOverSMTP: STARTTLS"
+            server.starttls()
+        if user and word:
+            if debug: print "Afp_sendOverSMTP: LOGIN:",user, word
+            server.login(user, word.decode("base64"))
+        if debug: print "Afp_sendOverSMTP: send mail"
+        server.sendmail(sender, recipients, msg.as_string())
+        server.quit()
+    else:
+        text = "No"
+        if  not sender: text += " originator address,"
+        if  not recipients: text += " target address,"
+        if  not smtphost: text += " host address,"
+        if  not message: text += " message body,"
+        if  not html_message: 
+            if  not message:
+                text = text[:-1] + " or"
+            text += " html-message body"
+        if text[-1] == ",": text = text[:-1]
+        text += " delivered!"
+        print "WARNING Afp_sendOverSMTP Mail not send due to the lack of input!", text
+        
+##   class to hold cached database requests for multiple use
 class AfpArrayCache(object):
     ## initialize AfpArrayCache class
     # @param identifier - if given, identifier string for cached array

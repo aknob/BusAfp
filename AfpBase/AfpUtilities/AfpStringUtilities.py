@@ -356,6 +356,14 @@ def Afp_isZeroString(string):
 # @param string - string to be analysed
 def Afp_isIP4(string):
     return Afp_hasNumericValue(string, 4)
+## flag if string may represent a mail address
+# @param string - string to be analysed
+def Afp_isMailAddress(string):
+    Ok = True
+    if not "@" in string: Ok = False
+    split = string.split(".")
+    if len(split[-1]) > 3: Ok = False
+    return Ok
 ## flag if string may represent a numeric value
 # @param string - string to be analysed
 # @param check - maximum number of parts accepted when split at a "." \n
