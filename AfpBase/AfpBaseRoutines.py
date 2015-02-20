@@ -990,7 +990,7 @@ class AfpExport(object):
         else:
             print "WARNING: AfpExport, output to a file of type \"." + self.type + "\" not yet implemented!"
 
-##   smtp mail sender
+##   smtp mail-sender
 class AfpMailSender(object):
     ## initialize AfpMailSender class
     # @param globals - globals variables possibly holding smtp-server data
@@ -1009,6 +1009,33 @@ class AfpMailSender(object):
         self.starttls = None
         self.user = None
         self.word = None
+        # look for data in globals
+        server = self.globals.get_value("smtp-host")
+        if server:
+            split = server.split(":")
+            self.server = split[0]
+            if len(split) > 1:
+                self.serverport = int(split[1])
+            self.starttls =  self.globals.get_value("smtp-starttls")
+            self.user =  self.globals.get_value("smtp-user")
+            self.word =  self.globals.get_value("smtp-word")
+            if Afp_isMailAddress(self.user):
+                self.sender = self.user
+    ## return if automatic sending may be possible
+    def is_possible(self):
+        return self.server and self.sender
+    ## return if mail is ready to be send
+    def is_ready(self):
+        ready = True
+        if not self.is_possible():
+            ready = False
+        elif not self.recipients:
+            ready = False
+        elif self.subject is None:
+            ready = False
+        elif self.message is None and self.htmltext is None:
+            ready = False
+        return ready
     ## set emali-addresses 
     # @param sender -  sender mailaddress
     # @param recipient - if given, recipient mailaddress
@@ -1052,18 +1079,19 @@ class AfpMailSender(object):
         self.user = user
         self.word = word
         self.starttls = tls
-    ## deliver mail
+    ## deliver mail to smtp server
     def send_mail(self):
-        if self.server is None:
-            split = self.globals.get_value("smtp-host").split(":")
-            self.server = split[0]
-            if len(split) > 1:
-                self.serverport = int(split[1])
-        if self.starttls is None:
-            self.starttls =  self.globals.get_value("smtp-starttls")
-        if self.user is None:
-            self.user =  self.globals.get_value("smtp-user")
-            self.word =  self.globals.get_value("smtp-word")
         Afp_sendOverSMTP(self.sender, self.recipients, self.subject, self.message, self.htmltext,  self.attachments, self.server, self.serverport, self.debug, self.starttls, self.user, self.word)
-
-     
+    ## view mailer details (for debug)
+    def view(self):
+        print "AfpMailSender server:", self.server
+        print "AfpMailSender serverport:", self.serverport
+        print "AfpMailSender starttls:", self.starttls
+        print "AfpMailSender user:", self.user
+        print "AfpMailSender word:", self.word
+        print "AfpMailSender subject:", self.subject
+        print "AfpMailSender sender:", self.sender
+        print "AfpMailSender recipients:", self.recipients
+        print "AfpMailSender message:", self.message
+        print "AfpMailSender htmltext:", self.htmltext
+        print "AfpMailSender attachments:", self.attachments

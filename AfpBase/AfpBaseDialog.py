@@ -54,22 +54,6 @@ from AfpBaseRoutines import Afp_importPyModul, Afp_importAfpModul, Afp_getModulN
 import AfpAusgabe
 from AfpAusgabe import AfpAusgabe
 
-# Common dialog routines to be used in different modules
-
-## common routine to invoke text editing \n
-#  depending on input the text is edited directly or loaded from an external file
-# @param input_text - text to be edited or relativ path to file
-# @param globals - global variable to hold path-delimiter and path to archiv
-def Afp_editExternText(input_text, globals=None):
-    if globals:
-        delimiter = globals.get_value("path-delimiter")
-        file= Afp_archivName(input_text, delimiter)
-        if file:
-            file = globals.get_value("archivdir") + file
-            if Afp_existsFile(file): 
-                with open(file,"r") as inputfile:
-                    input_text = inputfile.read().decode('iso8859_15')
-    return AfpReq_EditText(input_text,"Texteingabe")
    
 # Simple dialogs often used (requester in superbase)
 #
@@ -186,11 +170,13 @@ def AfpReq_Eingabe(text1, text2, text = "", header = ""):
 ## Edit multilineText (return text, Ok == True/False)
 # @param oldtext - text to be modified, if supplied
 # @param header - header to be displayed on top ribbon of dialog
+# @param label1 - text to be displayed on first line of the dialog
+# @param label2 - text to be displayed on second line of the dialog
 # @param direct - flag that dialog is directliy set to 'modify' instead of 'read'
 # @param size - size of dialog window (may differ for different purposes)
-def AfpReq_EditText(oldtext = "", header = "TextEditor", direct = False, size = (500, 300)):
+def AfpReq_EditText(oldtext = "", header = "TextEditor", label1 = None, label2 = None, direct = False, size = (500, 300)):
     dialog =  AfpDialog_TextEditor(None)
-    dialog.attach_text(header, oldtext, size)
+    dialog.attach_text(header, oldtext, label1, label2, size)
     if direct: dialog.set_direct_editing()
     dialog.ShowModal()
     newtext = None
@@ -307,6 +293,70 @@ def AfpReq_Information(globals):
     if translator: info.AddDocWriter(translator)
     wx.AboutBox(info)   
  
+ # Common dialog routines to be used in different modules
+
+## common routine to invoke text editing \n
+#  depending on input the text is edited directly or loaded from an external file
+# @param input_text - text to be edited or relativ path to file
+# @param globals - global variable to hold path-delimiter and path to archiv
+def Afp_editExternText(input_text, globals=None):
+    if globals:
+        delimiter = globals.get_value("path-delimiter")
+        file= Afp_archivName(input_text, delimiter)
+        if file:
+            file = globals.get_value("archivdir") + file
+            if Afp_existsFile(file): 
+                with open(file,"r") as inputfile:
+                    input_text = inputfile.read().decode('iso8859_15')
+    return AfpReq_EditText(input_text,"Texteingabe")
+
+## invoke a simple dialog to compose an e-mail \n
+# return mail-sender and flag if mail could and should be sent
+# @param mail - mail-sender to be edited
+def Afp_editMail(mail):
+    von = ""
+    an = ""
+    text = ""
+    if mail.sender:
+        von = "Von: " + mail.sender
+    else:
+        text += "Von: \n"
+    if mail.recipients:
+        an = "An: " + mail.recipients[0]
+    else:
+        text += "An: \n"
+    text += "Betreff: "
+    if mail.subject:
+        text += mail.subject
+    text, ok = AfpReq_EditText(text,"E-Mail Versand", von, an, True)
+    if ok:
+        start = 0
+        subject = None
+        sender = None
+        recipients = []
+        lines = text.split("\n")
+        for line in lines:
+            if ":" in line: 
+                start += len(line) + 1
+                if "Betreff:" in line:
+                    subject = line[8:].strip()
+                elif "An:" in line:
+                    recipients = line[3:].split(",")
+                elif "Von:" in line:
+                    sender = line[4:].strip()
+            else:
+                break
+        message = text[start:].strip()
+        if message:
+            mail.set_message(subject, message)
+        if sender:
+            mail.set_addresses(sender, None)
+        if recipients:
+            for recipient in recipients:
+                mail.add_recipient(recipient)
+        ok = mail.is_ready()
+    return mail, ok
+
 ##  handles automatic and manual sort cirterium selection for data search
 #  @param value - initial value for search
 #  @param index - initial sort criterium
@@ -341,16 +391,23 @@ class AfpDialog_TextEditor(wx.Dialog):
         self.Ok = False
         self.readonlycolor = self.GetBackgroundColour()
         self.editcolor = (255,255,255)
-        self.text_text = wx.TextCtrl(self, 1, style=wx.TE_MULTILINE)
+        self.label_text_1 = wx.StaticText(self, 1, name="label1")        
+        self.label_text_2 = wx.StaticText(self, 2, name="label2")
+        self.text_text = wx.TextCtrl(self, 3, style=wx.TE_MULTILINE)
         self.choice_Edit = wx.Choice(self, -1, choices=["Lesen", "Ändern".decode("UTF-8"), "Abbruch"], style=0, name="CEdit")
         self.choice_Edit.SetSelection(0)
         self.Bind(wx.EVT_CHOICE, self.On_CEdit, self.choice_Edit)
         self.button_Ok = wx.Button(self, -1, label="&Ok", name="Ok")
         self.Bind(wx.EVT_BUTTON, self.On_Button_Ok, self.button_Ok)
         self.lower_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.lower_sizer.Add(self.choice_Edit,1,wx.EXPAND)
-        self.lower_sizer.Add(self.button_Ok,1,wx.EXPAND)
+        self.lower_sizer.AddStretchSpacer(1)
+        self.lower_sizer.Add(self.choice_Edit,2,wx.EXPAND)
+        self.lower_sizer.AddStretchSpacer(1)
+        self.lower_sizer.Add(self.button_Ok,2,wx.EXPAND)
+        self.lower_sizer.AddStretchSpacer(1)
         self.sizer=wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.label_text_1,0,wx.EXPAND)
+        self.sizer.Add(self.label_text_2,0,wx.EXPAND)
         self.sizer.Add(self.text_text,1,wx.EXPAND)
         self.sizer.Add(self.lower_sizer,0,wx.EXPAND)
         self.SetSizer(self.sizer)
@@ -361,13 +418,16 @@ class AfpDialog_TextEditor(wx.Dialog):
     # @param header - text to be displayed in the window top ribbon
     # @param text - text to be displayed and manipulated
     # @param size - size of dialog
-    def attach_text(self, header, text, size):
+    def attach_text(self, header, text, label1, label2, size):
         self.SetSize(size)
         self.SetTitle(header)
         self.text_text.SetValue(text)
+        if label1: self.label_text_1.SetLabel(label1)
+        if label2: self.label_text_2.SetLabel(label2)
     ## set the dialog edit modus
     def set_direct_editing(self):
         self.choice_Edit.SetSelection(1)
+        self.text_text.SetEditable(True)
         self.text_text.SetBackgroundColour(self.editcolor) 
     ## return Ok flag, to be called in calling routine
     def get_Ok(self):
@@ -1718,12 +1778,4 @@ def Afp_loadScreen(globals, modulname, sb = None, origin = None):
         return Modul
     else:
         return None
-
-# Main   
-if __name__ == "__main__":
-    text, ok = AfpReq_EditText("Hallo","Wie geht's?")
-    #name, ok = AfpReq_FileName()
-    #data, ok = AfpReq_Printer()
-    print ok, text
-    #print ok, name
-    #print data
+        
