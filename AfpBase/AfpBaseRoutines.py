@@ -1036,6 +1036,13 @@ class AfpMailSender(object):
         elif self.message is None and self.htmltext is None:
             ready = False
         return ready
+    def get_attachment_names(self):
+        deli = self.globals.get_value("path-delimiter")
+        attachs = ""
+        for attach in self.attachments:
+            if attach: attachs += attach.split(deli)[-1] + ", "
+        if attachs: attachs = attachs[:-2]
+        return attachs
     ## set emali-addresses 
     # @param sender -  sender mailaddress
     # @param recipient - if given, recipient mailaddress
@@ -1048,13 +1055,13 @@ class AfpMailSender(object):
     # @param subject - subject of message
     # @param message - message body
     def set_message(self, subject, message):
-        if subject: self.subject = subject
-        self.message = message
+        if subject: self.subject = subject.encode('iso8859_15')
+        self.message = message.encode('iso8859_15')
     ## set html text message body
     # @param subject - subject of message
     # @param message - message body
     def set_html_message(self, subject, message):
-        if subject: self.subject = subject
+        if subject: self.subject = subject.encode('iso8859_15')
         self.htmltext = message
     ## add attachment file to message (may be invoked several times)
     # @param filename - path of file to be attached

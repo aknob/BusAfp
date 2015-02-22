@@ -40,7 +40,7 @@ import wx.grid
 import AfpUtilities.AfpBaseUtilities
 from AfpUtilities.AfpBaseUtilities import Afp_existsFile, Afp_copyFile, Afp_isTime, Afp_isDate, Afp_isNumeric
 import AfpUtilities.AfpStringUtilities
-from AfpUtilities.AfpStringUtilities import Afp_pathname, Afp_addRootpath, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum
+from AfpUtilities.AfpStringUtilities import Afp_pathname, Afp_addRootpath, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum, Afp_ArraytoLine
 import AfpGlobal
 from AfpGlobal import AfpGlobal
 
@@ -50,7 +50,7 @@ import AfpDatabase.AfpSuperbase
 from AfpDatabase.AfpSuperbase import AfpSuperbase
 
 import AfpBaseRoutines
-from AfpBaseRoutines import Afp_importPyModul, Afp_importAfpModul, Afp_getModulName, Afp_ModulNames, Afp_archivName, Afp_startFile, Afp_printSelectionListDataInfo
+from AfpBaseRoutines import Afp_importPyModul, Afp_importAfpModul, Afp_getModulName, Afp_ModulNames, Afp_archivName, Afp_startFile, Afp_printSelectionListDataInfo, AfpMailSender
 import AfpAusgabe
 from AfpAusgabe import AfpAusgabe
 
@@ -172,11 +172,12 @@ def AfpReq_Eingabe(text1, text2, text = "", header = ""):
 # @param header - header to be displayed on top ribbon of dialog
 # @param label1 - text to be displayed on first line of the dialog
 # @param label2 - text to be displayed on second line of the dialog
+# @param label_low - text to be displayed below text, aboe buttons
 # @param direct - flag that dialog is directliy set to 'modify' instead of 'read'
 # @param size - size of dialog window (may differ for different purposes)
-def AfpReq_EditText(oldtext = "", header = "TextEditor", label1 = None, label2 = None, direct = False, size = (500, 300)):
+def AfpReq_EditText(oldtext = "", header = "TextEditor", label1 = None, label2 = None, label_low = None, direct = False, size = (500, 300)):
     dialog =  AfpDialog_TextEditor(None)
-    dialog.attach_text(header, oldtext, label1, label2, size)
+    dialog.attach_text(header, oldtext, label1, label2, label_low, size)
     if direct: dialog.set_direct_editing()
     dialog.ShowModal()
     newtext = None
@@ -322,18 +323,20 @@ def Afp_editMail(mail):
     else:
         text += "Von: \n"
     if mail.recipients:
-        an = "An: " + mail.recipients[0]
+        an = "An: " + Afp_ArraytoLine(mail.recipients,", ")
     else:
         text += "An: \n"
     text += "Betreff: "
     if mail.subject:
         text += mail.subject
-    text, ok = AfpReq_EditText(text,"E-Mail Versand", von, an, True)
+    attachs = "Anhang: " + mail.get_attachment_names()
+    text, ok = AfpReq_EditText(text,"E-Mail Versand", von, an, attachs, True)
     if ok:
         start = 0
         subject = None
         sender = None
         recipients = []
+        attachs = []
         lines = text.split("\n")
         for line in lines:
             if ":" in line: 
@@ -344,6 +347,8 @@ def Afp_editMail(mail):
                     recipients = line[3:].split(",")
                 elif "Von:" in line:
                     sender = line[4:].strip()
+                elif "Anlage:" in line:
+                    attachs = line[7:].split(",")
             else:
                 break
         message = text[start:].strip()
@@ -354,6 +359,9 @@ def Afp_editMail(mail):
         if recipients:
             for recipient in recipients:
                 mail.add_recipient(recipient)
+        if attachs:
+            for attach in attachs:
+                mail.add_attachment(attach)
         ok = mail.is_ready()
     return mail, ok
 
@@ -393,6 +401,7 @@ class AfpDialog_TextEditor(wx.Dialog):
         self.editcolor = (255,255,255)
         self.label_text_1 = wx.StaticText(self, 1, name="label1")        
         self.label_text_2 = wx.StaticText(self, 2, name="label2")
+        self.label_lower = wx.StaticText(self, 2, name="label_lower")
         self.text_text = wx.TextCtrl(self, 3, style=wx.TE_MULTILINE)
         self.choice_Edit = wx.Choice(self, -1, choices=["Lesen", "Ändern".decode("UTF-8"), "Abbruch"], style=0, name="CEdit")
         self.choice_Edit.SetSelection(0)
@@ -409,6 +418,7 @@ class AfpDialog_TextEditor(wx.Dialog):
         self.sizer.Add(self.label_text_1,0,wx.EXPAND)
         self.sizer.Add(self.label_text_2,0,wx.EXPAND)
         self.sizer.Add(self.text_text,1,wx.EXPAND)
+        self.sizer.Add(self.label_lower,0,wx.EXPAND)
         self.sizer.Add(self.lower_sizer,0,wx.EXPAND)
         self.SetSizer(self.sizer)
         self.SetAutoLayout(1)
@@ -418,12 +428,13 @@ class AfpDialog_TextEditor(wx.Dialog):
     # @param header - text to be displayed in the window top ribbon
     # @param text - text to be displayed and manipulated
     # @param size - size of dialog
-    def attach_text(self, header, text, label1, label2, size):
+    def attach_text(self, header, text, label1, label2, label_low, size):
         self.SetSize(size)
         self.SetTitle(header)
         self.text_text.SetValue(text)
         if label1: self.label_text_1.SetLabel(label1)
         if label2: self.label_text_2.SetLabel(label2)
+        if label_low: self.label_lower.SetLabel(label_low)
     ## set the dialog edit modus
     def set_direct_editing(self):
         self.choice_Edit.SetSelection(1)
@@ -782,6 +793,7 @@ class AfpDialog_DiReport(wx.Dialog):
         self.datas = None   # in case more then one output has to be created, datas are attached here and sucessively assigned to data
         self.datasindex = None # current index in datas of actuel assigned data
         self.globals = None
+        self.mail = None
         self.prefix = ""
         self.postfix = ""
         self.textmap = {}
@@ -813,7 +825,8 @@ class AfpDialog_DiReport(wx.Dialog):
         #self.Bind(wx.EVT_BUTTON, self.On_Rep_Info, self.button_Info)
         self.check_Archiv = wx.CheckBox(panel, -1, label="Archiv:", pos=(10,141), size=(70,20), name="Archiv")
         self.label_Ablage= wx.StaticText(panel, -1, label="", pos=(80,144), size=(70,18), name="Ablage")  
-        self.text_Bem= wx.TextCtrl(panel, -1, value="", pos=(150,141), size=(170,20), style=0, name="Bem")
+        self.text_Bem= wx.TextCtrl(panel, -1, value="", pos=(150,141), size=(170,20), style=0, name="Bem")        
+        self.check_EMail = wx.CheckBox(panel, -1, label="per EMail", pos=(325,74), size=(93,20), name="check_EMail")
         self.button_Abbr = wx.Button(panel, -1, label="&Abbruch", pos=(325,100), size=(93,30), name="Abbruch")
         self.Bind(wx.EVT_BUTTON, self.On_Rep_Abbr, self.button_Abbr)
         self.button_Okay = wx.Button(panel, -1, label="&Ok", pos=(325,136), size=(93,30), name="Okay")
@@ -848,6 +861,12 @@ class AfpDialog_DiReport(wx.Dialog):
             self.check_Archiv.SetValue(True)
             self.check_Archiv.Enable(False)
             self.label_Ablage.Enable(False)
+        mail = AfpMailSender(self.globals, self.debug)
+        if mail.is_possible():
+            self.mail = mail
+        else:
+            self.check_EMail.SetValue(False)
+            self.check_EMail.Enable(False)
         self.Populate()
     ## common population routines for dialog and widgets
     def Populate(self):
@@ -924,6 +943,19 @@ class AfpDialog_DiReport(wx.Dialog):
         if fresult:
             self.execute_Ausgabe(fresult)
             self.add_to_archiv()
+            if self.mail:
+                self.send_mail(fresult)
+    def send_mail(self, fresult):
+        an = self.data.get_value("Mail.ADRESSE")
+        fpdf = fresult[:-4] + ".pdf"
+        if Afp_existsFile(fpdf):
+            attach = fpdf
+        else:
+            attach = fresult
+        self.mail.add_attachment(attach)
+        if an: self.mail.add_recipient(an)
+        self.mail, send = Afp_editMail(self.mail)
+        if send: self.mail.send_mail()
     ## generate template filename due to list selection
     def get_template_name(self):
         template = None

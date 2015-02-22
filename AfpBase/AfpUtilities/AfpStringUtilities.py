@@ -310,13 +310,14 @@ def Afp_ArrayfromLine(line):
 # @param max - maximum number of elements used for merging
 def Afp_ArraytoLine(liste, separator = " ", max = None):
     if max is None: max = len(liste) 
+    sep = len(separator)
     count = 0
     zeile = ""
     for entry in liste:
         if count < max:
             zeile += Afp_toString(entry) + separator
             count += 1
-    return zeile[:-1]
+    return zeile[:-sep]
 
 # type of strings and values
 ## flag is value is a stringtype
