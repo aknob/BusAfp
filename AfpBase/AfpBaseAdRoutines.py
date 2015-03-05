@@ -69,6 +69,18 @@ def AfpAdresse_getOrderlistOfTable(mysql, index, datei = "ADRESSE"):
         indirect = ["Name","Plz","Ort"]
     liste = Afp_getOrderlistOfTable(mysql, datei, keep, indirect)
     return liste
+ 
+## get values of fields in given selection for an address with given identifier \n
+# additionally the name is given, as it is commonly needed in following dialogs
+# @param globals - globals variables, including mysql connection
+# @param KNr - identifier for address to be searched
+# @param selname - name of selection where fileds should be extracted from
+# @param felder - name of fields to be extracted, separated by ,
+def AfpAdresse_getListOfTable(globals, KNr, selname, felder):
+    adresse = AfpAdresse(globals, KNr)
+    rows = adresse.get_value_rows(selname, felder)
+    name = adresse.get_name()
+    return rows, name
 
 ## baseclass for address handling      
 class AfpAdresse(AfpSelectionList):

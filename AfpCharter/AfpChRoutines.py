@@ -359,5 +359,9 @@ class AfpCharter(AfpSelectionList):
         if self.get_value("RechNr"):
             self.set_value("Zahlung.RECHNG", payment)
             self.set_value("ZahlDat.RECHNG", datum)
-         
+    ## return specific identification string to be used in dialogs \n
+    # - overwritten from AfpSelectionList
+    def get_identification_string(self):
+        return "Mietfahrt am "  +  self.get_string_value("Abfahrt") + " nach " + self.get_string_value("Zielort")
+
 

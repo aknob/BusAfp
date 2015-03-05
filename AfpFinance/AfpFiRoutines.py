@@ -153,9 +153,7 @@ class AfpFinanceTransactions(AfpSelectionList):
             print "AfpFinanceTransactions.assimilate_transaction_data write line:", line
             self.file.write( line + '\n')
         else:
-            sel =  self.get_selection()
-            index = sel.add_data_row(True)
-            sel.set_data_values(accdata, index)
+            self.set_data_values(accdata, None, -1)
     ## overwritten 'store' of the AfpSelectionList, the parent 'store' is called and a common action-number spread.          
     def store(self):
         print "AfpFinanceTransactions.store 0:",self.new, self.mainindex

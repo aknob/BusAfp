@@ -35,11 +35,12 @@ import wx
 import wx.grid
 
 import AfpBase
-from AfpBase import AfpBaseRoutines, AfpBaseDialog, AfpBaseAdRoutines, AfpUtilities
+from AfpBase import AfpBaseRoutines, AfpBaseDialog, AfpBaseDialogCommon, AfpBaseAdRoutines, AfpUtilities
 from AfpBase.AfpUtilities import AfpStringUtilities
 from AfpBase.AfpUtilities.AfpStringUtilities import Afp_ArraytoString
 from AfpBase.AfpBaseRoutines import *
 from AfpBase.AfpBaseDialog import *
+from AfpBase.AfpBaseDialogCommon import *
 from AfpBase.AfpBaseAdRoutines import *
 
 ## select adress attribut or enter new \n

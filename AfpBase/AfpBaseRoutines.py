@@ -481,9 +481,15 @@ class AfpSelectionList(object):
     # selection handling
     ## return if a TableSelection exists in selections
     # @param selname - name of TableSelection
-    def exists_selection(self, selname):
+    # @param possibly - flag if also the descriptions should be checked
+    def exists_selection(self, selname, possibly = False):
         if selname is None: selname = self.mainselection
-        return selname in self.selections
+        if selname in self.selections:
+            return  True
+        elif possibly and selname in self.selects:
+            return True
+        else:
+            return False
     ## constitute selection formally, no data attached
     # @param selname - name of TableSelection
     def constitute_selection(self, selname):
@@ -745,11 +751,14 @@ class AfpSelectionList(object):
     ## set multiple  values of indicated TableSelection 
     # @param changed_data - dictionary with changed_data[column] = value
     # @param name - name of TableSelection where data should be written to
-    # @param row - index of row in TableSelöection where data should be written to
+    # @param row - index of row in TableSelöection where data should be written to \n
+    #                        if row < 0: add row with given data
     def set_data_values(self, changed_data, name = None, row = 0):
-        #print "AfpSelectionList.set_data_values()",changed_data
         selection = self.get_selection(name)
-        selection.set_data_values(changed_data, row)  
+        if row < 0:
+            selection.add_data_values(changed_data) 
+        else:
+            selection.set_data_values(changed_data, row)  
     ## set a row in a TableSelection to the modified values beeing hold in a single TableSelection \n
     # - this single TableSelection should have been extracted with get_selection_from_row from the destination TableSelection \n
     # - it is assumed that both TableSelections have the same tablename
@@ -809,6 +818,10 @@ class AfpSelectionList(object):
     def set_payment_values(self, payment, datum):
         self.set_value("Zahlung", payment)
         self.set_value("ZahlDat", datum)
+    ## return specific identification string to be used in dialogs \n
+    # - should be overwritten in devired class
+    def get_identification_string(self):
+        return ""
     ## complete data to be stored in archive \n
     # - may be overwritten if necessary
     # @param new_data - data to be completed and written into "ARCHIV" TableSelection \n

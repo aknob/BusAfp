@@ -33,6 +33,7 @@ import AfpBase
 from AfpBase import *
 from AfpBase.AfpBaseRoutines import *
 from AfpBase.AfpBaseDialog import *
+from AfpBase.AfpBaseDialogCommon import *
 from AfpBase.AfpBaseAdRoutines import AfpAdresse
 from AfpBase.AfpBaseAdDialog import AfpLoad_AdAttAusw
 

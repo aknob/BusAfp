@@ -42,14 +42,17 @@ from AfpBase.AfpDatabase import *
 from AfpBase.AfpDatabase.AfpSQL import AfpSQL
 from AfpBase.AfpDatabase.AfpSuperbase import AfpSuperbase
 from AfpBase.AfpBaseRoutines import Afp_archivName, Afp_startFile
-from AfpBase.AfpBaseDialog import AfpReq_Info, AfpReq_Selection, AfpReq_Question, AfpLoad_DiReport, AfpScreen
+from AfpBase.AfpBaseDialog import AfpReq_Info, AfpReq_Selection, AfpReq_Question
+from AfpBase.AfpBaseDialogCommon import AfpLoad_DiReport
+from AfpBase.AfpBaseScreen import AfpScreen
+from AfpBase.AfpBaseAdRoutines import AfpAdresse_getListOfTable
 from AfpBase.AfpBaseAdDialog import AfpLoad_AdAusw, AfpLoad_DiAdEin_fromSb
 from AfpBase.AfpBaseFiDialog import AfpLoad_DiFiZahl
 
 import AfpCharter
 from AfpCharter import AfpChRoutines, AfpChDialog
 from AfpCharter.AfpChRoutines import AfpCharter, AfpChInfo_genLine, AfpCharter_isOperational
-from AfpCharter.AfpChDialog import AfpLoad_DiChEin, AfpLoad_DiChEin_fromSb, AfpLoad_ChAusw
+from AfpCharter.AfpChDialog import AfpLoad_DiChEin, AfpLoad_DiChEin_fromSb, AfpLoad_ChAusw, AfpCharter_copy
 
 ## Class AfpChScreen shows 'Charter' screen and handles interactions
 class AfpChScreen(AfpScreen):
@@ -190,13 +193,40 @@ class AfpChScreen(AfpScreen):
         self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_DClick_Archiv, self.list_archiv)
         self.listmap.append("Archiv")
       
-        # MENU Bindings
-        #self.Bind(wx.EVT_MENU, self.On_MAdresse, self.MAdresse)
-        #self.Bind(wx.EVT_MENU, self.On_MTouristik, self.MTouristik)
         if self.debug: print "AfpChScreen Konstruktor"
-    ## generate AfpCharter object from the present screen
-    def get_charter(self):
-        return  AfpCharter(self.globals, None, self.sb, self.sb.debug, False)
+    ## compose charter specific menu parts
+    def create_specific_menu(self):
+        # setup charter menu
+        tmp_menu = wx.Menu() 
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Neu", "")
+        self.Bind(wx.EVT_MENU, self.On_Fahrt_neu, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Kopie", "")
+        self.Bind(wx.EVT_MENU, self.On_MCharter_copy, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Bearbeiten", "")
+        self.Bind(wx.EVT_MENU, self.On_Fahrt_aendern, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Zahlung", "")
+        self.Bind(wx.EVT_MENU, self.On_Fahrt_ZahlungF, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Dokumente", "")
+        self.Bind(wx.EVT_MENU, self.On_Fahrt_Ausgabe, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Einsatz", "")
+        self.Bind(wx.EVT_MENU, self.On_Fahrt_EinF, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        self.menubar.Append(tmp_menu, "Charter")
+        # setup address menu
+        tmp_menu = wx.Menu() 
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Suche", "")
+        self.Bind(wx.EVT_MENU, self.On_MAddress_search, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "Be&arbeiten", "")
+        self.Bind(wx.EVT_MENU, self.On_Adresse_aendern, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        self.menubar.Append(tmp_menu, "Adresse")
+        return
       
     ## Eventhandler BUTTON - change address
     def On_Adresse_aendern(self,event):
@@ -208,7 +238,7 @@ class AfpChScreen(AfpScreen):
     ## Eventhandler BUTTON - payment
     def On_Fahrt_ZahlungF(self,event):
         if self.debug: print "Event handler `On_Fahrt_ZahlungF'"
-        Charter = self.get_charter()
+        Charter = self.get_data()
         if Charter.is_payable():
             Ok, data = AfpLoad_DiFiZahl(Charter)
             if Ok: 
@@ -236,10 +266,10 @@ class AfpChScreen(AfpScreen):
         self.sb.unset_debug()
         event.Skip()
 
-    ## Eventhandler BUTTON - document generation
+    ## Eventhandler BUTTON, MENU - document generation
     def On_Fahrt_Ausgabe(self,event):
         if self.debug and event: print "Event handler `On_Fahrt_Ausgabe'"
-        Charter = self.get_charter()
+        Charter = self.get_data()
         zustand = Charter.get_string_value("Zustand").strip()
         prefix = "Charter " + zustand
         archiv = Charter.get_string_value("Art").strip()
@@ -249,10 +279,10 @@ class AfpChScreen(AfpScreen):
             self.Reload()
             event.Skip()
 
-    ## Eventhandler BUTTON - charter operation
+    ## Eventhandler BUTTON, MENU - charter operation
     def On_Fahrt_EinF(self,event):
         if self.debug: print "Event handler `On_Fahrt_EinF'"
-        Charter = self.get_charter()
+        Charter = self.get_data()
         zustand = Charter.get_string_value("Zustand")
         if self.einsatz and AfpCharter_isOperational(zustand):
             selection = Charter.get_selection("EINSATZ")
@@ -288,7 +318,7 @@ class AfpChScreen(AfpScreen):
             AfpReq_Info("'" + zustand + "' für eine Mietfahrt,".decode("UTF-8") , "es ist kein Einsatz möglich!".decode("UTF-8"))
         event.Skip()
 
-    ## Eventhandler BUTTON - new charter entry \n
+    ## Eventhandler BUTTON, MENU - new charter entry \n
     # only complete new entries are created here, no copiing possible.
     def On_Fahrt_neu(self,event):   
         if self.debug: print "AfpChScreen Event handler `On_Fahrt_neu'"
@@ -305,8 +335,8 @@ class AfpChScreen(AfpScreen):
                 self.On_Fahrt_Ausgabe(None)
                 self.Reload()
         event.Skip()  
-   
-    ## Eventhandler BUTTON - change charter
+        
+     ## Eventhandler BUTTON , MENU - change charter
     def On_Fahrt_aendern(self,event):
         #self.sb.set_debug()      
         if self.debug: print "AfpChScreen Event handler `On_Fahrt_aendern'"
@@ -363,9 +393,40 @@ class AfpChScreen(AfpScreen):
                         Afp_startFile(filename, self.globals, self.debug, True)
         event.Skip()
       
-  ## Eventhandler MENU - address menu - not yet implemented!
-    def On_MAdresse(self, event):
-        print "Event handler `On_MAdresse' not implemented!"
+    ## Eventhandler MENU - copy charter entry \n
+    def On_MCharter_copy(self,event):   
+        if self.debug: print "AfpChScreen Event handler `On_MCharter_copy'"
+        data = self.get_data(True)
+        charter = AfpCharter_copy(data)
+        if charter:
+            Ok = AfpLoad_DiChEin(charter, 0)
+            if Ok: 
+                FNr = charter.get_value("FahrtNr")
+                self.load_direct(FNr)
+                self.On_Fahrt_Ausgabe(None)
+                self.Reload()
+        event.Skip()  
+   
+    ## Eventhandler MENU - charte seach via address 
+    def On_MAddress_search(self, event):
+        if self.debug: print "AfpChScreen Event handler `On_MAddress_search'"
+        name = self.sb.get_string_value("Name.ADRESSE")
+        text = "Bitte Adresse auswählen für die Mietfahrten gesucht werden."
+        KNr = AfpLoad_AdAusw(self.globals,"ADRESSE","NamSort",name, None, text)
+        if KNr:
+            rows, name = AfpAdresse_getListOfTable(self.globals, KNr, "FAHRTEN","Abfahrt,Art,Zielort,Preis,Zustand,FahrtNr")
+            if rows:
+                liste = []
+                idents = []
+                for row in rows:
+                    entry = Afp_ArraytoLine(row, " ", 5)
+                    liste.append(entry)
+                    idents.append(row[5])
+                text = "Bitte Mietfahrt von " + name + " auswählen:".decode("UTF-8")
+                FNr, ok = AfpReq_Selection(text, "", liste, "Mietfahrt Auswahl", idents)
+                if ok:
+                    self.load_direct(FNr)
+                    self.Reload()
         event.Skip()
 
   ## Eventhandler MENU - touristk menu - not yet implemented!
@@ -388,6 +449,10 @@ class AfpChScreen(AfpScreen):
     # (overwritten from AfpScreen) 
     def load_additional_globals(self):
         self.globals.set_value(None, None, "Einsatz")
+    ## generate AfpCharter object from the present screen, overwritten from AfpScreen
+    # @param complete - flag if all TableSelections should be generated
+    def get_data(self, complete = False):
+        return  AfpCharter(self.globals, None, self.sb, self.sb.debug, complete)
     ## set current record to be displayed 
     # (overwritten from AfpScreen) 
     def set_current_record(self):

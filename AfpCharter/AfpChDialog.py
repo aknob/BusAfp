@@ -37,6 +37,7 @@ from AfpBase.AfpDatabase import AfpSuperbase
 from AfpBase.AfpDatabase.AfpSuperbase import AfpSuperbase
 from AfpBase.AfpBaseRoutines import *
 from AfpBase.AfpBaseDialog import *
+from AfpBase.AfpBaseDialogCommon import *
 from AfpBase.AfpBaseAdDialog import AfpLoad_AdAusw, AfpLoad_DiAdEin_fromKNr
 from AfpBase.AfpBaseFiDialog import AfpLoad_DiFiZahl
 
@@ -61,6 +62,26 @@ def AfpChInfo_selectEntry(fahrtinfo_selection, allow_new = False):
         index = liste.index(value)
         if allow_new: index -= 1
     return index
+
+## create a copy of the actuel charter may be made completely or partly
+# @param data - charter data to be copied
+def AfpCharter_copy(data):
+    text1 = "Soll eine Kopie der aktuellen Fahrt erstellt werden?"
+    text2 = "Wenn Ja, bitte auswählen was übernommen werden soll.".decode("UTF-8")
+    liste = ["Adresse","Kontakt","Fahrtinfo","Fahrtextra","Fahrtdaten"]
+    keep_flags = AfpReq_MultiLine(text1, text2, "Check", liste, "Mietfahrt kopieren?", 350)
+    new_address = True
+    if keep_flags: new_address = not keep_flags[0]
+    KNr = None
+    if new_address:
+        name = data.get_value("Name.Adresse")
+        text = "Bitte Auftraggeber für neue Mietfahrt auswählen:"
+        KNr = AfpLoad_AdAusw(data.get_globals(),"ADRESSE","NamSort",name, None, text)
+    if keep_flags or KNr:
+        data.set_new(KNr, keep_flags)
+        return data
+    else:
+        return None
 
 ## dialog for selection of charter data \n
 # selects an entry from the fahrten table
@@ -242,7 +263,8 @@ class AfpDialog_DiChEin(AfpDialog):
    
     ## attach data to dialog and invoke population of the graphic elements
     # @param data - AfpCharter object to hold the data to be displayed
-    # @param KNr - if given data is reset and intialized with the address indicated by this number
+    # @param KNr - if given data is reset and intialized with the address indicated by this number \n
+    #                         set KNr = 0 to directly edit given data without reste
     def attach_data(self, data, KNr = None):
         self.data = data
         self.debug = self.data.debug
@@ -603,20 +625,10 @@ class AfpDialog_DiChEin(AfpDialog):
     # a copy of the actuel charter may be made completely or partly
     def On_Fahrt_Neu(self,event):
         if self.debug: print "Event handler `On_Fahrt_Neu'"
-        text1 = "Soll eine Kopie der aktuellen Fahrt erstellt werden?"
-        text2 = "Wenn Ja, bitte auswählen was übernommen werden soll.".decode("UTF-8")
-        liste = ["Adresse","Kontakt","Fahrtinfo","Fahrtextra","Fahrtdaten"]
-        keep_flags = AfpReq_MultiLine(text1, text2, "Check", liste, "Mietfahrt kopieren?", 350)
-        new_address = True
-        if keep_flags: new_address = not keep_flags[0]
-        KNr = None
-        if new_address:
-            name = self.data.get_value("Name.Adresse")
-            text = "Bitte Auftraggeber für neue Mietfahrt auswählen:"
-            KNr = AfpLoad_AdAusw(self.data.get_globals(),"ADRESSE","NamSort",name, None, text)
-        if keep_flags or KNr:
+        new_data = AfpCharter_copy(self.data)
+        if new_data:
             self.new = True
-            self.data.set_new(KNr, keep_flags)
+            self.data = new_data
             self.Populate()
             self.choice_Edit.SetSelection(1)
             self.Set_Editable(True)
@@ -712,8 +724,7 @@ class AfpDialog_DiChEin(AfpDialog):
 # @param eingabe - if given, address identification number to generate a new charter entry
 def AfpLoad_DiChEin(Charter, eingabe = None):
     DiChEin = AfpDialog_DiChEin(None)
-    if eingabe: DiChEin.attach_data(Charter, eingabe)
-    else: DiChEin.attach_data(Charter)
+    DiChEin.attach_data(Charter, eingabe)
     DiChEin.ShowModal()
     Ok = DiChEin.get_Ok()
     DiChEin.Destroy()

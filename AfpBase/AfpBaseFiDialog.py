@@ -161,7 +161,7 @@ class AfpDialog_DiFiZahl(AfpDialog):
         ident = []
         KundenNr = self.data.get_value("KundenNr")
         if tablename == "FAHRTEN":
-            felder = "Datum,Zielort,Preis,Zustand,FahrtNr"
+            felder = "Abfahrt,Zielort,Preis,Zustand,FahrtNr"
             filter_feld = "Zustand"
             filter =  ["Angebot","Rechnung"]
             text = "Mietfahrt"

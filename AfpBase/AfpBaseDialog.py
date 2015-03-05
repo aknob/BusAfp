@@ -3,15 +3,16 @@
 
 ## @package AfpBase.AfpBaseDialog
 # AfpBaseDialog module provides wrapper for the base Dialog-Requesters delivered by wx, 
-#                         common used dialogs as well as the dialog base classes for all dialogs and all screens.
+#                         as well as the dialog base classes for all dialogs.
 # it holds the calsses
+# - AfpDialog_MultiLine - multi line editing dialog
 # - AfpDialog_TextEditor - common text editor dialog
-# - AfpDialog_DiReport - common output dialog
 # - AfpDialog_DiAusw - common selection dialog for unlimited choices
 # - AfpDialog - dialog base class
-# - AfpScreen - screen base class
 #
 #   History: \n
+#        05 Mar. 2015 - move screen base class to separate file - Andreas.Knoblauch@afptech.de \n
+#        26 Feb. 2015 - move common dialogs to AfpBaseDialogCommon - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
 
@@ -38,22 +39,9 @@ import wx
 import wx.grid
 
 import AfpUtilities.AfpBaseUtilities
-from AfpUtilities.AfpBaseUtilities import Afp_existsFile, Afp_copyFile, Afp_isTime, Afp_isDate, Afp_isNumeric
+from AfpUtilities.AfpBaseUtilities import Afp_isTime, Afp_isDate, Afp_isNumeric
 import AfpUtilities.AfpStringUtilities
-from AfpUtilities.AfpStringUtilities import Afp_pathname, Afp_addRootpath, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum, Afp_ArraytoLine
-import AfpGlobal
-from AfpGlobal import AfpGlobal
-
-import AfpDatabase.AfpSQL
-from AfpDatabase.AfpSQL import AfpSQL, AfpSQLTableSelection
-import AfpDatabase.AfpSuperbase
-from AfpDatabase.AfpSuperbase import AfpSuperbase
-
-import AfpBaseRoutines
-from AfpBaseRoutines import Afp_importPyModul, Afp_importAfpModul, Afp_getModulName, Afp_ModulNames, Afp_archivName, Afp_startFile, Afp_printSelectionListDataInfo, AfpMailSender
-import AfpAusgabe
-from AfpAusgabe import AfpAusgabe
-
+from AfpUtilities.AfpStringUtilities import Afp_addRootpath, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum
    
 # Simple dialogs often used (requester in superbase)
 #
@@ -184,7 +172,6 @@ def AfpReq_EditText(oldtext = "", header = "TextEditor", label1 = None, label2 =
     if dialog.get_Ok():
         newtext = dialog.get_text()
     dialog.Destroy()
-    print "AfpReq_EditText:", newtext
     if newtext: 
         return newtext, True
     else: 
@@ -239,6 +226,7 @@ def AfpReq_FileName(dir = "", header = "", wild = "", open = False):
     else:
         if not header:  "Datei speichern als"
         style = wx.FD_SAVE
+    if not wild: wild = "*.*"
     dialog = wx.FileDialog(None , message=header, defaultDir=dir, wildcard=wild, style=style)
     ret = dialog.ShowModal()
     fname = dialog.GetPath()
@@ -294,103 +282,6 @@ def AfpReq_Information(globals):
     if translator: info.AddDocWriter(translator)
     wx.AboutBox(info)   
  
- # Common dialog routines to be used in different modules
-
-## common routine to invoke text editing \n
-#  depending on input the text is edited directly or loaded from an external file
-# @param input_text - text to be edited or relativ path to file
-# @param globals - global variable to hold path-delimiter and path to archiv
-def Afp_editExternText(input_text, globals=None):
-    if globals:
-        delimiter = globals.get_value("path-delimiter")
-        file= Afp_archivName(input_text, delimiter)
-        if file:
-            file = globals.get_value("archivdir") + file
-            if Afp_existsFile(file): 
-                with open(file,"r") as inputfile:
-                    input_text = inputfile.read().decode('iso8859_15')
-    return AfpReq_EditText(input_text,"Texteingabe")
-
-## invoke a simple dialog to compose an e-mail \n
-# return mail-sender and flag if mail could and should be sent
-# @param mail - mail-sender to be edited
-def Afp_editMail(mail):
-    von = ""
-    an = ""
-    text = ""
-    if mail.sender:
-        von = "Von: " + mail.sender
-    else:
-        text += "Von: \n"
-    if mail.recipients:
-        an = "An: " + Afp_ArraytoLine(mail.recipients,", ")
-    else:
-        text += "An: \n"
-    text += "Betreff: "
-    if mail.subject:
-        text += mail.subject
-    attachs = "Anhang: " + mail.get_attachment_names()
-    text, ok = AfpReq_EditText(text,"E-Mail Versand", von, an, attachs, True)
-    if ok:
-        start = 0
-        subject = None
-        sender = None
-        recipients = []
-        attachs = []
-        lines = text.split("\n")
-        for line in lines:
-            if ":" in line: 
-                start += len(line) + 1
-                if "Betreff:" in line:
-                    subject = line[8:].strip()
-                elif "An:" in line:
-                    recipients = line[3:].split(",")
-                elif "Von:" in line:
-                    sender = line[4:].strip()
-                elif "Anlage:" in line:
-                    attachs = line[7:].split(",")
-            else:
-                break
-        message = text[start:].strip()
-        if message:
-            mail.set_message(subject, message)
-        if sender:
-            mail.set_addresses(sender, None)
-        if recipients:
-            for recipient in recipients:
-                mail.add_recipient(recipient)
-        if attachs:
-            for attach in attachs:
-                mail.add_attachment(attach)
-        ok = mail.is_ready()
-    return mail, ok
-
-##  handles automatic and manual sort cirterium selection for data search
-#  @param value - initial value for search
-#  @param index - initial sort criterium
-#  @param sort_list - dictionatry of possible sort criteria, with automatic selection format in the values
-#  @param name - name of purpose of this selection
-def Afp_autoEingabe(value, index, sort_list, name):
-    name = name.decode("UTF-8")
-    value, format, Ok = AfpReq_Eingabe("Bitte Auswahlkriteium für die ".decode("UTF-8") + name + "auswahl eingeben.","", value, name +"auswahl")
-    print "Afp_autoEingabe:", Ok, value, format, sort_list
-    if Ok:
-        #print sort_list
-        if format[0] == "!":
-            liste = sort_list.keys()
-            res,Ok = AfpReq_Selection("Bitte Sortierkriterium für die ".decode("UTF-8") + name + "auswahl auswählen.".decode("UTF-8"),"",liste,"Sortierung")
-            #print Ok, res
-            if Ok:
-                index = res
-        else:
-            for entry in sort_list:
-                if sort_list[entry] and sort_list[entry] == format:
-                    index = entry
-        print "index:", index, value
-        if sort_list[index] is None:
-            Ok = None
-    return value, index, Ok
-   
 ## Baseclass Texteditor Requester 
 class AfpDialog_TextEditor(wx.Dialog):
     ## constructor
@@ -446,7 +337,7 @@ class AfpDialog_TextEditor(wx.Dialog):
     ## return actuel text, to be called in calling routine
     def get_text(self):
         ret_text = self.text_text.GetValue()
-        print "AfpDialog_TextEditor:", ret_text
+        print "AfpDialog_TextEditor.get_text:", ret_text
         #return self.text_text.GetValue()
         return ret_text
     ## Eventhandler CHOICE - handle event of the 'edit','read' od 'quit' choice
@@ -488,11 +379,11 @@ class AfpDialog_MultiLines(wx.Dialog):
         self.Bind(wx.EVT_BUTTON, self.On_Button_Ok, self.button_Ok)
         self.lower_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.lower_sizer.AddStretchSpacer(1)
-        self.lower_sizer.Add(self.button_Cancel,2,wx.EXPAND)
+        self.lower_sizer.Add(self.button_Cancel,3,wx.EXPAND)
         self.lower_sizer.AddStretchSpacer(1)
-        self.lower_sizer.Add(self.button_Delete,2,wx.EXPAND)
+        self.lower_sizer.Add(self.button_Delete,3,wx.EXPAND)
         self.lower_sizer.AddStretchSpacer(1)
-        self.lower_sizer.Add(self.button_Ok,2,wx.EXPAND)
+        self.lower_sizer.Add(self.button_Ok,3,wx.EXPAND)
         self.lower_sizer.AddStretchSpacer(1)
     ## attach data to dialog
     # @param text - text to be displayed above action part
@@ -520,7 +411,7 @@ class AfpDialog_MultiLines(wx.Dialog):
                 self.texts.append(wx.TextCtrl(self, -1, value=data[1], name=data[1]))
                 self.sizers.append(wx.BoxSizer(wx.HORIZONTAL))
                 self.sizers[-1].AddStretchSpacer(1)
-                self.sizers[-1].Add(self.label[-1],9,wx.EXPAND)
+                self.sizers[-1].Add(self.label[-1],5,wx.EXPAND)
                 self.sizers[-1].Add(self.texts[-1],9,wx.EXPAND) 
                 self.sizers[-1].AddStretchSpacer(1)
                 height += 30
@@ -592,6 +483,8 @@ class AfpDialog(wx.Dialog):
         self.data = None
         self.lock_data = False
         self.panel = None
+        self.sizer = None
+        self.reload = None
         self.textmap = {}
         self.vtextmap = {}
         self.labelmap = {}
@@ -605,13 +498,30 @@ class AfpDialog(wx.Dialog):
 
     ## routine to be called from initWx in devired class
     # set Edit and Ok widgets
-    def setWx(self, panel, edit, ok):
-        if panel is None: return
-        self.choice_Edit = wx.Choice(panel, -1, pos=(edit[0], edit[1]), size=(edit[2], edit[3]), choices=["Lesen", "Ändern".decode("UTF-8"), "Abbruch"], style=0, name="CEdit")
-        self.choice_Edit.SetSelection(0)
-        self.Bind(wx.EVT_CHOICE, self.On_CEdit, self.choice_Edit)
-        self.button_Ok = wx.Button(panel, -1, label="&Ok", pos=(ok[0], ok[1]), size=(ok[2], ok[3]), name="Ok")
-        self.Bind(wx.EVT_BUTTON, self.On_Button_Ok, self.button_Ok)
+    # @param parent - parent wx class (panel or sizer) where widgest should be attached to
+    # @param edit - coordinates [0][1] and size [2][3] of edit widget on panel \n
+    #                        weight of space left [0] and right [2] and [1] weight of edit widget in sizer
+    # @param ok - coordinates [0][1] and size [2][3] of ok widget on panel \n
+    #                       weight of space left [0] and right [2] and [1] weight of ok widget in sizer
+    def setWx(self, parent, edit, ok):
+        if parent is None: return
+        if type(parent) == wx._windows.Panel: # parent is a panel
+            self.choice_Edit = wx.Choice(parent, -1, pos=(edit[0], edit[1]), size=(edit[2], edit[3]), choices=["Lesen", "Ändern".decode("UTF-8"), "Abbruch"], style=0, name="CEdit")
+            self.choice_Edit.SetSelection(0)
+            self.Bind(wx.EVT_CHOICE, self.On_CEdit, self.choice_Edit)
+            self.button_Ok = wx.Button(parent, -1, label="&Ok", pos=(ok[0], ok[1]), size=(ok[2], ok[3]), name="Ok")
+            self.Bind(wx.EVT_BUTTON, self.On_Button_Ok, self.button_Ok)
+        else: # parent is a sizer
+            self.choice_Edit = wx.Choice(self, -1, choices=["Lesen", "Ändern".decode("UTF-8"), "Abbruch"], style=0, name="CEdit")
+            self.choice_Edit.SetSelection(0)
+            self.Bind(wx.EVT_CHOICE, self.On_CEdit, self.choice_Edit)
+            self.button_Ok = wx.Button(self, -1, label="&Ok", name="Ok")
+            self.Bind(wx.EVT_BUTTON, self.On_Button_Ok, self.button_Ok)
+            parent.AddStretchSpacer(edit[0])
+            parent.Add(self.choice_Edit,edit[1],wx.EXPAND)
+            parent.AddStretchSpacer(edit[2] + ok[0])
+            parent.Add(self.button_Ok,ok[1],wx.EXPAND)
+            parent.AddStretchSpacer(ok[2])
       
   ## set up dialog widgets - to be overwritten in derived class
     def InitWx(self):
@@ -666,6 +576,18 @@ class AfpDialog(wx.Dialog):
                 exec pyBefehl
                 if self.debug: print "evaluate_condition:", condition, pyBefehl, result
         return result
+    ## routine for reloading data into display, \n
+    # optional loading data from database before
+    def re_load(self):
+        #print "re_load:", self.reload
+        if self.reload: 
+            if type(self.reload) == bool:
+               selnames = self.data.get_selection_names()
+            else:
+                selnames = self.reload
+            for sel in selnames:
+                self.data.reload_selection(sel)
+        self.Populate()
     ## common population routine for dialog and widgets
     def Populate(self):
         self.Pop_text()
@@ -766,7 +688,7 @@ class AfpDialog(wx.Dialog):
     # @param event - event which initiated this action
     def On_CEdit(self,event):
         editable = self.is_editable()
-        if not editable: self.Populate()
+        if not editable: self.re_load()
         self.Set_Editable(editable)
         if self.choice_Edit.GetCurrentSelection() == 2: self.Destroy()
         event.Skip()
@@ -781,361 +703,8 @@ class AfpDialog(wx.Dialog):
             if self.debug: print "Event handler `On_Button_Ok' quit!"
         event.Skip()
         self.Destroy()
-      
-## common dialog to create output documents
-class AfpDialog_DiReport(wx.Dialog):
-    ## constructor
-    def __init__(self, *args, **kw):
-        super(AfpDialog_DiReport, self).__init__(*args, **kw) 
-        self.Ok = False
-        self.debug = False
-        self.data = None     # data where output should be created for
-        self.datas = None   # in case more then one output has to be created, datas are attached here and sucessively assigned to data
-        self.datasindex = None # current index in datas of actuel assigned data
-        self.globals = None
-        self.mail = None
-        self.prefix = ""
-        self.postfix = ""
-        self.textmap = {}
-        self.labelmap = {}
-        self.choicevalues = {}
-        self.changelist = []
-        self.reportname = []
-        self.reportlist = []
-        self.reportflag = []
-        self.reportdel = []
-        self.readonlycolor = self.GetBackgroundColour()
-        self.editcolor = (255,255,255)
-
-        self.InitWx()
-        #self.SetSize((428,138))
-        self.SetSize((428,200))
-        self.SetTitle("Dokumentenausgabe")
-
-    ## set up dialog widgets
-    def InitWx(self):
-        panel = wx.Panel(self, -1)
-        self.list_Report = wx.ListBox(panel, -1, pos=(10,10), size=(310,120), name="Report")
-        #self.Bind(wx.EVT_LISTBOX_SCLICK, self.On_Rep_Click, self.list_Report)
-        self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_Rep_DClick, self.list_Report)
-        self.choice_Bearbeiten = wx.Choice(panel, -1,  pos=(325,10), size=(93,30),  choices=["Vorlage ...", "Ändern".decode("UTF-8"),"Kopie","Info", "Löschen".decode("UTF-8")], name="CBearbeiten")      
-        self.choice_Bearbeiten.SetSelection(0)
-        self.Bind(wx.EVT_CHOICE, self.On_Rep_Bearbeiten, self.choice_Bearbeiten)
-        #self.button_Info = wx.Button(panel, -1, label="&Info", pos=(340,46), size=(78,30), name="Info")
-        #self.Bind(wx.EVT_BUTTON, self.On_Rep_Info, self.button_Info)
-        self.check_Archiv = wx.CheckBox(panel, -1, label="Archiv:", pos=(10,141), size=(70,20), name="Archiv")
-        self.label_Ablage= wx.StaticText(panel, -1, label="", pos=(80,144), size=(70,18), name="Ablage")  
-        self.text_Bem= wx.TextCtrl(panel, -1, value="", pos=(150,141), size=(170,20), style=0, name="Bem")        
-        self.check_EMail = wx.CheckBox(panel, -1, label="per EMail", pos=(325,74), size=(93,20), name="check_EMail")
-        self.button_Abbr = wx.Button(panel, -1, label="&Abbruch", pos=(325,100), size=(93,30), name="Abbruch")
-        self.Bind(wx.EVT_BUTTON, self.On_Rep_Abbr, self.button_Abbr)
-        self.button_Okay = wx.Button(panel, -1, label="&Ok", pos=(325,136), size=(93,30), name="Okay")
-        self.Bind(wx.EVT_BUTTON, self.On_Rep_Ok, self.button_Okay)
-
-    ## attach to database and populate widgets
-    # @param data - SelectionList holding data to be filled into output
-    # @param globals - globas variables including prefix of typ
-    # @param header - header to be display in the dialogts top ribbon
-    # @param prepostfix - if given prefix and postfix of resultfile separated by a space
-    # @param datas - if given array of SelectionLists, which are assigned sucessively to data
-    def attach_data(self, data, globals, header, prepostfix, datas = None):
-        if header: 
-            self.SetTitle(self.GetTitle() + ": " + header)
-            self.label_Ablage.SetLabel(header)      
-        if data is None and datas:
-            self.data = datas[0]
-        else:
-            self.data = data 
-        self.debug = self.data.debug
-        self.globals = globals
-        if prepostfix:
-            split = prepostfix.split()
-            self.prefix = split[0]
-            if len(split) > 1:
-                self.postfix = split[1]
-        else:
-            self.prefix = self.globals.get_value("prefix", data.typ)
-        if datas: 
-            self.datas = datas
-        else:
-            self.check_Archiv.SetValue(True)
-            self.check_Archiv.Enable(False)
-            self.label_Ablage.Enable(False)
-        mail = AfpMailSender(self.globals, self.debug)
-        if mail.is_possible():
-            self.mail = mail
-        else:
-            self.check_EMail.SetValue(False)
-            self.check_EMail.Enable(False)
-        self.Populate()
-    ## common population routines for dialog and widgets
-    def Populate(self):
-        self.Pop_text()
-        self.Pop_label()
-        self.Pop_list()
-    ## return ok flag to caller
-    def get_Ok(self):
-        return self.Ok  
-    ## specific population routine for textboxes 
-    def Pop_text(self):
-        for entry in self.textmap:
-            TextBox = self.FindWindowByName(entry)
-            value = self.data.get_string_value(self.textmap[entry])
-            TextBox.SetValue(value)
-    ## specific population routine for lables
-    def Pop_label(self):
-        for entry in self.labelmap:
-            Label = self.FindWindowByName(entry)
-            value = self.data.get_string_value(self.labelmap[entry])
-            Label.SetValue(value)
-    ## specific population routine for lists
-    def Pop_list(self):
-        rows = self.data.get_string_rows("AUSGABE", "Bez,Datei,BerichtNr")
-        self.reportname = []
-        self.reportlist = []
-        self.reportflag = []
-        self.reportdel = []
-        for row in rows:
-            self.reportname.append(row[0])
-            if row[1]: 
-                self.reportlist.append(row[1])
-                self.reportdel.append(False)
-            else: 
-                self.reportlist.append(row[2])
-                self.reportdel.append(True)
-            self.reportflag.append(True)
-        rows = self.data.get_string_rows("ARCHIV", "Datum,Gruppe,Typ,Bem,Extern")
-        if rows:
-            for row in rows:
-                self.reportname.append(row[0] + " " + row[1] + " " + row[2] + " " + row[3])
-                self.reportlist.append(Afp_archivName(row[4], self.globals.get_value("path-delimiter")))
-                self.reportflag.append(False)
-                self.reportdel.append(False)
-        self.list_Report.Clear()
-        self.list_Report.InsertItems(self.reportname, 0)
-        return None
-    ## fille preset value into archiv description
-    # @param text - text to be displayed
-    def preset_text_bem(self, text):
-        self.text_Bem.SetValue(text)
-    ## common Eventhandler TEXTBOX - when leaving the textbox
-    # @param event - event which initiated this action
-    def On_KillFocus(self,event):
-        object = event.GetEventObject()
-        name = object.GetName()
-        if not name in self.changelist: self.changelist.append(name)
-    ## initiate generation of names of template- and resultfiles
-    def generate_names(self):
-        fname = self.get_template_name()
-        fresult = self.get_result_name()
-        return fname, fresult
-    ## initiate document generation
-    def generate_Ausgabe(self):
-        empty = Afp_addRootpath(self.globals.get_value("templatedir"), "empty.odt")
-        fname, fresult = self.generate_names()
-        print "generate_Ausgabe:", fname, fresult
-        if fresult:
-            out = AfpAusgabe(self.debug, self.data)
-            out.inflate(fname)
-            out.write_resultfile(fresult, empty)
-        else:
-            fresult = fname
-        if fresult:
-            self.execute_Ausgabe(fresult)
-            self.add_to_archiv()
-            if self.mail:
-                self.send_mail(fresult)
-    def send_mail(self, fresult):
-        an = self.data.get_value("Mail.ADRESSE")
-        fpdf = fresult[:-4] + ".pdf"
-        if Afp_existsFile(fpdf):
-            attach = fpdf
-        else:
-            attach = fresult
-        self.mail.add_attachment(attach)
-        if an: self.mail.add_recipient(an)
-        self.mail, send = Afp_editMail(self.mail)
-        if send: self.mail.send_mail()
-    ## generate template filename due to list selection
-    def get_template_name(self):
-        template = None
-        index = self.get_list_Report_index()
-        if index >= 0:
-            template = self.reportlist[index]
-            if not "." in template and len(template) < 7:
-                template = "BusAfp_template_" + template + ".fodt"
-                template = Afp_addRootpath(self.globals.get_value("templatedir"), template)
-            else:
-                if template[:6] == "Archiv":
-                    template = template[7:]
-                template = Afp_addRootpath(self.globals.get_value("archivdir"), template)
-            #print "get_template_name:", template      
-        return template
-    ## generate result filename due to list selection
-    def get_result_name(self):
-        fresult = None  
-        index = self.get_list_Report_index()
-        archiv = self.check_Archiv.IsChecked() 
-        if index >= 0 and self.reportflag[index]:
-            if archiv:
-                max = 0
-                print "get_result_name:", self.reportlist
-                for entry in self.reportlist:
-                    if entry and "." in entry:
-                        split = entry.split(".")
-                        nb = int(split[0][-2:]) 
-                        if nb > max: max = nb
-                max += 1
-                if self.datasindex: max += self.datasindex
-                if max < 10:  null = "0"
-                else:  null = ""
-                if self.postfix:
-                    fresult = self.prefix  + "_" + self.data.get_string_value() + "_" + self.postfix + "_" + null + str(max) + ".odt"
-                else:
-                    fresult = self.prefix  + "_" + self.data.get_string_value() + "_" + null + str(max) + ".odt"
-                self.archivname = fresult
-                fresult = Afp_addRootpath(self.globals.get_value("archivdir"), fresult)
-            else:
-                if self.datasindex:
-                    fresult = Afp_addRootpath(self.globals.get_value("tempdir"), "BusAfp_textausgabe" + str(self.datasindex) + ".fodt")
-                else:
-                    fresult = Afp_addRootpath(self.globals.get_value("tempdir"), "BusAfp_textausgabe.fodt")
-        #print "get_result_name:", fresult   
-        return  fresult
-    ## return selected list index
-    def get_list_Report_index(self):
-        sel = self.list_Report.GetSelections()
-        if sel: index = sel[0]
-        #else: index = 0
-        else: index = -.1
-        return index
-    ## start editing of generated document in extern editor
-    # @param fresult - result filename
-    def execute_Ausgabe(self, fresult):
-        Afp_startFile(fresult, self.globals, self.debug)
-    ## gernerate entry in archieve
-    def add_to_archiv(self):
-        if not self.archivname: return
-        new_data = {}
-        new_data["Gruppe"] = self.label_Ablage.GetLabel()
-        new_data["Bem"] = self.text_Bem.GetValue()
-        new_data["Extern"] = self.archivname
-        self.data.add_to_Archiv(new_data)
    
-    # Event Handlers 
-    ## Eventhandler left mouse click in list selection
-    # @param event - event which initiated this action
-    def On_Rep_Click(self,event):
-        print "Event handler `On_Rep_Click' not implemented!"
-        template, result = self.generate_names()
-        #print self.reportlist, self.reportflag
-        print template, result
-        event.Skip()
-    ## Eventhandler left mouse doubleclick in list selection
-    # @param event - event which initiated this action
-    def On_Rep_DClick(self,event):
-        print "Event handler `On_Rep_DClick' not implemented!"
-        template, result = self.generate_names()
-        #print self.reportlist, self.reportflag
-        print template, result
-        event.Skip()
-    ## Eventhandler BUTTON - Edit button pushed
-    # @param event - event which initiated this action
-    def On_Rep_Bearbeiten(self,event):
-        if self.debug: print "Event handler `On_Rep_Bearbeiten'"      
-        template = self.get_template_name()
-        list_Report_index = self.list_Report.GetSelection()
-        if list_Report_index < 0: list_Report_index = 0
-        if template and template[-5:] == ".fodt":
-            noWait = False
-            filename = ""
-            choice = self.choice_Bearbeiten.GetStringSelection()
-            if choice == "Ändern".decode("UTF-8"):
-                filename = template
-            elif choice == "Kopie":
-                filename = Afp_addRootpath(self.globals.get_value("tempdir"), "BusAfp_template.fodt")
-                Afp_copyFile(template, filename)
-            elif choice == "Info":
-                filename = Afp_addRootpath(self.globals.get_value("tempdir") , "DataInfo.txt")
-                Afp_printSelectionListDataInfo(self.data, filename) 
-                noWait = True
-            elif choice == "Löschen".decode("UTF-8"):
-                rname = self.list_Report.GetStringSelection()
-                if self.reportdel[list_Report_index]:
-                    ok = AfpReq_Question("Vorlage '" + rname + "' wirklich löschen?".decode("UTF-8") ,"", "Vorlage löschen".decode("UTF-8"))
-                    if ok:
-                        self.data.delete_row("AUSGABE",list_Report_index)
-                        self.data.get_selection("AUSGABE").store()
-                        self.Pop_list()
-            if filename:
-                Afp_startFile( filename, self.globals, self.debug, noWait) 
-                if choice == "Kopie":
-                    rows = self.data.get_value_rows("AUSGABE","Art,Typ,Bez",list_Report_index)
-                    name = rows[0][2]
-                    ok = True
-                    neu = ""
-                    while ok and name in self.reportname:
-                        name, ok = AfpReq_Text("Bitte " + neu + "Namen eingeben unter dem die neue Vorlage","für '".decode("UTF-8") + rows[0][0] + " " + rows[0][1] + "' abgelegt werden soll!",rows[0][2], "Vorlagenbezeichnung")
-                        neu = "NEUEN "
-                    if ok:
-                        data = {"Art": rows[0][0], "Typ": rows[0][1], "Bez": name, "Datei": ""}
-                        ausgabe = AfpSQLTableSelection(self.data.get_mysql(), "AUSGABE", self.debug, "BerichtNr", self.data.get_selection("AUSGABE").get_feldnamen())
-                        ausgabe.new_data()
-                        ausgabe.set_data_values(data)
-                        ausgabe.store()
-                        BNr = ausgabe.get_string_value("BerichtNr")
-                        destination = self.globals.get_value("templatedir") + "BusAfp_template_" + BNr + ".fodt"
-                        Afp_copyFile(filename, destination)
-                        ind = list_Report_index + 1
-                        self.reportname.insert(ind, name)
-                        self.reportlist.insert(ind, BNr)
-                        self.reportflag.insert(ind, True)
-                        self.reportdel.insert(ind, True)
-                        self.list_Report.Clear()
-                        self.list_Report.InsertItems(self.reportname, 0)
-        self.choice_Bearbeiten.SetSelection(0)
-        event.Skip()  
-    ## Eventhandler BUTTON - Cancel button pushed
-    # @param event - event which initiated this action
-    def On_Rep_Abbr(self,event):
-        if self.debug: print "Event handler `On_Rep_Abbr'"
-        self.Destroy()
-        event.Skip()
-    ## Eventhandler BUTTON - Ok button pushed
-    # @param event - event which initiated this action
-    def On_Rep_Ok(self,event):
-        if self.debug: print "Event handler `On_Rep_Ok'"
-        self.archivname = None
-        if self.datas:
-            for data in self.datas:
-                self.datasindex = self.datas.index(data)
-                self.data = data
-                self.generate_Ausgabe()
-        else:
-            self.generate_Ausgabe()
-        if self.archivname:
-            select = self.data.get_selection("ARCHIV")
-            if select: select.store()
-        self.Destroy()
-        event.Skip()
-
-## loader routine for dialog DiReport \n
-# for multiple output use 'datalist' as input for a list of 'AfpSelectionList's
-# @param data - SelectionList to be used for output
-# @param globals - global variables to hold path values for output
-# @param header - if given, text displayed in header of dialog
-# @param prefix - if given, prefix for output name creation and archiv entry
-# @param archivtext - if given, preset text for archiv entry
-# @param datalist - if given, list of SelectionLists to , entries are filled consecutively into  'selectionlist' for multiple putput
-def AfpLoad_DiReport(selectionlist, globals, header = "", prefix = "", archivtext = None, datalist = None):
-    DiReport = AfpDialog_DiReport(None)
-    DiReport.attach_data(selectionlist, globals, header, prefix, datalist)
-    if archivtext: DiReport.preset_text_bem(archivtext)
-    DiReport.ShowModal()
-    DiReport.Destroy()
-
-   
-## Dialog for the commen unrestricted selection of data from a database table \n
+## Base class for dialog for the commen unrestricted selection of data from a database table \n
 # the following routines must be supplied in the derived class: \n
 #  "self.get_grid_felder()"      for selection grid population \n
 #  "self.invoke_neu_dialog()" to generate a new database entry
@@ -1482,332 +1051,3 @@ class AfpDialog_DiAusw(wx.Dialog):
         # invoke the dialog for a new entry (to be overwritten)
         AfpReq_Info("Funktion 'Neu' nicht eingebaut!","Meist ist der Grund dazu Doppeleingaben zu vermeiden.","Funktion 'Neu'")
         return False
-
-## base class for Screens
-class AfpScreen(wx.Frame):
-    ## constructor
-    def __init__(self, *args, **kwds):
-        kwds["style"] = wx.DEFAULT_FRAME_STYLE
-        wx.Frame.__init__(self, *args, **kwds)
-        self.typ = None
-        self.debug = False
-        self.globals = None
-        self.mysql = None
-        self.setting = None
-        self.sb = None
-        self.sb_filter = ""
-        self.menu_items = {}
-        self.textmap = {}
-        self.choicemap = {}
-        self.extmap = {}
-        self.listmap =[]
-        self.list_id = {}
-        self.gridmap = []
-        self.grid_id = {}
-        self.grid_minrows = {}
-        self.filtermap = {}
-        self.indexmap = {}
-        self.no_keydown = []     
-        self.buttoncolor = (230,230,230)
-        self.actuelbuttoncolor = (255,255,255)
-        self.panel = wx.Panel(self, -1, style = wx.WANTS_CHARS) 
-        
-    ## connect to database and populate widgets
-    # @param globals - global variables, including database connection
-    # @param sb - AfpSuperbase database object , if supplied, otherwise it is created
-    # @param origin - string from where to get data for initial record, 
-    # to allow syncronised display of screens (only works if 'sb' is given)
-    def init_database(self, globals, sb, origin):
-        self.create_menubar()
-        self.create_modul_buttons()
-        self.globals = globals
-        # set header
-        self.SetTitle(self.GetTitle() + " " + globals.get_host_header())
-        # shortcuts for convienence
-        self.mysql = self.globals.get_mysql()
-        self.debug = self.globals.is_debug()
-        #self.debug = True
-        self.globals.set_value(None, None, self.typ)
-        self.load_additional_globals()
-        # add 'Einsatz' moduls if desired
-        if hasattr(self,'einsatz'):
-            self.einsatz = Afp_importAfpModul("Einsatz", globals)
-        else:
-            self.einsatz = None
-        print "AfpScreen.init_database Einsatz:", self.einsatz
-        # Keyboard Binding
-        self.no_keydown = self.get_no_keydown()
-        self.panel.Bind(wx.EVT_KEY_DOWN, self.On_KeyDown)
-        self.panel.SetFocus()
-        children = self.panel.GetChildren()
-        for child in children:
-            if not child.GetName() in self.no_keydown:
-                child.Bind(wx.EVT_KEY_DOWN, self.On_KeyDown)
-        # generate Superbase
-        setting = self.globals.get_setting(self.typ)
-        if not self.debug and not setting is None: 
-            if setting.exists_key("debug"):
-                self.debug = setting.get("debug")
-        if sb:
-            self.sb = sb
-        else:
-            self.sb = AfpSuperbase(self.globals, self.debug)
-        dateien = self.get_dateinamen()
-        for datei in dateien:
-            self.sb.open_datei(datei)
-        self.set_initial_record(origin)
-        self.set_current_record()
-        self.Populate()
-    
-    ## create menubar and add common items \n
-    # menubar implementation has only be done to this point, specific Afp-modul menues are not yet implemented
-    def create_menubar(self):
-        self.menubar = wx.MenuBar()
-        tmp_menu = wx.Menu()
-        modules = Afp_ModulNames()
-        for mod in modules:
-            new_id = wx.NewId()
-            self.menu_items[new_id] = wx.MenuItem(tmp_menu, new_id, mod, "", wx.ITEM_CHECK)
-            tmp_menu.AppendItem(self.menu_items[new_id])
-        new_id = wx.NewId()
-        self.menu_items[new_id] = wx.MenuItem(tmp_menu, new_id, "Beenden", "")
-        tmp_menu.AppendItem(self.menu_items[new_id])
-        self.menubar.Append(tmp_menu, "Bildschirm")
-        tmp_menu = wx.Menu() 
-        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "Info", "")
-        self.Bind(wx.EVT_MENU, self.On_ScreenInfo, mmenu)
-        tmp_menu.AppendItem(mmenu)
-        self.menubar.Append(tmp_menu, "?")
-        self.SetMenuBar(self.menubar)
-        for id in self.menu_items:
-            self.Bind(wx.EVT_MENU, self.On_Screenitem, self.menu_items[id])
-            if self.menu_items[id].GetText() == self.typ: self.menu_items[id].Check(True)
-   
-    ## create buttons to switch modules 
-    def create_modul_buttons(self):
-        modules = Afp_ModulNames()
-        panel = self.panel
-        cnt = 0
-        self.button_modules = {}
-        for mod in modules:
-            self.button_modules[mod] = wx.Button(panel, -1, label=mod, pos=(35 + cnt*80,10), size=(75,30), name="B"+ mod)
-            self.Bind(wx.EVT_BUTTON, self.On_ScreenButton, self.button_modules[mod])
-            cnt += 1
-            if mod == self.typ:
-                self.button_modules[mod] .SetBackgroundColour(self.actuelbuttoncolor)
-            else:
-                self.button_modules[mod] .SetBackgroundColour(self.buttoncolor)
-
-    ## resize grid rows
-    # @param name - name of grid
-    # @param grid - the grid object
-    # @param new_lgh - new number of rows to be populated
-    def grid_resize(self, name, grid, new_lgh):
-        if new_lgh < self.grid_minrows[name]:
-            new_lgh =  self.grid_minrows[name]
-        old_lgh = grid.GetNumberRows()
-        if new_lgh > old_lgh:
-            grid.AppendRows(new_lgh - old_lgh)
-        elif  new_lgh < old_lgh:
-            for i in range(new_lgh, old_lgh):
-                grid.DeleteRows(1)
-      
-    ## Eventhandler Menu - show info dialog box
-    def On_ScreenInfo(self,event):
-        if self.debug: print "AfpScreen Event handler `On_ScreenInfo'!"
-        AfpReq_Information(self.globals)
-      
-    ## Eventhandler Menu - switch between screen
-    def On_Screenitem(self,event):
-        if self.debug: print "AfpScreen Event handler `On_Screenitem'!"
-        id = event.GetId()
-        item = self.menu_items[id]
-        text = item.GetText() 
-        #print id, text
-        if text == self.typ:
-            item.Check(True)
-        elif text == "Beenden":
-            self.On_Ende(event)
-        else:
-            # Afp_writeTarget(self.globals, text, self.typ)
-            Afp_loadScreen(self.globals, text, self.sb, self.typ)
-            self.Close()
-        #event.Skip() #invokes eventhandler twice on windows
-
-    ## Enventhandler BUTTON - switch modules
-    def On_ScreenButton(self,event):
-        if self.debug: print "AfpScreen Event handler `On_ScreenButton'!"
-        object = event.GetEventObject()
-        name = object.GetName()
-        text = name[1:]
-        if not text == self.typ:
-            Afp_loadScreen(self.globals, text, self.sb, self.typ)
-            self.Close()
-        #event.Skip() #invokes eventhandler twice on windows
-      
- ## Eventhandler BUTTON - quit
-    def On_Ende(self,event):
-        if self.debug: print "AfpScreen Event handler `On_Ende'!"
-        self.Close()
-        event.Skip()
-
-    ## Eventhandler Keyboard - handle key-down events
-    def On_KeyDown(self, event):
-        keycode = event.GetKeyCode()
-        if self.debug: print "AfpScreen Event handler `On_KeyDown'", keycode
-        #print "AfpScreen Event handler `On_KeyDown'", keycode
-        next = 0
-        if keycode == wx.WXK_LEFT: next = -1
-        if keycode == wx.WXK_RIGHT: next = 1
-        if next: self.CurrentData(next)
-        event.Skip()
-     
-    ## Population routines for form and widgets
-    def Populate(self):
-        self.Pop_text()
-        self.Pop_ext()
-        self.Pop_grid()
-        self.Pop_list()
-    ## populate text widgets
-    def Pop_text(self):
-        for entry in self.textmap:
-            TextBox = self.FindWindowByName(entry)
-            value = self.sb.get_string_value(self.textmap[entry])
-            TextBox.SetValue(value)
-    ## populate external file textboxes
-    def Pop_ext(self):
-        delimiter = self.globals.get_value("path-delimiter")
-        for entry in self.extmap:
-            filename = ""
-            TextBox = self.FindWindowByName(entry) 
-            text = self.sb.get_string_value(self.extmap[entry])
-            file= Afp_archivName(text, delimiter)
-            if file:
-                filename = self.globals.get_value("archivdir") + file
-                if not Afp_existsFile(filename): 
-                    #if self.debug: 
-                    print "WARNING in AfpScreen: External file", filename, "does not exists!"
-                    filename = ""
-            if filename:
-                #print "AfpScreen LoadFile", self.extmap[entry], filename
-                TextBox.LoadFile(filename)
-            else:
-                TextBox.Clear()
-                #print "AfpScreen SetValue", self.extmap[entry], text
-                if text: TextBox.SetValue(text)
-        # print "Population routine`Pop_text'!"
-    ## populate lists
-    def Pop_list(self):
-        for entry in self.listmap:
-            rows = self.get_list_rows(entry)
-            list = self.FindWindowByName(entry)
-            if None in rows:
-                ind = rows.index(None)
-                self.list_id[entry] = rows[ind+1:]
-                rows = rows[:ind]
-            list.Clear()
-            list.InsertItems(rows, 0)
-    ## populate grids
-    # @param name - if given ,name of grid to be populated 
-    def Pop_grid(self, name = None):
-        for typ in self.gridmap:
-            if not name or typ == name:
-                rows = self.get_grid_rows(typ)
-                grid = self.FindWindowByName(typ)
-                self.grid_resize(typ, grid, len(rows))
-                self.grid_id[typ] = []
-                row_lgh = len(rows)
-                max_col_lgh = grid.GetNumberCols()
-                if rows: act_col_lgh = len(rows[0]) - 1
-                for row in range(0,row_lgh):
-                    for col in range(0,max_col_lgh):
-                        if col >= act_col_lgh:
-                            grid.SetCellValue(row, col, "")
-                        else:
-                            grid.SetCellValue(row, col, rows[row][col])
-                    self.grid_id[typ].append(rows[row][act_col_lgh])
-                if row_lgh < self.grid_minrows[typ]:
-                    for row in range(row_lgh, self.grid_minrows[typ]):
-                        for col in range(0,max_col_lgh):
-                            grid.SetCellValue(row, col,"")
-   
-    ## reload current data to screen
-    def Reload(self):
-        self.sb.select_current()
-        self.Populate()
-         
-    ## set current screen data
-    # @param plus - indicator to step forwards, backwards or stay
-    def CurrentData(self, plus = 0):
-        if self.debug: print "AfpScreen.CurrentData", plus
-        #self.sb.set_debug()
-        if plus == 1:
-            self.sb.select_next()
-        elif plus == -1:
-            self.sb.select_previous()
-        self.set_current_record()
-        #self.sb.unset_debug()
-        self.Populate()
-
-    # routines to be overwritten in explicit class
-    ## load additional global data for this Afp-modul
-    # default - empty, to be overwritten if needed
-    def load_additional_globals(self): # only needed if globals for additonal moduls have to be loaded
-        return
-    ## set current record to be displayed 
-    # default - empty, to be overwritten if changes have to be diffused to other the main database table
-    def set_current_record(self): 
-        return   
-    ## set initial record to be shown, when screen opens the first time
-    # default - empty, should be overwritten to assure consistant data on frist screen
-    # @param origin - string where to find initial data
-    def set_initial_record(self, origin = None):
-        return
-    ## get identifier of graphical objects, 
-    # where the keydown event should not be catched
-    # default - empty, to be overwritten if needed
-    def get_no_keydown(self):
-        return []
-    ## get names of database tables to be opened for the screen
-    # default - empty, has to be overwritten
-    def get_dateinamen(self):
-        return []
-    ## get rows to populate lists \n
-    # default - empty, to be overwritten if grids are to be displayed on screen \n
-    # possible selection criterias have to be separated by a "None" value
-    # @param typ - name of list to be populated 
-    def get_list_rows(self, typ):
-        return [] 
-    ## get grid rows to populate grids \n
-    # default - empty, to be overwritten if grids are to be displayed on screen
-    # @param typ - name of grid to be populated
-    # - REMARK: last column will not be shown, but stored for identifiction
-    def get_grid_rows(self, typ):
-        return []
-# End of class AfpScreen
-
-## loader roution for Screens
-# @param globals - global variables, holding mysql access
-# @param modulname - name of modul this screen belongs to, the appropriate modulfile will be imported
-# @param sb - AfpSuperbase object which holds the current settings on the mysql tables
-# @param origin - value which identifies mysql tableentry to be displayed
-# the parameter 'sb' and 'origin' may only be used aternatively
-def Afp_loadScreen(globals, modulname, sb = None, origin = None):
-    Modul = None
-    moduls = Afp_ModulNames()
-    if modulname in moduls:
-        screen = "Afp" + modulname[:2] + "Screen" 
-        modname = "Afp" + modulname + "." + screen 
-        #print "Afp_loadScreen:", modname
-        pyModul =  Afp_importPyModul(modname, globals)
-        #print "Afp_loadScreen:", pyModul
-        pyBefehl = "Modul = pyModul." + screen + "()"
-        #print "Afp_loadScreen:", pyBefehl
-        exec pyBefehl
-    if Modul:
-        Modul.init_database(globals, sb, origin)
-        Modul.Show()
-        return Modul
-    else:
-        return None
-        

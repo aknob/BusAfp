@@ -42,8 +42,10 @@ from AfpBase.AfpUtilities.AfpBaseUtilities import Afp_existsFile
 from AfpBase.AfpDatabase import *
 from AfpBase.AfpDatabase.AfpSQL import AfpSQL
 from AfpBase.AfpDatabase.AfpSuperbase import AfpSuperbase
-#from AfpBase.AfpBaseRoutines import AfpPy_Import, Afp_archivName, Afp_startFile
-from AfpBase.AfpBaseDialog import AfpReq_Information, AfpScreen, AfpReq_Info, AfpReq_Question
+from AfpBase.AfpBaseRoutines import AfpMailSender
+from AfpBase.AfpBaseDialog import AfpReq_Information, AfpReq_Info, AfpReq_Question
+from AfpBase.AfpBaseDialogCommon import Afp_editMail
+from AfpBase.AfpBaseScreen import AfpScreen
 from AfpBase.AfpBaseAdRoutines import AfpAdresse_StatusMap, AfpAdresse
 from AfpBase.AfpBaseAdDialog import AfpLoad_DiAdEin_fromSb, AfpLoad_AdAusw
 
@@ -172,11 +174,36 @@ class AfpAdScreen(AfpScreen):
         self.gridmap.append("Archiv")
         self.grid_minrows["Archiv"] = self.grid_archiv.GetNumberRows()
 
-        # MENU Bindings
-        #self.Bind(wx.EVT_MENU, self.On_MAdresse, self.MAdresse)
-        #self.Bind(wx.EVT_MENU, self.On_MTouristik, self.MTouristik)
+    ## compose address specific menu parts
+    def create_specific_menu(self):
+        # setup address menu
+        tmp_menu = wx.Menu() 
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Anfrage", "")
+        self.Bind(wx.EVT_MENU, self.On_MAnfrage, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Suchen", "")
+        self.Bind(wx.EVT_MENU, self.On_Adresse_AuswErw, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Bearbeiten", "")
+        self.Bind(wx.EVT_MENU, self.On_Adresse_AendF, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&E-Mail versenden", "")
+        self.Bind(wx.EVT_MENU, self.On_MEMail, mmenu)
+        tmp_menu.AppendItem(mmenu)
+        self.menubar.Append(tmp_menu, "Adresse")
+        # setup address menu
+        #tmp_menu = wx.Menu() 
+        #mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Suche", "")
+        #self.Bind(wx.EVT_MENU, self.On_MAddress_search, mmenu)
+        #tmp_menu.AppendItem(mmenu)
+        #mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "Be&arbeiten", "")
+        #self.Bind(wx.EVT_MENU, self.On_Adresse_aendern, mmenu)
+        #tmp_menu.AppendItem(mmenu)
+        #self.menubar.Append(tmp_menu, "Adresse")
+        return
+
       
-    ## Eventhandler BUTTON - select other address, either direkt or via attribut
+    ## Eventhandler MENU; BUTTON - select other address, either direkt or via attribut
     def On_Adresse_AuswErw(self,event):
         if self.debug: print "Event handler `On_Adresse_AuswErw'!"
         #self.sb.set_debug()
@@ -230,7 +257,7 @@ class AfpAdScreen(AfpScreen):
     def On_Adresse_Listen(self,event):
         print "Event handler `On_Adresse_Listen' not implemented!"
         event.Skip()
-    ## Eventhandler BUTTON - change address
+    ## Eventhandler MENU, BUTTON - change address
     def On_Adresse_AendF(self,event):
         if self.debug: print "AfpAdScreen Event handler `On_Adresse_AendF'"
         AfpLoad_DiAdEin_fromSb(self.globals, self.sb)
@@ -292,16 +319,18 @@ class AfpAdScreen(AfpScreen):
         print "Event handler `On_CStatus' only implemented to reset selection!"
         event.Skip()
         
-    ## Eventhandler MENU - address menu - not yet implemented! \n
-    # Probably not needed!
-    def On_MAdresse(self, event):
-        print "Event handler `On_MAdresse' not implemented!"
+    ## Eventhandler MENU - add an enquirery - not yet implemented! \n
+    def On_MAnfrage(self, event):
+        print "Event handler `On_MAnfrage' not implemented!"
         event.Skip()
-
-    ## Eventhandler MENU - address menu - not yet implemented!
-    # Probably not needed!
-    def On_MTouristik(self, event):
-        print "Event handler `On_MTouristik' not implemented!"
+    ## Eventhandler MENU - send an e-mail - not yet implemented! 
+    def On_MEMail(self, event):
+        if self.debug: print "Event handler `On_MEMail'"
+        mail = AfpMailSender(self.globals, self.debug)
+        an = self.sb.get_value("Mail.ADRESSE")
+        if an: mail.add_recipient(an)
+        mail, send = Afp_editMail(mail)
+        if send: mail.send_mail()
         event.Skip()
       
     ## set right status-choice for this address
@@ -322,6 +351,10 @@ class AfpAdScreen(AfpScreen):
         self.combo_Filter_Merk.AppendItems(values)
       
     # routines to be overwritten in explicit class
+    ## generate AfpAdresse object from the present screen, overwritten from AfpScreen
+    # @param complete - flag if all TableSelections should be generated
+    def get_data(self, complete = False):
+        return  AfpAdresse(self.globals, None, self.sb, self.sb.debug, complete)
     ## set current record to be displayed 
     # (overwritten from AfpScreen) 
     def set_current_record(self):

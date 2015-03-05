@@ -33,7 +33,7 @@ import wx
 import sys
 import os.path
 import AfpBase
-from AfpBase import AfpDatabase, AfpBaseDialog, AfpGlobal
+from AfpBase import AfpDatabase, AfpBaseDialog, AfpBaseScreen ,AfpGlobal
 from AfpBase.AfpDatabase import AfpSQL
 
 ## main class to invoke BusAfp Software
@@ -97,7 +97,7 @@ class BusAfp(wx.App):
     ## load appropriate modul     
     # @param modulname - afp-modul name to be loaded
     def load_module(self, modulname):
-        Modul = AfpBase.AfpBaseDialog.Afp_loadScreen(self.globals, modulname)
+        Modul = AfpBase.AfpBaseScreen.Afp_loadScreen(self.globals, modulname)
         if Modul: 
             self.SetTopWindow(Modul)
             return True

@@ -440,7 +440,7 @@ class AfpSQLTableSelection(object):
         self.data = []
         if not empty: self.add_data_row(no_criteria)
     ## add empy data row to data
-    # @param no_criteria - flag if selection criteria should be spread into new row (false) or not (trus)
+    # @param no_criteria - flag if selection criteria should be spread into new row (false) or not (true)
     def add_data_row(self, no_criteria = False):
         data = []
         for feld in self.feldnamen:
@@ -599,6 +599,11 @@ class AfpSQLTableSelection(object):
         print "AfpSQLTableSelection.set_data_value:", changed_data
         for data in changed_data:
             self.set_value(data, changed_data[data], row)
+    ## add a row with data values from given dictionary
+    # @param changed_data - dictionary holding appropriate value in entry [column name]
+    def add_data_values(self, changed_data):
+        row = self.add_data_row(True)
+        self.set_data_values(changed_data, row)
     ## set or if already set, reset manipulation entry
     # @param feldname - name of column
     # @param row - index of row
