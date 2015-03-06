@@ -72,9 +72,13 @@ def Afp_iniGlobalVars(settings):
     if not "afpdir" in settings:
         settings["afpdir"] = settings["homedir"]
     if not "templatedir" in settings:
-        settings["templatedir"] = settings["afpdir"] + "template" + settings["path-delimiter"]
+        settings["templatedir"] = settings["afpdir"] + "Template" + settings["path-delimiter"]
     if not "archivdir" in settings:
         settings["archivdir"] = settings["afpdir"] + "Archiv" + settings["path-delimiter"]
+    if not "antiquedir" in settings:
+        settings["antiquedir"] = settings["archivdir"]
+    if not "extradir" in settings:
+        settings["extradir"] =  settings["afpdir"] + "Extra" + settings["path-delimiter"]
     if not "Standartort" in settings:
         settings["Standartort"] = "Braunschweig"
     # set default file handles (not needed for windows)
@@ -227,12 +231,12 @@ class AfpGlobal(object):
     def get_mysql(self):
         return self.mysql
     ## add another modul setting
-    # @param modul - name of afp-module using these settings
+    # @param module - name of afp-module using these settings
     # @param setting - settings
     def add_setting(self, module, setting):
         self.settings[module] = setting
     ## return setting
-    # @param modul - if given, name of afp-module using returned settings
+    # @param module - if given, name of afp-module using returned settings
     def get_setting(self, module = None):
         if module is None: return self.setting   
         if module in self.settings: return self.settings[module]
@@ -240,7 +244,7 @@ class AfpGlobal(object):
     ## set value in settings
     # @param name - name of variable to be set
     # @param value - value of variable
-    # @param modul - if given, name of afp-module using returned settings
+    # @param module - if given, name of afp-module using returned settings
     def set_value(self, name, value, module = None):
         set = self.get_setting(module)
         if set is None and module:
@@ -266,13 +270,13 @@ class AfpGlobal(object):
         if developer: self.set_value("developer", developer)
     ## retrieve value as a string
     # @param name - name of variable to be retrieved
-    # @param modul - if given, name of afp-module otherwise get value from common variables
+    # @param module - if given, name of afp-module otherwise get value from common variables
     def get_string_value(self, name, module = None):
         value = self.get_value(name, module)
         return Afp_toString(value)
     ## retrieve value
     # @param name - name of variable to be retrieved
-    # @param modul - if given, name of afp-module otherwise get value from common variables
+    # @param module - if given, name of afp-module otherwise get value from common variables
     def get_value(self, name, module = None):
         set = self.get_setting(module)
         if set is None and module:
@@ -307,7 +311,7 @@ class AfpGlobal(object):
                     if not pythonpath: pythonpath = self.get_value("start-path")
                     setting.settings["Info"] = Afp_getModulInfo(setting.modul, self.get_value("path-delimiter"), pythonpath)
                 infos += setting.get("Info")
-        return infos
+        return infos[:-1]
     # shortcuts to common flags and variables
     ## return if accounting should be skipped
     def skip_accounting(self):

@@ -118,6 +118,7 @@ class AfpDialog_ChAusw(AfpDialog_DiAusw):
 # @param index - column which should give the order
 # @param value -  if given,initial value to be searched
 # @param where - if given, filter for search in table
+# @param ask - flag if it should be asked for a string before filling dialog
 def AfpLoad_ChAusw(globals, index, value = "", where = None, ask = False):
     result = None
     Ok = True
@@ -721,6 +722,7 @@ class AfpDialog_DiChEin(AfpDialog):
 # end of class AfpDialog_DiChEin
 
 ## loader routine for dialog DiChEin \n
+# @param Charter - AfpCharter data to be altered
 # @param eingabe - if given, address identification number to generate a new charter entry
 def AfpLoad_DiChEin(Charter, eingabe = None):
     DiChEin = AfpDialog_DiChEin(None)
@@ -730,12 +732,14 @@ def AfpLoad_DiChEin(Charter, eingabe = None):
     DiChEin.Destroy()
     return Ok  
 ## loader routine for dialog DiChEin according to the given superbase object \n
+# @param globals - global variables holding database connection
 # @param sb - AfpSuperbase object, where data can be taken from
 # @param eingabe - if given, address identification number to generate a new charter entry
 def AfpLoad_DiChEin_fromSb(globals, sb, eingabe = None):
     Charter = AfpCharter(globals, None, sb, sb.debug, False)
     return AfpLoad_DiChEin(Charter, eingabe)
 ## loader routine for dialog DiChEin according to the given charter identification number \n
+# @param globals - global variables holding database connection
 # @param fahrtnr -  identification number of charter to be filled into dialog
 def AfpLoad_DiChEin_fromFNr(globals, fahrtnr):
     Charter = AfpCharter(globals, fahrtnr)

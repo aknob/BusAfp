@@ -260,20 +260,16 @@ def AfpReq_Printer(frame):
 # @param globals - global variables to hold information data \n
 # used values are - name, version, description, copyright, website, license, developer
 def AfpReq_Information(globals):
-    pversion = globals.get_value("python-version").split("(")[0]
-    myversion = globals.mysql.version.split("-")[0]
-    wxversion = wx.version().split("(")[0]
-    version = "python: " + pversion + '\n' + " wx: " + wxversion + '\n' + " mysql: " + myversion + '\n\n'
     imagefile = Afp_addRootpath(globals.get_value("start-path"), globals.get_value("picture"))
     info = wx.AboutDialogInfo()
     info.SetIcon(wx.Icon(imagefile, wx.BITMAP_TYPE_PNG))
     info.SetName(globals.get_string_value("name"))
     info.SetVersion(globals.get_string_value("version"))
-    info.SetDescription(version + globals.get_string_value("description"))
+    info.SetDescription(globals.get_string_value("description"))
     info.SetCopyright(globals.get_string_value("copyright"))
     info.SetWebSite(globals.get_string_value("website"))
     info.SetLicence(globals.get_string_value("license")) 
-    info.AddDeveloper(globals.get_string_value("developer") + '\n' + globals.get_modul_infos())
+    info.AddDeveloper(globals.get_string_value("developer"))
     docwriter = globals.get_string_value("docwriter")
     if docwriter: info.AddDocWriter(docwriter)
     artist = globals.get_string_value("artist")
@@ -318,6 +314,9 @@ class AfpDialog_TextEditor(wx.Dialog):
     ## attach header, text and size to dialog
     # @param header - text to be displayed in the window top ribbon
     # @param text - text to be displayed and manipulated
+    # @param label1 - text to be displayed on first line above editorfield
+    # @param label2 - text to be displayed on secpond line above editorfield
+    # @param label_low - text to be displayed on below editorfield
     # @param size - size of dialog
     def attach_text(self, header, text, label1, label2, label_low, size):
         self.SetSize(size)
@@ -775,14 +774,14 @@ class AfpDialog_DiAusw(wx.Dialog):
     # @param value - actuel index value for this selection
     # @param where - filter for this selection
     # @param text - text to be displayed above selection list
-    def initialize(self, globals, Index, value, where, text):
+    def initialize(self, globals, index, value, where, text):
         value = Afp_toInternDateString(value)
         self.globals = globals
         self.mysql = globals.get_mysql()
         self.debug = self.mysql.get_debug()
         #self.datei = Datei.upper()
         self.dateien = self.datei
-        self.index = Index
+        self.index = index
         self.search = value
         # initialize grid
         if self.globals.os_is_windows():

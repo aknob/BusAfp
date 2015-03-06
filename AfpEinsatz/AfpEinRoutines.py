@@ -161,7 +161,7 @@ class AfpEinsatz(AfpSelectionList):
         return days, hours
     ## extract spesen from working days and hours
     # @param tage - complete working days
-    # @param hours - hours not fitting into a complete working days
+    # @param std - hours  (Stunden) not fitting into a complete working days
     def get_spesen(self, tage, std = None):
         spesen = 0.0
         if tage:

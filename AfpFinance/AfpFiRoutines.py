@@ -437,9 +437,8 @@ class AfpFinanceTransactions(AfpSelectionList):
 class AfpFinanceExport(AfpSelectionList):
     ## initialize class
     # @param globals - global values including the mysql connection - this input is mandatory
-    # @param period - [startdate, enddate] for data to be exported
-    # @param filename - name of exportfile
-    # @param tables - list of tables where data should be extracted 
+    # @param period - if given, [startdate, enddate] for data to be exported otherwise selectionlists must be given
+    # @param selectionlists - if given and no period given, SelectionLists holdin the data to be exported
     # @param only_payment - flag if only payments shouzld be extracted
     # - None: all entries are extracted
     # - False: only internal transitions are extracted

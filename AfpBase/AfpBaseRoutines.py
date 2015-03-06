@@ -155,7 +155,37 @@ def Afp_archivName(text, delimiter):
             else:
                 filename = Afp_pathname(text, delimiter, True) 
     return filename
-   
+  
+## read extra info from file
+# @param fname - name of file to be checked
+def Afp_readExtraInfo(fname):
+    lines = Afp_readLinesFromFile(fname, 5)
+    modul = None
+    text = fname
+    for i in range(2,4):
+        if lines[i][:11] == "# AfpModul:":
+            modul = lines[i].split(":")[1].strip()
+        elif lines[i][:13] == "# AfpPurpose:":
+            text = lines[i].split(":")[1].strip()
+    #print "Afp_readExtraInfo:", modul, text
+    return modul, text
+##  starts an extra python-programfile delivered as extension to this program \n
+# in this case the file must hold a routine "AfpExtra(globals, debug)"
+# @param filepath - name and path of file to be opened
+# @param globals - global variables
+# @param debug - flag for debug messages
+def Afp_startExtraProgram(filepath, globals, debug = False):
+    if debug: print "Afp_startExtraProgram:",filepath
+    split = filepath.split(globals.get_value("path-delimiter"))
+    modul = split[-1]
+    path = filepath[:-len(modul)]
+    modul = modul.split(".")[0]
+    pymodul = AfpPy_Import(modul, path)
+    if pymodul:
+        pymodul.AfpExtra(globals, debug)
+    else:
+        print "WARNING: extra program not available -",filepath
+        
 ##  starts a programfile with the associated program
 # @param filename - name of file to be opened
 # @param globals - global variables to hold file associations
@@ -660,7 +690,7 @@ class AfpSelectionList(object):
         if value:
             if Afp_isString(value):
                 if len(value) == 16 and value[:6] == "Archiv" and value[-4:] == ".sbt":
-                    fname = self.globals.get_value("archivdir") + Afp_archivName(value, self.globals.get_value("path-delimiter"))
+                    fname = self.globals.get_value("antiquedir") + Afp_archivName(value, self.globals.get_value("path-delimiter"))
                     wert = Afp_importFileData(fname)
                 else:
                     wert = value
@@ -927,8 +957,10 @@ class AfpExport(object):
                         select.data[i][indices[j]] = data
             self.data = select
     ## writes data to fixed lenght ascii file
-    # @param fieldlist - array with names of values read from data 
-    # @param info - length of each fields (default: 50)
+    # @param data - array with names of values read from data 
+    # @param fixed - length of each fields, if not given the following parameters are used
+    # @param separator - field separator to be used
+    # @param paranthesis - paranthesis to be used to enclose strings
     def write_ascii_field(self, data, fixed, separator, paranthesis):
         string = Afp_toString(data)
         if fixed:
@@ -1049,6 +1081,7 @@ class AfpMailSender(object):
         elif self.message is None and self.htmltext is None:
             ready = False
         return ready
+    ## fill line with attachment names
     def get_attachment_names(self):
         deli = self.globals.get_value("path-delimiter")
         attachs = ""
@@ -1082,7 +1115,7 @@ class AfpMailSender(object):
         if Afp_existsFile(filename):
             self.attachments.append(filename)
     ## add attachment file to message (may be invoked several times)
-    # @param filename - path of file to be attached
+    # @param recipient - mail address where mail is to be send to
     def add_recipient(self, recipient):
         if Afp_isMailAddress(recipient):
             self.recipients.append(recipient)

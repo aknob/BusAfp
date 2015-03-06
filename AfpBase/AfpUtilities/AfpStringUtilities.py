@@ -307,6 +307,7 @@ def Afp_ArrayfromLine(line):
     return result
 ##merges an array into one string, separated by blanks
 # @param liste - list of values to be merged
+# @param separator - lelement to be filled between the values
 # @param max - maximum number of elements used for merging
 def Afp_ArraytoLine(liste, separator = " ", max = None):
     if max is None: max = len(liste) 
@@ -606,7 +607,7 @@ def Afp_splitFormula(string):
     if wort: vars.append(wort.strip())
     return vars, signs  
  
- ## split string at different limiters
+## split string at different limiters
 # @param in_string - string to be analysed
 # @param limiters - list of limiters where string has to be split
 def Afp_split(in_string, limiters):
@@ -795,7 +796,7 @@ def Afp_SbToDbName(string,dateien):
         out_string += out_unmasked[i]
         if i < lghm: out_string += " \"" + masked[i] + "\""
     return out_string
- ## complete the select statement with the .table extension for all tablecolumns
+## complete the select statement with the .table extension for all tablecolumns
 # @param select - select statement to be completetd 
 # @param dbname - name of table for extensions
 def AfpSelectEnrich_dbname(select, dbname):

@@ -33,23 +33,55 @@ import wx
 import wx.grid
 
 import AfpUtilities.AfpBaseUtilities
-from AfpUtilities.AfpBaseUtilities import Afp_existsFile, Afp_copyFile
+from AfpUtilities.AfpBaseUtilities import Afp_existsFile, Afp_copyFile, Afp_readFileNames
 import AfpUtilities.AfpStringUtilities
-from AfpUtilities.AfpStringUtilities import Afp_addRootpath, Afp_ArraytoLine, Afp_ArraytoString
+from AfpUtilities.AfpStringUtilities import Afp_addRootpath, Afp_ArraytoLine, Afp_toString, Afp_ArraytoString
 
 import AfpDatabase.AfpSQL
 from AfpDatabase.AfpSQL import AfpSQLTableSelection
 
 import AfpBaseRoutines
-from AfpBaseRoutines import Afp_archivName, Afp_startFile, Afp_printSelectionListDataInfo, AfpMailSender
+from AfpBaseRoutines import Afp_archivName, Afp_startFile, Afp_printSelectionListDataInfo, AfpMailSender, Afp_readExtraInfo
 import AfpBaseDialog
 from AfpBaseDialog import *
 import AfpAusgabe
 from AfpAusgabe import AfpAusgabe
 
     
- # Common dialog routines to be used in different modules
-
+# Common dialog routines to be used in different modules
+## show version information
+# @param globals - global variables holding information or delivering methods to extract information
+def AfpReq_Version(globals):
+    afpmainversion = globals.get_string_value("name") + " " + globals.get_string_value("version")
+    pversion = globals.get_value("python-version").split("(")[0]
+    myversion = globals.mysql.version.split("-")[0]
+    wxversion = wx.version().split("(")[0]
+    version = afpmainversion + '\n' + "python: " + pversion + '\n' + " wx: " + wxversion + '\n' + " mysql: " + myversion + '\n'
+    versions = globals.get_modul_infos()
+    AfpReq_Info(version, versions, "Versions Information")
+## select extra programs from directory
+# @param path - direcory where to look
+# @param modulname - name of modul program is designed for
+def AfpReq_extraProgram(path, modulname):
+    fname = None
+    ok = False
+    names = Afp_readFileNames(path, "*.py")
+    liste = []
+    fnames = []
+    for name in names:
+        modul, text = Afp_readExtraInfo(name)
+        text = Afp_toString(text)
+        if modul: text += " (" + modul +")"
+        if modul is None or modul == modulname:
+            liste.append(text)
+            fnames.append(name)
+    #print "AfpReq_extraProgram:", liste
+    if liste:
+        fname, ok = AfpReq_Selection("Bitte Zusatzprogramm auswählen, dass gestartet werden soll.".decode("UTF-8"), "", liste, "Zusatzprogramme", fnames)
+    else:
+        AfpReq_Info("Keine Zusatzprogramme vorhanden!","")
+    return fname, ok
+    
 ## common routine to invoke text editing \n
 #  depending on input the text is edited directly or loaded from an external file
 # @param input_text - text to be edited or relativ path to file
@@ -59,7 +91,7 @@ def Afp_editExternText(input_text, globals=None):
         delimiter = globals.get_value("path-delimiter")
         file= Afp_archivName(input_text, delimiter)
         if file:
-            file = globals.get_value("archivdir") + file
+            file = globals.get_value("antiquedir") + file
             if Afp_existsFile(file): 
                 with open(file,"r") as inputfile:
                     input_text = inputfile.read().decode('iso8859_15')
@@ -101,7 +133,7 @@ def Afp_editMail(mail):
                     recipients = line[3:].split(",")
                 elif "Von:" in line:
                     sender = line[4:].strip()
-                elif "Anlage:" in line:
+                elif "Anhang:" in line:
                     attachs = line[7:].split(",")
             else:
                 break
@@ -332,7 +364,7 @@ class AfpDialog_DiReport(wx.Dialog):
             else:
                 if template[:6] == "Archiv":
                     template = template[7:]
-                template = Afp_addRootpath(self.globals.get_value("archivdir"), template)
+                template = Afp_addRootpath(self.globals.get_value("antiquedir"), template)
             #print "get_template_name:", template      
         return template
     ## generate result filename due to list selection
@@ -480,7 +512,7 @@ class AfpDialog_DiReport(wx.Dialog):
 
 ## loader routine for dialog DiReport \n
 # for multiple output use 'datalist' as input for a list of 'AfpSelectionList's
-# @param data - SelectionList to be used for output
+# @param selectionlist - SelectionList to be used for output
 # @param globals - global variables to hold path values for output
 # @param header - if given, text displayed in header of dialog
 # @param prefix - if given, prefix for output name creation and archiv entry
@@ -661,9 +693,11 @@ class AfpDialog_editArchiv(AfpDialog):
  
 ## loader routine for dialog editArchiv \n
 # @param data - given SelectionList, where archiv should be manipulated
-def AfpLoad_editArchiv(data, text1, text2):
+# @param label1 - text to be displayed in first line
+# @param label2 - text to be displayed in second line
+def AfpLoad_editArchiv(data, label1, label2):
     dialog = AfpDialog_editArchiv(None)
-    dialog.attach_data(data, text1, text2)
+    dialog.attach_data(data, label1, label2)
     Ok = None
     if dialog.active():
         dialog.ShowModal()

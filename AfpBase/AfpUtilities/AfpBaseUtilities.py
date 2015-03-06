@@ -37,6 +37,7 @@ import platform
 import datetime
 import logging
 import shutil
+import glob
 # for email sending
 import smtplib
 from email.mime.text import MIMEText
@@ -125,7 +126,7 @@ def Afp_addDaysToDate(date, ndays, sign = "+"):
     return newdate
 ## return difference of two dates
 # @param start - startdate
-# @param end - enddate
+# @param ende - enddate
 def Afp_diffDays(start, ende):
     diff = ende - start
     if type(diff) == datetime.timedelta: 
@@ -303,6 +304,27 @@ def Afp_genEmptyFile(filename):
     fout = open(filename, 'w')
     fout.write(" ")
     fout.close()
+## generate an empty file
+# @param filename - name of file
+# @param max - if given, maximum numer of lines read
+def Afp_readLinesFromFile(filename, max = None):
+    fin = open(filename, 'r')
+    cnt = 0
+    lines = []
+    for line in fin:
+        lines.append(line)
+        cnt += 1
+        if max and cnt >= max: break
+    fin.close()
+    return lines
+## read filname from path
+# @param path - path to directory to be searched
+# @param filter - filter for filenames (e.g. "*.py")
+def Afp_readFileNames(path, filter):
+    liste = []
+    for fname in glob.glob(path + filter):
+        liste.append(fname)
+    return liste
 ## check if file exists
 # @param filename - name of file
 def Afp_existsFile(filename):

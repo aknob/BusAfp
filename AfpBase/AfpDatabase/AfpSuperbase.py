@@ -134,9 +134,9 @@ class AfpSbIndex(object):
     # @param index_ind -  index in fieldlist where data for this database-index comes from
     # @param db_cursor -  object (cursor) to point to database and allow queries
     # @param debug - flag for debug info
-    def  __init__(self, db, dateiname, Indexname, typename, index_ind, db_cursor, debug = False):
+    def  __init__(self, db, dateiname, indexname, typename, index_ind, db_cursor, debug = False):
         # name of the index
-        self.name = Indexname 
+        self.name = indexname 
         self.type = typename 
         self.db = db
         self.db_cursor = db_cursor
@@ -639,10 +639,10 @@ class AfpSbDatei(object):
     # @param dateiname - name of table to be used
     # @param db_cursor -  object (cursor) to point to database and allow queries
     # @param debug - flag for debug info
-    def  __init__(self, db, Dateiname, db_cursor, debug = False):
+    def  __init__(self, db, dateiname, db_cursor, debug = False):
         self.db = db
         self.db_cursor = db_cursor
-        self.name = Dateiname
+        self.name = dateiname
         self.debug = debug
         self.feld = None
         self.feldtyp = None
@@ -650,7 +650,7 @@ class AfpSbDatei(object):
         self.indexname = None
         self.CurrentIndex = None
         self.UniqueIndex = None
-        if self.debug: print "Superbase Datei Konstruktor",Dateiname      
+        if self.debug: print "Superbase Datei Konstruktor",dateiname      
         self.open()
     def __del__(self):
         if self.debug: print "Superbase Datei Destruktor",self.name

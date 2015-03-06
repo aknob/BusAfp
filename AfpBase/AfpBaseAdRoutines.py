@@ -60,6 +60,7 @@ def AfpAdresse_getAttributTagList(attribut):
 ##  get the list of indecies of address table,
 # @param mysql - database where values are retrieved from
 # @param index  -  name sort criterium initially selected
+# @param datei  -  name table to be used as primary
 def AfpAdresse_getOrderlistOfTable(mysql, index, datei = "ADRESSE"):
     if datei == "ADRESATT":
         keep = ["Name","KundenNr"]

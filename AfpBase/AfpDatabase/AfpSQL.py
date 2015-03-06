@@ -101,7 +101,7 @@ class AfpSQL(object):
         rows = self.db_cursor.fetchall ()
         return rows[0][0]
     ## return information of database table
-    # @param datai - name of table
+    # @param datei - name of table
     # @param typ - type of information ('fields' and 'index' implemented)
     # @param col_array - if given, array of colum indices to be extracted
     def get_info(self, datei, typ = "fields", col_array = None):

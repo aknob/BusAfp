@@ -107,6 +107,7 @@ def AfpAdDi_spezialAttribut(name, attribut, text, tag, no_delete = False):
 ## dialog for selection of adress data \n
 # selects an entry from the adress table
 class AfpDialog_AdAusw(AfpDialog_DiAusw):
+    ## initialise class
     def __init__(self):
         AfpDialog_DiAusw.__init__(self,None, -1, "")
         self.typ = "Adressenauswahl"
@@ -133,6 +134,7 @@ class AfpDialog_AdAusw(AfpDialog_DiAusw):
 ## dialog for adress selection from attribut \n 
 # selects an entry of the adress table by choosing from the attribut (AdresAtt) table   
 class AfpDialog_AdAttAusw(AfpDialog_DiAusw):
+    ## initialise class
     def __init__(self):
         AfpDialog_DiAusw.__init__(self,None, -1, "")
         self.typ = "Adressenauswahl"

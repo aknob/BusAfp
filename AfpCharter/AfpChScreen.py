@@ -336,7 +336,7 @@ class AfpChScreen(AfpScreen):
                 self.Reload()
         event.Skip()  
         
-     ## Eventhandler BUTTON , MENU - change charter
+    ## Eventhandler BUTTON , MENU - change charter
     def On_Fahrt_aendern(self,event):
         #self.sb.set_debug()      
         if self.debug: print "AfpChScreen Event handler `On_Fahrt_aendern'"
@@ -389,6 +389,8 @@ class AfpChScreen(AfpScreen):
                 file = Afp_archivName(rows[index], delimiter)
                 if file:
                     filename = Afp_addRootpath(self.globals.get_value("archivdir"), file)
+                    if not Afp_existsFile(filename):
+                        filename = Afp_addRootpath(self.globals.get_value("antiquedir"), file)
                     if Afp_existsFile(filename):
                         Afp_startFile(filename, self.globals, self.debug, True)
         event.Skip()

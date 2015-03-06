@@ -77,7 +77,7 @@ class BusAfp(wx.App):
          along with this program.  If not, see <http://www.gnu.org/licenses/>.
          """.decode("UTF-8") 
         picture = 'Bus_relief.png'
-        developers = "Andreas Knoblauch".decode("UTF-8")
+        developers = "Andreas Knoblauch - initiale Version".decode("UTF-8")
        
         self.globals = None
         self.module = None

@@ -35,11 +35,11 @@ import AfpDatabase.AfpSuperbase
 from AfpDatabase.AfpSuperbase import AfpSuperbase
 
 import AfpBaseRoutines
-from AfpBaseRoutines import Afp_importPyModul, Afp_importAfpModul, Afp_ModulNames, Afp_archivName
+from AfpBaseRoutines import Afp_importPyModul, Afp_importAfpModul, Afp_ModulNames, Afp_archivName, Afp_startExtraProgram
 import AfpBaseDialog
 from AfpBaseDialog import AfpReq_Information
 import AfpBaseDialogCommon
-from AfpBaseDialogCommon import AfpLoad_editArchiv
+from AfpBaseDialogCommon import AfpLoad_editArchiv, AfpReq_Version, AfpReq_extraProgram
 import AfpGlobal
 from AfpGlobal import *
 
@@ -150,6 +150,9 @@ class AfpScreen(wx.Frame):
         self.menubar.Append(tmp_menu, "Extra")
        # setup info menu
         tmp_menu = wx.Menu() 
+        mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "Version", "")
+        self.Bind(wx.EVT_MENU, self.On_ScreenVersion, mmenu)
+        tmp_menu.AppendItem(mmenu)
         mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "Info", "")
         self.Bind(wx.EVT_MENU, self.On_ScreenInfo, mmenu)
         tmp_menu.AppendItem(mmenu)
@@ -189,6 +192,10 @@ class AfpScreen(wx.Frame):
             for i in range(new_lgh, old_lgh):
                 grid.DeleteRows(1)
       
+    ## Eventhandler Menu - show version information
+    def On_ScreenVersion(self, event):
+        if self.debug: print "AfpScreen Event handler `On_ScreenVersion'!"
+        AfpReq_Version(self.globals)
     ## Eventhandler Menu - show info dialog box
     def On_ScreenInfo(self, event):
         if self.debug: print "AfpScreen Event handler `On_ScreenInfo'!"
@@ -196,7 +203,6 @@ class AfpScreen(wx.Frame):
    ## Eventhandler Menu - add or delete files in archiv
     def On_ScreenArchiv(self, event):
         if self.debug: print "AfpScreen Event handler `On_ScreenArchiv'!"
-        print "AfpScreen Event handler `On_ScreenArchiv' not implemented!"
         data = self.get_data()
         ok = AfpLoad_editArchiv(data,  "Archiv von " + data.get_name() , data.get_identification_string())
         if ok: self.Reload()
@@ -204,6 +210,9 @@ class AfpScreen(wx.Frame):
     def On_ScreenZusatz(self, event):
         if self.debug: print "AfpScreen Event handler `On_ScreenZusatz'!"
         print "AfpScreen Event handler `On_ScreenZusatz' not implemented!"
+        fname, ok = AfpReq_extraProgram(self.globals.get_value("extradir"), self.typ)
+        if ok and fname:
+            Afp_startExtraProgram(fname, self.globals, self.debug)
       
     ## Eventhandler Menu - switch between screen
     def On_Screenitem(self, event):
@@ -271,7 +280,7 @@ class AfpScreen(wx.Frame):
             text = self.sb.get_string_value(self.extmap[entry])
             file= Afp_archivName(text, delimiter)
             if file:
-                filename = self.globals.get_value("archivdir") + file
+                filename = self.globals.get_value("antiquedir") + file
                 if not Afp_existsFile(filename): 
                     #if self.debug: 
                     print "WARNING in AfpScreen: External file", filename, "does not exists!"
@@ -281,9 +290,7 @@ class AfpScreen(wx.Frame):
                 TextBox.LoadFile(filename)
             else:
                 TextBox.Clear()
-                #print "AfpScreen SetValue", self.extmap[entry], text
                 if text: TextBox.SetValue(text)
-        # print "Population routine`Pop_text'!"
     ## populate lists
     def Pop_list(self):
         for entry in self.listmap:

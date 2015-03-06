@@ -250,6 +250,7 @@ class AfpDialog_DiFiZahl(AfpDialog):
         event.Skip()
 
 ## loader routine for dialog DiFiZahl \n
+# @param data - initial data to be attached to this dialog
 # @param do_not_store - flag if writing to database should be skipped
 def AfpLoad_DiFiZahl(data, do_not_store = False):
     DiZahl = AfpDialog_DiFiZahl(None)
