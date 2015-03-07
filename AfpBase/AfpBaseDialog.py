@@ -256,27 +256,6 @@ def AfpReq_Printer(frame):
         Ok = True    
     dialog.Destroy()
     return odata, Ok
-## Displays Info dialog of product
-# @param globals - global variables to hold information data \n
-# used values are - name, version, description, copyright, website, license, developer
-def AfpReq_Information(globals):
-    imagefile = Afp_addRootpath(globals.get_value("start-path"), globals.get_value("picture"))
-    info = wx.AboutDialogInfo()
-    info.SetIcon(wx.Icon(imagefile, wx.BITMAP_TYPE_PNG))
-    info.SetName(globals.get_string_value("name"))
-    info.SetVersion(globals.get_string_value("version"))
-    info.SetDescription(globals.get_string_value("description"))
-    info.SetCopyright(globals.get_string_value("copyright"))
-    info.SetWebSite(globals.get_string_value("website"))
-    info.SetLicence(globals.get_string_value("license")) 
-    info.AddDeveloper(globals.get_string_value("developer"))
-    docwriter = globals.get_string_value("docwriter")
-    if docwriter: info.AddDocWriter(docwriter)
-    artist = globals.get_string_value("artist")
-    if artist: info.AddDocWriter(artist)
-    translator = globals.get_string_value("translator")
-    if translator: info.AddDocWriter(translator)
-    wx.AboutBox(info)   
  
 ## Baseclass Texteditor Requester 
 class AfpDialog_TextEditor(wx.Dialog):

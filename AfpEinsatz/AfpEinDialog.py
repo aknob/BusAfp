@@ -386,7 +386,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
                 if delta:
                     dattime = dattime - delta
                 else:
-                    value = Afp_toTimedelta(self.data.globals.get_value("StellDifference","Einsatz"))
+                    value = Afp_toTimedelta(self.data.globals.get_value("stell-difference","Einsatz"))
                     if not value is None: dattime = dattime -  value
                 if self.typ_hasTime(typ):  typ = "Stell"      
             if typ == "Stell":
@@ -398,7 +398,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
                 if delta:
                     dattime = dattime - delta
                 else:
-                    value = Afp_toTimedelta(self.data.globals.get_value("StartDifference","Einsatz"))
+                    value = Afp_toTimedelta(self.data.globals.get_value("start-difference","Einsatz"))
                     if not value is None: dattime = dattime -  value
                 if self.typ_hasTime(typ):  typ = "Start"
             if typ == "Start":

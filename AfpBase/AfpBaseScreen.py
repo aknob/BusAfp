@@ -36,10 +36,8 @@ from AfpDatabase.AfpSuperbase import AfpSuperbase
 
 import AfpBaseRoutines
 from AfpBaseRoutines import Afp_importPyModul, Afp_importAfpModul, Afp_ModulNames, Afp_archivName, Afp_startExtraProgram
-import AfpBaseDialog
-from AfpBaseDialog import AfpReq_Information
 import AfpBaseDialogCommon
-from AfpBaseDialogCommon import AfpLoad_editArchiv, AfpReq_Version, AfpReq_extraProgram
+from AfpBaseDialogCommon import AfpLoad_editArchiv, AfpReq_Information, AfpReq_Version, AfpReq_extraProgram
 import AfpGlobal
 from AfpGlobal import *
 

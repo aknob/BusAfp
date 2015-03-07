@@ -1064,7 +1064,8 @@ class AfpMailSender(object):
             self.starttls =  self.globals.get_value("smtp-starttls")
             self.user =  self.globals.get_value("smtp-user")
             self.word =  self.globals.get_value("smtp-word")
-            if Afp_isMailAddress(self.user):
+            self.sender = self.globals.get_value("mail-sender")
+            if self.sender is None and self.user and Afp_isMailAddress(self.user):
                 self.sender = self.user
     ## return if automatic sending may be possible
     def is_possible(self):

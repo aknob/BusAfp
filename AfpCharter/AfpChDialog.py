@@ -107,7 +107,7 @@ class AfpDialog_ChAusw(AfpDialog_DiAusw):
     # overwritten for "Charter" use
     def invoke_neu_dialog(self, globals, eingabe, filter):
         superbase = AfpSuperbase.AfpSuperbase(globals, debug)
-        if eingabe is None: eingabe = globals.get_value("Standartort")
+        if eingabe is None: eingabe = globals.get_value("standart-location", "Adresse")
         superbase.open_datei("FAHRTEN")
         superbase.CurrentIndexName("Ort")
         superbase.select_key(eingabe)

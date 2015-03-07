@@ -54,42 +54,45 @@ def Afp_setGlobalVars(settings):
     return settings
 ## initialize needed global variables, if they aren't already set
 # @param settings - dictionary where values are checked and possibly added
-def Afp_iniGlobalVars(settings):
-    if not "database" in settings:
-        settings["database"] = "BusAfp"
-    if not "database-user" in settings:
-        settings["database-user"] = "server"      
-    if not "database-host" in settings:
-        settings["database-host"] = "127.0.0.1"
-    if not "Umst" in settings:
-        settings["Umst"] = 19
-    # decode passwords, when loaded from file
-    if "database-word" in settings:
-        settings["database-word"] = settings["database-word"].decode('base64')
-    if "smtp-word" in settings:
-        settings["smtp-word"] = settings["smtp-word"].decode('base64')
-    # set directory pathes
-    if not "afpdir" in settings:
-        settings["afpdir"] = settings["homedir"]
-    if not "templatedir" in settings:
-        settings["templatedir"] = settings["afpdir"] + "Template" + settings["path-delimiter"]
-    if not "archivdir" in settings:
-        settings["archivdir"] = settings["afpdir"] + "Archiv" + settings["path-delimiter"]
-    if not "antiquedir" in settings:
-        settings["antiquedir"] = settings["archivdir"]
-    if not "extradir" in settings:
-        settings["extradir"] =  settings["afpdir"] + "Extra" + settings["path-delimiter"]
-    if not "Standartort" in settings:
-        settings["Standartort"] = "Braunschweig"
-    # set default file handles (not needed for windows)
-    if not "office" in settings:
-        settings["office"] = "libreoffice"
-    if not ".odt" in settings:
-        settings[".odt"] = "libreoffice"
-    if not ".fodt" in settings:
-        settings[".fodt"] = "libreoffice"
-    if not ".txt" in settings:
-        settings[".txt"] = "vim"
+def Afp_iniGlobalVars(settings, modul = None):
+    if modul is None:
+        if not "database" in settings:
+            settings["database"] = "BusAfp"
+        if not "database-user" in settings:
+            settings["database-user"] = "server"      
+        if not "database-host" in settings:
+            settings["database-host"] = "127.0.0.1"
+        if not "Umst" in settings:
+            settings["Umst"] = 19
+        # decode passwords, when loaded from file
+        if "database-word" in settings:
+            settings["database-word"] = settings["database-word"].decode('base64')
+        if "smtp-word" in settings:
+            settings["smtp-word"] = settings["smtp-word"].decode('base64')
+        # set directory pathes
+        if not "afpdir" in settings:
+            settings["afpdir"] = settings["homedir"]
+        if not "templatedir" in settings:
+            settings["templatedir"] = settings["afpdir"] + "Template" + settings["path-delimiter"]
+        if not "archivdir" in settings:
+            settings["archivdir"] = settings["afpdir"] + "Archiv" + settings["path-delimiter"]
+        if not "antiquedir" in settings:
+            settings["antiquedir"] = settings["archivdir"]
+        if not "extradir" in settings:
+            settings["extradir"] =  settings["afpdir"] + "Extra" + settings["path-delimiter"]
+         # set default file handles (not needed for windows)
+        if not "office" in settings:
+            settings["office"] = "libreoffice"
+        if not ".odt" in settings:
+            settings[".odt"] = "libreoffice"
+        if not ".fodt" in settings:
+            settings[".fodt"] = "libreoffice"
+        if not ".txt" in settings:
+            settings[".txt"] = "vim"
+    elif modul ==" Adresse":
+        if not "standart-location" in settings:
+            settings["standart-location"] = "Braunschweig"
+        
     return settings
 
 ## class to hold global of modul specific varaiables
@@ -120,9 +123,8 @@ class AfpSettings(object):
         # read variables from configuratioin file
         self.read(self.config)
         self.set_pathdelimiter()       
-        if self.modul is None:
-            self.settings = Afp_iniGlobalVars(self.settings)
-        else:
+        self.settings = Afp_iniGlobalVars(self.settings, self.modul)
+        if self.modul:
             # load variables from database
             # self.load(modulname)
             print "AfpSettings.load(" + modulname + ") loading from database not implemented!"
@@ -136,9 +138,10 @@ class AfpSettings(object):
     ## loop through all settings, if name ends with "dir" reset pathdelimiter with actuel pathdelimiter
     def set_pathdelimiter(self):
         # convention: names of folder pathes end with "dir" (directory)
+        delimiter = Afp_getGlobalVar("path-delimiter")
         for entry in self.settings:
             if entry[-3:] == "dir":
-                self.settings[entry] = Afp_pathname(self.settings[entry], Afp_getGlobalVar("path-delimiter"))
+                self.settings[entry] = Afp_pathname(self.settings[entry], delimiter)
     ## read data from file and set appropriate variables
     # @param path - filename including path of file to be read
     def read(self, path):

@@ -47,7 +47,7 @@ class BusAfp(wx.App):
     # @param dbword - password for user on host for database
     def initialize(self, debug, startpath, confpath, dbhost, dbuser, dbword): 
         name = 'BusAfp'
-        version = "6.0.1 alpha"       
+        version = "6.0.0 alpha"       
         copyright = '(C) 1989 - 2015 AfpTech.de'
         website = 'http://www.busafp.de'
         description = """BusAfp ist eine Verwaltungsprogramm für den Buseinsatz 

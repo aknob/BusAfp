@@ -128,23 +128,28 @@ class AfpFinanceTransactions(AfpSelectionList):
         self.set_value("Datum.AUSZUG", today)
         self.set_value("KtNr.AUSZUG", ktnr)
     ## set output to file instead of internal database (not yet implemented)
-    # @param fhandle - filehandle for output file
+    # @param fhandle - filehandle of output file
     def set_output_file(self, fhandle):
         self.file = fhandle
-    ## generate  oner row for exported data
+    ## generate  one row for exported data
     # @param accdata - dictionary holding data for row to be written
     def generate_export_line(self, accdata):
-        columns = self.globals.get_value("export","finance")
-        sep = self.globals.get_value("separator","finance")
+        cstaring = self.globals.get_value("export.csv","Finance")
+        columns = Afp_ArrayfromLine(cstring)
+        sep, paras = self.globals.get_value("export.csv.info","Finance")
+        sep = info[0]
+        paras = ""
+        if len(info) > 2: paras = info[1]
         if not columns: columns = ["Datum", "Konto","Gegenkonto","Betrag","Beleg","Bem"]
         if not sep: sep = ","
         line = ""
         for col in columns:
             if col in accdata:
-                line += sep + Afp_toQuotedString(accdata[col])
+                line += paras + Afp_toQuotedString(accdata[col]) + paras + sep 
             else:
-                line += sep + "\"\""
-        return line[1:]
+                line += "\"\"" + sep 
+        if line: return line[:-1]
+        else: return line
     ## proceed data either into intern data structures or into the output file
     # @param accdata - dictionary holding data for row to be assimilated
     def assimilate_transaction_data(self, accdata):

@@ -49,6 +49,27 @@ from AfpAusgabe import AfpAusgabe
 
     
 # Common dialog routines to be used in different modules
+## Displays Info dialog of product
+# @param globals - global variables to hold information data \n
+# used values are - name, version, description, copyright, website, license, developer
+def AfpReq_Information(globals):
+    imagefile = Afp_addRootpath(globals.get_value("start-path"), globals.get_value("picture"))
+    info = wx.AboutDialogInfo()
+    info.SetIcon(wx.Icon(imagefile, wx.BITMAP_TYPE_PNG))
+    info.SetName(globals.get_string_value("name"))
+    info.SetVersion(globals.get_string_value("version"))
+    info.SetDescription(globals.get_string_value("description"))
+    info.SetCopyright(globals.get_string_value("copyright"))
+    info.SetWebSite(globals.get_string_value("website"))
+    info.SetLicence(globals.get_string_value("license")) 
+    info.AddDeveloper(globals.get_string_value("developer"))
+    docwriter = globals.get_string_value("docwriter")
+    if docwriter: info.AddDocWriter(docwriter)
+    artist = globals.get_string_value("artist")
+    if artist: info.AddDocWriter(artist)
+    translator = globals.get_string_value("translator")
+    if translator: info.AddDocWriter(translator)
+    wx.AboutBox(info)   
 ## show version information
 # @param globals - global variables holding information or delivering methods to extract information
 def AfpReq_Version(globals):
