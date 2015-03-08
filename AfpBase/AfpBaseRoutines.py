@@ -1113,6 +1113,7 @@ class AfpMailSender(object):
     ## add attachment file to message (may be invoked several times)
     # @param filename - path of file to be attached
     def add_attachment(self, filename):
+        filename = filename.strip()
         if Afp_existsFile(filename):
             self.attachments.append(filename)
     ## add attachment file to message (may be invoked several times)

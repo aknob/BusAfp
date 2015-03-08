@@ -43,8 +43,8 @@ from AfpBase.AfpDatabase import *
 from AfpBase.AfpDatabase.AfpSQL import AfpSQL
 from AfpBase.AfpDatabase.AfpSuperbase import AfpSuperbase
 from AfpBase.AfpBaseRoutines import AfpMailSender
-from AfpBase.AfpBaseDialog import AfpReq_Information, AfpReq_Info, AfpReq_Question
-from AfpBase.AfpBaseDialogCommon import Afp_editMail
+from AfpBase.AfpBaseDialog import AfpReq_Info, AfpReq_Question
+from AfpBase.AfpBaseDialogCommon import  AfpReq_Information, Afp_editMail
 from AfpBase.AfpBaseScreen import AfpScreen
 from AfpBase.AfpBaseAdRoutines import AfpAdresse_StatusMap, AfpAdresse
 from AfpBase.AfpBaseAdDialog import AfpLoad_DiAdEin_fromSb, AfpLoad_AdAusw
