@@ -456,12 +456,12 @@ class AfpDialog_DiReport(wx.Dialog):
     def On_Rep_Bearbeiten(self,event):
         if self.debug: print "Event handler `On_Rep_Bearbeiten'"      
         template = self.get_template_name()
+        choice = self.choice_Bearbeiten.GetStringSelection()
         list_Report_index = self.list_Report.GetSelection()
         if list_Report_index < 0: list_Report_index = 0
-        if template and template[-5:] == ".fodt":
+        if (template and template[-5:] == ".fodt") or choice == "Info":
             noWait = False
             filename = ""
-            choice = self.choice_Bearbeiten.GetStringSelection()
             if choice == "Ändern".decode("UTF-8"):
                 filename = template
             elif choice == "Kopie":

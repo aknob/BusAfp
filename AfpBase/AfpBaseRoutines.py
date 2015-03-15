@@ -194,12 +194,18 @@ def Afp_startExtraProgram(filepath, globals, debug = False):
 def Afp_startFile(filename, globals=None, debug = False, noWait = False):
     if debug: print "Afp_startFile:",filename
     program = None
-    if globals and not globals.os_is_windows() and "." in filename:
-        split = filename.split(".")
-        ext = "." + split[-1]
-        program = globals.get_value(ext)
-    #Afp_startProgramFile(program, debug, filename, "--invisible")
-    Afp_startProgramFile(program, debug, filename, None, noWait)
+    param = None
+    if globals:
+        if globals.os_is_windows():
+            if noWait: program = "start"
+        else:
+            if "." in filename:
+                split = filename.split(".")
+                ext = "." + split[-1]
+                program = globals.get_value(ext)
+            if noWait: param = "&"
+        #Afp_startProgramFile(program, debug, filename, "--invisible")
+    Afp_startProgramFile(program, debug, filename, param)
 
 ##   dynamic import of a python module from modulname,
 # a handle to the modul will be returned
@@ -234,8 +240,10 @@ def Afp_importAfpModul(modulname, globals):
 # @param fname - name and path of output file
 def Afp_printSelectionListDataInfo(selectionlist, fname):
     info = selectionlist.get_data_info()
+    info_keys = info.keys()
+    info_keys.sort()
     fout = open(fname , 'w') 
-    for entry in info:
+    for entry in info_keys:
         fout.write(entry +  ':\n')
         for name in info[entry]:
             fout.write("   " + name + "." + entry  + '\n')
@@ -832,11 +840,12 @@ class AfpSelectionList(object):
                     self.selections[sel].store()
     ## get data info (column names of all attached TableSelections)
     def get_data_info(self):
+        self.create_selections()
         info = {}
         for entry in self.selections:
             info[entry] = self.get_selection(entry).feldnamen
         return info
-    
+
     ## routine to retrieve payment data from SelectionList \n
     # may be overwritten, default implementation: return "Preis", "Zahlung" and "ZahlDat" column from main selection
     def get_payment_values(self):

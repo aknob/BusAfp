@@ -342,16 +342,14 @@ def Afp_getFileTimestamp(filename):
 # @param debug - flag for debug information
 # @param filename - file to be started with program or directliyvia OS connections
 # @param parameter - if given parameter for program start
-# @param noWait - flag if execution of should go on without waiting for the external program to end
-def Afp_startProgramFile(programname, debug, filename, parameter = None, noWait = False):
+def Afp_startProgramFile(programname, debug, filename, parameter = None):
     befehl = ""
     if programname: befehl += programname + " " 
     befehl += filename  
     if parameter:
         befehl += " " + parameter
-    if noWait: befehl += " &"
     if debug: print befehl
-    os.system(befehl )
+    os.system(befehl)
     #subprocess.call("soffice -pt HP_Color_LaserJet *", shell=True)
     #subprocess.call("soffice --invisible --convert-to pdf filename)
   
