@@ -230,6 +230,7 @@ class AfpSQL(object):
         if self.debug: print "AfpSQL.select:",Befehl
         self.db_cursor.execute (Befehl)     
         rows = self.db_cursor.fetchall ()
+        if self.debug: print "AfpSQL.select:",rows
         self.select_clause= Befehl
         return rows
     ## set a lock on the database table
@@ -378,7 +379,7 @@ class AfpSQLTableSelection(object):
                     values = entry[1]
                     if values is None or type(values) == list:
                         changed = True
-                    elif type(values) == dictionary:
+                    elif type(values) == dict:
                         if feld in values: changed = True
         elif self.new: changed = True
         return changed

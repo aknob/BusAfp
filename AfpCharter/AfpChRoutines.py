@@ -51,7 +51,7 @@ def AfpCharter_getTransactionList():
 ## return 'Zustand' values where payment is possible  \n
 # This is the definition routine for the above 'Zustand' values
 def AfpCharter_getPayableList():
-    return ["Auftrag","Rechnung","Mahnung"]
+    return ["Auftrag","Rechnung","Mahnung","Storno Rechnung"]
 ## return 'Zustand' values where coach operation planning is possible  \n
 # This is the definition routine for the above 'Zustand' values
 def AfpCharter_getOperateList():

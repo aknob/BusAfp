@@ -248,8 +248,29 @@ def Afp_printSelectionListDataInfo(selectionlist, fname):
         for name in info[entry]:
             fout.write("   " + name + "." + entry  + '\n')
     fout.close()
-   
-##  provide a list from a SQLTableSelection object -
+    
+##  write given data to an infofile and start editor
+# @param globals -  global variables, holding temporary directory 
+# @param lines -  dictionary holding the lines to be displayed 
+# @param sort - flag if keys should be sorted due to theri values, default: False \n
+# @param fname - if given, name of file were data has to be printed to
+#  lines[key] = [entry1, entry2, ...] to be evaluated as follows:
+# - for each key,
+# - "key:" is displayed - newline
+# - "    entryN" newline "    entryN+1" newline ...
+def Afp_printToInfoFile(globals, lines, sort = False, fname = None):
+    if fname is None:
+          fname = Afp_addRootpath(globals.get_value("tempdir") , "DataInfo.txt")
+    line_keys = lines.keys()
+    if sort: line_keys.sort()
+    fout = open(fname , 'w') 
+    for key in line_keys:
+        fout.write(key +  ':\n')
+        for entry in lines[key]:
+            fout.write("   " + entry  + '\n')
+    fout.close()
+    Afp_startFile( fname, globals, globals.is_debug(), True) 
+##  provide a list from a SQLTableSelection object - \n
 #    mostly to allow additional selection
 # @param table_sel - input AfpSQLTableSelection object for which an additional selection has to be made
 # @param select     - filter to get possible additional selections from database
@@ -294,7 +315,7 @@ def Afp_selectSameKundenNr(mysql, table, KNr, debug = False, felder = None, filt
         for i in range(lgh-1,-1,-1):
             delete = True
             for want in wanted_values:
-                if  values[i] == want: delete = False
+                 if  values[i][0] == want: delete = False
             if delete: selection.delete_row(i)
     return selection.get_values(felder)
 ##  get special account from 'KtNr' table
@@ -551,7 +572,7 @@ class AfpSelectionList(object):
         else: new = False
         selection = self.constitute_selection(select)
         select_clause = self.evaluate_selects(select)
-        print "AfpSelectionList.create_selection:", select, select_clause, new, selection
+        #print "AfpSelectionList.create_selection:", select, select_clause, new, selection
         if selection is None and select_clause == []:
             if new: selection = self.spezial_selection(select, True)
             else:   selection = self.spezial_selection(select)

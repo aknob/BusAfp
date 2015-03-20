@@ -523,9 +523,11 @@ class AfpDialog_DiEinsatz(AfpDialog):
 
 ## loader routine for dialog DiEinsatz \n
 # @param data - SelectionList for which this vehicle operation is created
-def AfpLoad_DiEinsatz(data):
+# @param direct - allow direct editing
+def AfpLoad_DiEinsatz(data, direct = False):
     DiEin = AfpDialog_DiEinsatz(None)
     DiEin.attach_data(data)
+    if direct: DiEin.Set_Editable(True)
     DiEin.ShowModal()
     Ok = DiEin.get_Ok()
     DiEin.Destroy()

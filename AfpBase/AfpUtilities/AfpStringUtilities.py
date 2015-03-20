@@ -177,7 +177,7 @@ def Afp_fromString(string):
             if string.isdigit() or (string[0] == "-" and string[1:].isdigit()) : val = int(string)
             if not val == 0 or string == "0":
                 data = val
-    if data:
+    if not data is None:
         return data
     else:
         return string

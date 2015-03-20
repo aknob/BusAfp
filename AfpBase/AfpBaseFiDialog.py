@@ -161,20 +161,24 @@ class AfpDialog_DiFiZahl(AfpDialog):
         ident = []
         KundenNr = self.data.get_value("KundenNr")
         if tablename == "FAHRTEN":
-            felder = "Abfahrt,Zielort,Preis,Zustand,FahrtNr"
+            felder = "Abfahrt,Preis,Zahlung,Zielort,Zustand,FahrtNr"
             filter_feld = "Zustand"
-            filter =  ["Angebot","Rechnung"]
+            filter =  ["Angebot","Rechnung","Storno Rechnung"]
             text = "Mietfahrt"
         elif tablename == "RECHNG":
-            felder = "Datum,Zahlbetrag,Wofuer,Zustand,RechNr"
+            felder = "Datum,Zahlbetrag,Zahlung,Wofuer,Zustand,RechBetrag,RechNr"
             filter_feld = "Zustand"
             #filter_feld = None
             filter = ["offen"]
             text = "Rechnung"
         rows = Afp_selectSameKundenNr(self.data.get_mysql(), tablename, KundenNr, self.debug, felder, filter_feld, filter)
         for row in rows:
-            liste.append(Afp_ArraytoLine(row, " ", 4))
-            ident.append(row[4])
+            if row[1] is None and tablename == "RECHNG": row[1] = row[5]
+            if row[1]:
+                if row[2]: row[2] = row[1] - row[2]
+                else: row[2] = row[1]
+            liste.append(Afp_ArraytoLine(row, " ", 5))
+            ident.append(row[-1])
         value,ok = AfpReq_Selection("Bitte " + text + " für Zahlung auswählen!","",liste, text + " für Zahlung", ident)
         if ok and value:
             self.data.add_selection(tablename, value)
@@ -234,7 +238,22 @@ class AfpDialog_DiFiZahl(AfpDialog):
     ##Eventhandler BUTTON - show list of financial payment transaction \n
     # not implemented yet
     def On_Zahlung_Liste(self,event):
-        print "Event handler `On_Zahlung_Liste' not implemented!"
+        if self.debug: print "Event handler `On_Zahlung_Liste' not implemented!"
+        if self.data.finance:
+            liste = {}
+            for data in self.data.selected_list:
+                ident = data.get_identifier()
+                select = "Von = \"" + ident + "\" AND (Art = \"Zahlung\" OR Art = \"Zahlung in\")"
+                felder = "Datum,GktName,Betrag,Beleg,Bem"
+                rows = self.data.mysql.select(felder, select, "BUCHUNG")
+                zahlungen = []
+                for row in rows:
+                    zahlungen.append(Afp_ArraytoLine(row))
+                liste[ident] = zahlungen
+                print liste
+            Afp_printToInfoFile(self.data.globals, liste)
+        event.Skip()
+
         event.Skip()
 
     ##Eventhandler BUTTON - allow manuel distribution of this payment \n
@@ -246,7 +265,14 @@ class AfpDialog_DiFiZahl(AfpDialog):
     ##Eventhandler BUTTON - show payment info \n
     # not implemented yet
     def On_Zahlung_Info(self,event):
-        print "Event handler `On_Zahlung_Info' not implemented!"
+        if self.debug: print "Event handler `On_Zahlung_Info'"
+        if self.data.finance:
+            liste = {}
+            for data in self.data.selected_list:
+                payment = {}
+                payment = self.data.finance.add_payment_data(payment, data) 
+                liste[payment["Von"]] = [Afp_toString(payment["Gegenkonto"]) + " "  + data.get_name()]
+            Afp_printToInfoFile(self.data.globals, liste)
         event.Skip()
 
 ## loader routine for dialog DiFiZahl \n

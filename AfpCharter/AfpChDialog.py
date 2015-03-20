@@ -984,12 +984,12 @@ class AfpDialog_DiMfInfo(AfpDialog):
         self.Bind(wx.EVT_CHOICE, self.On_ChangeChoice, self.choice_Zeitpunkt)
         self.label_Datum = wx.StaticText(panel, -1, label="&Datum:", pos=(205,24), size=(40,18), name="LDatum")
         self.text_Datum = wx.TextCtrl(panel,-1, value="", pos=(250,20), size=(80,24), style=0, name="Datum")
-        self.textmap["Datum"] = "Datum"
+        self.vtextmap["Datum"] = "Datum"
         self.text_Datum.Bind(wx.EVT_KILL_FOCUS, self.On_ChangeDatum)
         self.label_Zeit = wx.StaticText(panel, -1, label="&Zeit:", pos=(340,24), size=(20,18), name="LZeit")
         self.text_Zeit = wx.TextCtrl(panel,-1, value="", pos=(370,20), size=(60,24), style=0, name="Zeit")
-        self.textmap["Zeit"] = "Abfahrtszeit"
-        self.text_Zeit.Bind(wx.EVT_KILL_FOCUS, self.On_KillFocus)
+        self.vtextmap["Zeit"] = "Abfahrtszeit"
+        self.text_Zeit.Bind(wx.EVT_KILL_FOCUS, self.On_ChangeZeit)
         self.text_Adresse = wx.TextCtrl(panel, -1, value="", pos=(20,55), size=(410,24), style=0, name="Adresse")
         self.textmap["Adresse"] = "Adresse1"
         self.text_Adresse.Bind(wx.EVT_KILL_FOCUS, self.On_KillFocus)
@@ -1023,17 +1023,14 @@ class AfpDialog_DiMfInfo(AfpDialog):
     def store_data(self):
         self.Ok = False
         data = {}
-        print self.changed_text
+        #print self.changed_text
         for entry in self.changed_text:
-            TextBox = self.FindWindowByName(entry)
-            wert = TextBox.GetValue()
-            name = self.textmap[entry]
-            print entry, name, wert
+            name, wert = self.Get_TextValue(entry)
             data[name] = wert
-        print "store_data", self.choice_changed
+        #print "store_data", self.choice_changed
         if self.choice_changed:
             data = self.set_choicevalues(data)
-        print "store_data data:", data
+        #print "store_data data:", data
         if data:
             if self.new: data = self.complete_data(data)
             self.data.set_data_values(data, "FAHRTI", self.index)
@@ -1104,6 +1101,15 @@ class AfpDialog_DiMfInfo(AfpDialog):
         datum = self.text_Datum.GetValue()
         datum =  Afp_ChDatum(datum)
         self.text_Datum.SetValue(datum)
+        self.On_KillFocus(event)
+        event.Skip()  
+   ##  Eventhandler TEXT,  check if time entry has the correct format, \n
+    # complete date-text if necessary 
+    def On_ChangeZeit(self,event):
+        if self.debug: print "Event handler `On_ChangeZeit'"
+        zeit = self.text_Zeit.GetValue()
+        zeit, dum =  Afp_ChZeit(zeit)
+        self.text_Zeit.SetValue(zeit)
         self.On_KillFocus(event)
         event.Skip()  
 

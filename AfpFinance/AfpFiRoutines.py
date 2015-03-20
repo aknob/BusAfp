@@ -267,7 +267,9 @@ class AfpFinanceTransactions(AfpSelectionList):
         # has to return the account number this payment has to be charged ("Gegenkonto"), the identifier ("Von")
         paymentdata["Von"] = data.get_identifier() 
         if data.get_listname() == "Charter":
-            paymentdata = self.add_payment_data_charter(paymentdata, data)
+            paymentdata = self.add_payment_data_charter(paymentdata, data)        
+        elif data.get_listname() == "Rechnung":
+            paymentdata = self.add_payment_data_rechnung(paymentdata, data)
         return paymentdata
     ## financial transaction entries for payment are generated according to incident data given
     # @param data - incident data where entries are created from

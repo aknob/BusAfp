@@ -64,7 +64,7 @@ class AfpEinsatz(AfpSelectionList):
         self.selects["FremdAdresse"] = [ "ADRESSE","KundenNr = FremdNr.EINSATZ"]  
         self.selects["FahrtAdresse"] = [ "ADRESSE","KundenNr = KundenNr.FAHRTEN"]  
         self.selects["ReiseAdresse"] = [ "ADRESSE","KundenNr = KundenNr.REISEN"]  
-        if MietNr or ReiseNr: self.set_new(MietNr, ReiseNr, typ)
+        if MietNr or ReiseNr: self.set_new(MietNr, ReiseNr, None, typ)
         if self.debug: print "AfpEinsatz Konstruktor:", self.mainindex, self.mainvalue 
     ## destructor
     def __del__(self):    
@@ -95,7 +95,7 @@ class AfpEinsatz(AfpSelectionList):
             keep.append("ReiseAdresse")
             self.clear_selections(keep)
         if data and select:
-            print "AfpEinsatz.set_new:", data, select
+            print "AfpEinsatz.set_new:", infoindex, typ, data, select
             self.set_data_values(data,"EINSATZ")
             selection = self.get_selection(select)
             print "AfpEinsatz.set_new:", selection, selection.select, selection.data
@@ -107,10 +107,23 @@ class AfpEinsatz(AfpSelectionList):
                 if typ == "end": data["EndDatum"] = Afp_addDaysToDate(selection.get_value("Fahrtende"), 1)
             if info:
                 data["Datum"] = info[0]
-                data["Zeit"] = info[1]
+                data["Zeit"] = info[1] # ->hier weiter
                 data["Stellort"] = info[2]
             self.set_data_values(data,"EINSATZ")
         self.new = True
+
+    ## indicate if changes relevant for calendar entry do apply
+    def calendar_update_needed(self):
+        return False
+    ## update calendar entries
+    def update_calendar(self):
+        print "AfpEinsatz.update_calendar"
+        
+    ## individual store routine (overwritten from SelectionListI    
+    def store(self):
+        if self.calendar_update_needed():
+            self.update_calendar()
+        super(AfpEinsatz, self).store()
   
     ## check if attached data is of the input typ
     # @param typ - typ to be checked
@@ -142,12 +155,16 @@ class AfpEinsatz(AfpSelectionList):
         info = None
         if self.is_typ("Miet"):
             rows = self.get_value_rows("FAHRTI","Datum,Abfahrtszeit,Adresse1,Adresse2")
+            sel = self.selections["FAHRTI"]
+            print "AfpEinsatz.get_fahrtinfo sel:",sel.select, sel.data
+            print "AfpEinsatz.get_fahrtinfo rows:", rows
             if index is None:
-                for row in rows:
+                for i, row in enumerate(rows):
                     if (typ == "start" and "Hin Ab" in row[3]) or (typ == "end" and "Her Ab" in row[3]):
-                        index = row.index()
+                        index = i
             if not index is None:
                 info = rows[index][:3]
+        print "AfpEinsatz.get_fahrtinfo:", index, typ, info
         return info
     ## extract complete working days and hours from given time interval
     # @param time - timeval interval to be analysed

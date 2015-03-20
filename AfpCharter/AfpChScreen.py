@@ -287,15 +287,16 @@ class AfpChScreen(AfpScreen):
         if self.einsatz and AfpCharter_isOperational(zustand):
             selection = Charter.get_selection("EINSATZ")
             ENr = None
-            print "AfpChScreen.On_Fahrt_EinF Einsatz:", self.einsatz
-            print "AfpChScreen.On_Fahrt_EinF:", selection.get_data_length(), selection, Charter.selections
+            #print "AfpChScreen.On_Fahrt_EinF Einsatz:", self.einsatz
+            #print "AfpChScreen.On_Fahrt_EinF:", selection.get_data_length(), selection, Charter.selections
+            New = False
             if selection.get_data_length() == 0:
-                Ok = AfpReq_Question("Kein Einsatz für diese Mietfahrt vorhanden,","neuen Einsatz erstellen?","Einsatz?")
-                if Ok:
+                New = AfpReq_Question("Kein Einsatz für diese Mietfahrt vorhanden,","neuen Einsatz erstellen?","Einsatz?")
+                if New:
                     Einsatz2 = None
-                    Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, None, "start")
+                    Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, "start")
                     if Charter.get_value("Art") == "Transfer":
-                         Einsatz2 = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, None, "end")
+                         Einsatz2 = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, "end")
                     Einsatz.store()
                     if Einsatz2: Einsatz2.store()
                     selection.reload_data()
@@ -303,8 +304,8 @@ class AfpChScreen(AfpScreen):
                 if selection.get_data_length() > 1:
                     liste = selection.get_value_lines("StellDatum,StellZeit,StellOrt,Bus")
                     ident = selection.get_values("EinsatzNr")
-                    print "Liste:", liste
-                    print ident
+                    #print "Liste:", liste
+                    #print ident
                     Zielort = Charter.get_string_value("Datum") + " " + Charter.get_string_value("Nach") + " " +Charter.get_string_value("Zielort") 
                     ENr, Ok = AfpReq_Selection("Bitte Einsatz für Fahrt am ".decode("UTF-8") , Zielort + " auswählen.".decode("UTF-8"), liste, "Einsatzauswahl", ident)
                     ENr = ENr[0]
@@ -313,7 +314,7 @@ class AfpChScreen(AfpScreen):
                     Ok = True
                 if Ok:
                     Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), ENr)
-                    Ok = self.einsatz[0].AfpLoad_DiEinsatz(Einsatz)
+                    Ok = self.einsatz[0].AfpLoad_DiEinsatz(Einsatz, New)
         else:
             AfpReq_Info("'" + zustand + "' für eine Mietfahrt,".decode("UTF-8") , "es ist kein Einsatz möglich!".decode("UTF-8"))
         event.Skip()
