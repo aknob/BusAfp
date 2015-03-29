@@ -130,7 +130,7 @@ def Afp_getModulInfo(modul, delimiter, path):
     for file in filenames:
         split = file.split(delimiter)
         time = Afp_getFileTimestamp(file)
-        line += split[-1] + ": " + Afp_toString(time.date()) + " " + Afp_toString(time.time() )+ '\n'
+        line += split[-1] + ": " + Afp_toInternDateString(time.date()) + "-" + Afp_toString(time.time()).replace(":","-") + '\n'
     return line
  
 ## look if text represents the name of archieved file (only used for compability of already created data) \n

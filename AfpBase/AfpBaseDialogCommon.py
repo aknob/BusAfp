@@ -576,12 +576,17 @@ class AfpDialog_editArchiv(AfpDialog):
         self.lower_sizer.AddStretchSpacer(1)
         self.lower_sizer.Add(self.button_Add,3,wx.EXPAND)
         self.setWx(self.lower_sizer,[1, 3, 1], [0, 3, 1]) 
-        self.sizer=wx.BoxSizer(wx.VERTICAL)
-        self.sizer.Add(self.label_text_1,0,wx.EXPAND)
-        self.sizer.Add(self.label_text_2,0,wx.EXPAND)
-        self.sizer.Add(self.list_Archiv,1,wx.EXPAND)
-        self.sizer.Add(self.label_lower,0,wx.EXPAND)
-        self.sizer.Add(self.lower_sizer,0,wx.EXPAND)
+        self.inner_sizer=wx.BoxSizer(wx.VERTICAL)
+        self.inner_sizer.Add(self.label_text_1,0,wx.EXPAND)
+        self.inner_sizer.Add(self.label_text_2,0,wx.EXPAND)
+        self.inner_sizer.Add(self.list_Archiv,1,wx.EXPAND)
+        self.inner_sizer.Add(self.label_lower,0,wx.EXPAND)
+        self.inner_sizer.Add(self.lower_sizer,0,wx.EXPAND)
+        self.inner_sizer.AddSpacer(10)
+        self.sizer=wx.BoxSizer(wx.HORIZONTAL)  
+        self.sizer.AddSpacer(10)     
+        self.sizer.Add(self.inner_sizer,1,wx.EXPAND)
+        self.sizer.AddSpacer(10)    
         
     ## execution in case the OK button ist hit - to be overwritten in derived class
     def execute_Ok(self):
