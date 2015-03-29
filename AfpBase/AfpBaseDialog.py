@@ -684,355 +684,7 @@ class AfpDialog(wx.Dialog):
             if self.debug: print "Event handler `On_Button_Ok' quit!"
         event.Skip()
         self.Destroy()
-   
-## Base class for dialog for the commen unrestricted selection of data from a database table \n
-# the following routines must be supplied in the derived class: \n
-#  "self.get_grid_felder()"      for selection grid population \n
-#  "self.invoke_neu_dialog()" to generate a new database entry
-class AfpDialog_DiAusw(wx.Dialog):
-    ## constructor
-    def __init__(self, *args, **kw):
-        super(AfpDialog_DiAusw, self).__init__(*args, **kw) 
-        # values from call
-        self.mysql = None
-        self.globals = None
-        self.debug = False
-        self.datei = None
-        self.index = None
-        self.select = None
-        self.where = None  
-        self.search = None  
-        # inital values      
-        self.rows = 7
-        self.grid_breite = 500
-        # for internal use
-        self.used_modul = None
-        self.cols = None
-        self.feldlist = ""
-        self.dateien = ""
-        self.textmap = []
-        self.sortname = ""
-        self.valuecol = -1 
-        self.link = None  
-        self.ident = [None]
-        self.offset = 0
-        # for the result
-        self.result_index = -1
-        self.result = None
-
-        self.InitWx()
-        self.SetSize((560,315))
-        self.SetTitle("--Variable-Text--")
-   
-    ## set up dialog widgets      
-    def InitWx(self):
-        self.panel = wx.Panel(self, -1)
-        panel = self.panel
-        self.label_Auswahl = wx.StaticText(panel, -1, label="-- Bitte Datensatz auswählen --", pos=(4,6), size=(508,20), name="Auswahl")
-        self.button_First = wx.Button(panel, -1, label="|<", pos=(520,44), size=(30,28), name="First")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_First, self.button_First)
-        self.button_PPage = wx.Button(panel, -1, label="&<<", pos=(520,72), size=(30,28), name="PPage")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_PPage, self.button_PPage)
-        self.button_Minus = wx.Button(panel, -1, label="&<", pos=(520,100), size=(30,28), name="Minus")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_Prev, self.button_Minus)
-        self.button_Plus = wx.Button(panel, -1, label="&>", pos=(520,128), size=(30,28), name="Plus")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_Next, self.button_Plus)
-        self.button_NPage = wx.Button(panel, -1, label="&>>", pos=(520,156), size=(30,28), name="NPage")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_NPage, self.button_NPage)
-        self.button_Last = wx.Button(panel, -1, label=">|", pos=(520,184), size=(30,28), name="Last")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_Last, self.button_Last)
-        self.button_Suchen = wx.Button(panel, -1, label="&Suchen", pos=(8,230), size=(80,40), name="Suchen")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_Suchen, self.button_Suchen)
-        self.button_Neu = wx.Button(panel, -1, label="&Neu", pos=(108,230), size=(80,40), name="Neu")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_Neu, self.button_Neu)
-        self.button_Abbruch = wx.Button(panel, -1, label="&Abbruch", pos=(338,230), size=(100,40), name="Abbruch")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_Abbruch, self.button_Abbruch)
-        self.button_Okay = wx.Button(panel, -1, label="&OK", pos=(450,230), size=(100,40), name="Okay")
-        self.Bind(wx.EVT_BUTTON, self.On_Ausw_Ok, self.button_Okay)
-    ## initialisation of  the dialog \n
-    # set up grid, attach data
-    # @param globals - global variables including database connection
-    # @param index - name of column for sorting values
-    # @param value - actuel index value for this selection
-    # @param where - filter for this selection
-    # @param text - text to be displayed above selection list
-    def initialize(self, globals, index, value, where, text):
-        value = Afp_toInternDateString(value)
-        self.globals = globals
-        self.mysql = globals.get_mysql()
-        self.debug = self.mysql.get_debug()
-        #self.datei = Datei.upper()
-        self.dateien = self.datei
-        self.index = index
-        self.search = value
-        # initialize grid
-        if self.globals.os_is_windows():
-            self.rows = int(1.5 * self.rows)
-        felder = self.get_grid_felder()
-        breite = self.grid_breite
-        self.feldlist = ""
-        if "=" in felder[-1][0]:
-            self.link = felder[-1][0]
-            lsplit =  self.link.split()
-            felder[-1][0] = lsplit[-1]
-        lgh = len(felder)
-        ColLabelValue = []
-        ColSize = []
-        skip = False
-        width = 0
-        name = ""
-        indexcol = -1
-        selectname = ""
-        for i in range(0,lgh):
-            feld = felder[i][0]    
-            if self.index + "." in feld: indexcol = len(ColLabelValue)
-            if self.feldlist == "": komma = ""
-            else : komma = ","
-            self.feldlist += komma + feld 
-            if not felder[i][1] is None:
-                new_width =  felder[i][1]*(breite-10)/100
-                if skip:  width += new_width
-                fsplit = feld.split(".") 
-                if i == 0:  selectname = fsplit[0] + "." + fsplit[1]
-                if len(fsplit) > 2:
-                    new_name = fsplit[2]
-                    if new_name: skip = True
-                    else: skip = False
-                else:
-                    new_name = ""
-                    skip = False
-                if name and not name == new_name: # delayed write
-                    if self.sortname == "":
-                        self.sortname = name
-                        self.valuecol = len(ColLabelValue)
-                    ColLabelValue.append(name)
-                    ColSize.append(width)
-                name = new_name
-                if not skip: # direct write
-                    ColLabelValue.append(fsplit[0])
-                    ColSize.append(new_width)
-                if not fsplit[1].upper() in self.dateien:
-                    self.dateien += " " + fsplit[1].upper()
-        if indexcol > -1:
-            selectname =  self.index + "." + self.datei
-            self.sortname = ""
-            self.valuecol = indexcol
-        if not self.sortname: 
-            self.sortname =   selectname
-            self.SetTitle("Auswahl " +  self.datei.capitalize() + " Sortierung: " + selectname.split(".")[0])
-        else:
-            self.SetTitle("Auswahl " +  self.datei.capitalize() + " Sortierung: " + self.sortname)
-        if text: self.label_Auswahl.SetLabel(text)
-        if not value == "":
-            self.select = selectname  + " >= \"" + value + "\""
-        self.where = where
-        self.cols = len(ColLabelValue) 
-        panel = self.panel
-        self.grid_auswahl = wx.grid.Grid(panel, -1, pos=(8,25) , size=(breite, 198), name="Auswahl")
-        self.grid_auswahl.CreateGrid(self.rows, self.cols)
-        self.grid_auswahl.SetRowLabelSize(0)
-        self.grid_auswahl.SetColLabelSize(18)
-        self.grid_auswahl.EnableEditing(0)
-        #self.grid_auswahl.EnableDragColSize(0)
-        self.grid_auswahl.EnableDragRowSize(0)
-        self.grid_auswahl.EnableDragGridSize(0)
-        self.grid_auswahl.SetSelectionMode(wx.grid.Grid.wxGridSelectRows)   
-        for col in range(0,self.cols):  
-            self.grid_auswahl.SetColLabelValue(col,ColLabelValue[col])
-            self.grid_auswahl.SetColSize(col,ColSize[col])
-        for row in range(0,self.rows):
-            for col in range(0,self.cols):
-                self.grid_auswahl.SetReadOnly(row, col)
-        self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_CLICK, self.On_LClick, self.grid_auswahl)
-        self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_DCLICK, self.On_DClick, self.grid_auswahl)
-        self.Bind(wx.grid.EVT_GRID_CMD_CELL_RIGHT_CLICK, self.On_RClick, self.grid_auswahl)
-        self.Pop_grid()
-        if self.ident == [None]: # grid not filled, go for last entries
-            self.On_Ausw_Last()
-    ## populate selection grid
-    def Pop_grid(self):
-        limit = str(self.offset) + ","+ str(self.rows)
-        rows = self.mysql.select(self.feldlist,self.select,self.dateien, self.sortname, limit, self.where, self.link)
-        lgh = len(rows)
-        self.ident = []
-        #print "AfpDialog_DiAusw.Pop_grid lgh:", lgh
-        for row in range(0, self.rows):
-            for col in range(0,self.cols):
-                if row < lgh:
-                    self.grid_auswahl.SetCellValue(row, col,  Afp_toString(rows[row][col]))
-                else:
-                    self.grid_auswahl.SetCellValue(row, col,  "")
-            if row < lgh:
-                self.ident.append(rows[row][self.cols])
-    ## return if grid-rows are filled completely
-    def grid_is_complete(self):
-        return len(self.ident) >= self.rows
-    ## step backwards on database table 
-    # @param step - step length
-    # @param last - flag in new selection is necessary
-    def set_step_back(self, step, last = False):
-        #print "AfpDialog_DiAusw.set_step_back In:", step, last
-        if self.offset >= step and not last:
-            self.offset -= step
-            return
-        if last:
-            limit = "0,1"
-            ssplit = self.select.split()
-            rows = self.mysql.select(self.feldlist, self.select, self.dateien, self.sortname + " DESC", limit, self.where, self.link)
-            value = Afp_toInternDateString(rows[0][self.valuecol])
-            self.select = ssplit[0] + " " + ssplit[1] + " \"" + value + "\""
-            self.ident[0] = rows[0][-1]
-        limit = "0,"+ str(self.rows + 1)
-        ssplit = self.select.split()
-        select = ssplit[0] + " < " + ssplit[2]
-        rows = self.mysql.select(self.feldlist, select,self.dateien, self.sortname + " DESC", limit, self.where, self.link)
-        if len(rows):
-            value = Afp_toInternDateString(rows[-1][self.valuecol])
-        else:
-            value = ""
-        select = ssplit[0] + " " + ssplit[1] + " \"" + value + "\""
-        offset = -1
-        anz = 2*self.rows
-        while offset < 0:
-            limit = "0,"+ str(anz)
-            rows = self.mysql.select(self.feldlist, select,self.dateien, self.sortname, limit, self.where, self.link)
-            lgh = len(rows)
-            for i in range(0,len(rows)):
-                #if Afp_compareSql(rows[i][-1], self.ident[0],True): offset = i 
-                if rows[i][-1] == self.ident[0]: offset = i
-            if lgh == anz:
-                anz += anz
-            elif offset < 0:
-                print "Warning: AfpDialog_DiAusw.set_step_back: identic entry not found ",anz
-                offset = 0
-        self.select = select
-        if offset < step:
-            self.offset = 0
-        else:
-            self.offset = offset - step
-        #print "AfpDialog_DiAusw.set_step_back Out:", offset, step, self.offset
-    ## return result
-    def get_result(self):
-        return self.result
- 
-    # Event Handlers 
-    ## event handler for the Left Mouse Click 
-    def On_LClick(self, event): 
-        if self.debug: print "Event handler `On_LClick'"
-        self.result_index = event.GetRow()
-        event.Skip()   
-    ## event handler for the Left Mouse Double Click
-    def On_DClick(self, event): 
-        if self.debug: print "Event handler `On_DClick'"
-        self.result_index = event.GetRow()
-        self.result = self.ident[self.result_index]
-        event.Skip()
-        self.Destroy()
-    ## event handler for the Right Mouse Click
-    def On_RClick(self, event): 
-        print "Event handler `On_RClick' not implemented"
-        event.Skip()
-    ## event handler for the Select First button        
-    def On_Ausw_First(self,event):
-        if self.debug: print "Event handler `On_Ausw_First'"
-        ssplit = self.select.split()
-        self.select = ssplit[0] + " " + ssplit[1] + " \"\""
-        self.offset = 0
-        self.Pop_grid()
-        event.Skip()
-    ## event handler for the Select Previous Page button
-    def On_Ausw_PPage(self,event):
-        if self.debug: print "Event handler `On_Ausw_PPage'"
-        self.set_step_back(self.rows - 1)
-        self.Pop_grid()
-        event.Skip()
-    ## event handler for the Select Previous Entry button
-    def On_Ausw_Prev(self,event):
-        if self.debug: print "Event handler `On_Ausw_Prev'"
-        self.set_step_back(1)
-        self.Pop_grid()
-        event.Skip()
-    ## event handler for the Select Next Entry button
-    def On_Ausw_Next(self,event):
-        if self.debug: print "Event handler `On_Ausw_Next'"
-        if self.grid_is_complete():
-            self.offset += 1
-            self.Pop_grid()
-        event.Skip()
-    ## event handler for the Select Next Page button
-    def On_Ausw_NPage(self,event):
-        if self.debug: print "Event handler `On_Ausw_NPage'"
-        if self.grid_is_complete():
-            self.offset += self.rows - 1
-            self.Pop_grid()
-        event.Skip()
-    ## event handler for th Select Last button
-    def On_Ausw_Last(self,event = None):
-        if self.debug: print "Event handler `On_Ausw_Last'"
-        self.set_step_back(self.rows - 1, True)
-        self.Pop_grid()
-        if event: event.Skip()
-    ## event handler for the Search button
-    def On_Ausw_Suchen(self,event):
-        if self.debug: print "Event handler `On_Ausw_Suchen'"
-        value = self.search
-        text, Ok = AfpReq_Text("Suche in Datei " + self.datei.capitalize() + ".", "Bitte Suchbegriff eingeben:", value, "Texteingabe Suche")
-        if Ok:
-            select = self.select.split()
-            self.search = text
-            self.select = select[0] + " " + select[1] + " \"" + text + "\""
-            self.offset = 0
-            #print "Ok", text         
-            self.Pop_grid()
-        event.Skip()
-    ## event handler fpr the New button   
-    def On_Ausw_Neu(self,event):
-        if self.debug: print "Event handler `On_Ausw_Neu'"
-        Ok = self.invoke_neu_dialog(self.globals, self.search, self.where)
-        if Ok: self.Pop_grid()
-        event.Skip() 
-    ## event handler for the Cancel button    
-    def On_Ausw_Abbruch(self,event):
-        if self.debug: print "Event handler `On_Ausw_Abbruch'"
-        event.Skip()
-        self.Destroy()
-    ## event handler for the OK button
-    def On_Ausw_Ok(self,event):
-        if self.debug: print "Event handler `On_Ausw_Ok'"
-        if self.result_index > -1:
-            self.result = self.ident[self.result_index]
-        event.Skip()
-        self.Destroy()
-      
-    # routines to be overwritten for custimisation
-    # -------------------------------------------------------------------
-   
-    ## selection grid definition \n
-    # must be overwritten in devired dialog \n
-    #
-    # All columns with a 'width' entry will be shown, the witdh entry is the percetage of the available witdh used by this column. \n
-    # The column with a 'None' entry is used for identification and the appropriate value will be returned in case of selection. \n
-    # The first string defines the 'field' and the 'table' where the data is extracted from, the optional additional third part indicates
-    #   that a concatinated column will be used for all lines having the same value ('alias'). \n
-    # Selection works either on the 'field.table' entry of the first line or in the 'index' supplied from outside if it can be found in this list. \n
-    # Sorting works on the first 'alias' entry if available or is handled simular to the selection. \n
-    #
-    # If different tables are involved the 'Ident column' string must hold the connection forumlar. \n
-    # The first 'field.table' string will then be returned in the case of selection.\n
-    #
-    # Felder = [[Field .Table .Alias,Width], ... , [Field1.Table1,None]]  
-    #
-    # example and comments see in "AfpAdDialog.AfpDialog_AdAusw"
-    def get_grid_felder(self):
-        # get the definition of the grid content (to be overwritten)
-        return []
-    ## invoke dialog for a new entry \n
-    # may be overwritten in devired dialog
-    def invoke_neu_dialog(self, globals, search, where):
-        # invoke the dialog for a new entry (to be overwritten)
-        AfpReq_Info("Funktion 'Neu' nicht eingebaut!","Meist ist der Grund dazu Doppeleingaben zu vermeiden.","Funktion 'Neu'")
-        return False
-        
+          
 ## Base class for dialog for the commen unrestricted selection of data from a database table \n
 # the following routines must be supplied in the derived class: \n
 #  "self.get_grid_felder()"      for selection grid population \n
@@ -1054,15 +706,13 @@ class AfpDialog_Auswahl(wx.Dialog):
         self.sizer = None
         # inital values      
         self.rows = 7
-        #self.rows = int(1.5*self.rows)
         self.new_rows = self.rows
         self.fixed_width = 70
         self.fixed_height = 110
-        self.grid_width = None
         self.grid_data = None
         # for internal use
         self.used_modul = None
-        self.cols = 5
+        self.cols = 1
         self.col_percents = []
         self.col_labels = []
         self.feldindex = []
@@ -1078,14 +728,12 @@ class AfpDialog_Auswahl(wx.Dialog):
         # for the result
         self.result_index = -1
         self.result = None
-        self.grid_width = self.GetSize()[0] - self.fixed_width
 
         self.InitWx()
         self.SetTitle("--Variable-Text--")
         height = self.GetSize()[1] - self.fixed_height
         self.row_height = height/self.rows 
-        print "New:", self.GetSize(), height, self.grid_width, self.row_height, self.rows, self.new_rows
-        #self.Pop_grid()
+        #print "New:", self.GetSize(), height, self.row_height, self.rows, self.new_rows
         self.Bind(wx.EVT_SIZE, self.On_ReSize)
 
     ## set up dialog widgets      
@@ -1133,9 +781,7 @@ class AfpDialog_Auswahl(wx.Dialog):
         self.Bind(wx.grid.EVT_GRID_CMD_CELL_RIGHT_CLICK, self.On_RClick, self.grid_auswahl)
 
         self.left_sizer =wx.BoxSizer(wx.HORIZONTAL)
-        #self.left_sizer.AddStretchSpacer(1)
         self.left_sizer.Add(self.grid_auswahl,10,wx.EXPAND)        
-        #self.left_sizer.AddStretchSpacer(1)
         
         self.button_Suchen = wx.Button(self, -1, label="&Suchen", name="Suchen")
         self.Bind(wx.EVT_BUTTON, self.On_Ausw_Suchen, self.button_Suchen)
@@ -1178,7 +824,7 @@ class AfpDialog_Auswahl(wx.Dialog):
     def extract_grid_column_values(self): 
          # initialize grid
         felder = self.get_grid_felder()
-        print "adjust_grid_columns:", felder
+        #print "AfpDialog_Auswahl.extract_grid_column_values:", felder
         self.feldindex = []        
         self.feldlist = ""
         self.selectname = ""
@@ -1225,7 +871,7 @@ class AfpDialog_Auswahl(wx.Dialog):
     def adjust_grid_rows(self):
         if self.new_rows > self.rows:
             self.grid_auswahl.AppendRows(self.new_rows - self.rows)
-            print "Add:", self.new_rows - self.rows, self.grid_auswahl.GetNumberRows()
+            #print "AfpDialog_Auswahl.adjust_grid_rows Add:", self.new_rows - self.rows, self.grid_auswahl.GetNumberRows()
             self.rows = self.new_rows       
             for row in range(self.rows, self.new_rows):
                 for col in range(self.cols):
@@ -1233,13 +879,15 @@ class AfpDialog_Auswahl(wx.Dialog):
         elif self.new_rows < self.rows:
             for i in range(self.rows - self.new_rows):
                 self.grid_auswahl.DeleteRows(1)
-            print "Del:", self.rows - self.new_rows, self.grid_auswahl.GetNumberRows()
+            #print "AfpDialog_Auswahl.adjust_grid_rows Del:", self.rows - self.new_rows, self.grid_auswahl.GetNumberRows()
             self.rows = self.new_rows
+        grid_width = self.GetSize()[0] - self.fixed_width
+        print "AfpDialog_Auswahl.adjust_grid_rows Width:", grid_width, self.col_percents
         if self.col_percents:
             for col in range(self.cols):  
                 self.grid_auswahl.SetColLabelValue(col, self.col_labels[col])
                 if col < len(self.col_percents):
-                    self.grid_auswahl.SetColSize(col, self.col_percents[col]*self.grid_width/100)
+                    self.grid_auswahl.SetColSize(col, self.col_percents[col]*grid_width/100)
     ## initialisation of  the dialog \n
     # set up grid, attach data
     # @param globals - global variables including database connection
@@ -1248,7 +896,7 @@ class AfpDialog_Auswahl(wx.Dialog):
     # @param where - filter for this selection
     # @param text - text to be displayed above selection list
     def initialize(self, globals, index, value, where, text): 
-        print "initialize grid input:", index, "Value:", value, "Where:", where, "Text:", text
+        print "AfpDialog_Auswahl.initialize Index:", index, "Value:", value, "Where:", where, "Text:", text
         value = Afp_toInternDateString(value)
         self.globals = globals
         self.mysql = globals.get_mysql()
@@ -1260,9 +908,9 @@ class AfpDialog_Auswahl(wx.Dialog):
         self.dateien = self.dateien.strip()
         # initialize grid
         if self.globals.os_is_windows():
-            self.rows = int(1.5 * self.rows)
+            self.new_rows = int(1.4 * self.rows)
             height = self.GetSize()[1] - self.fixed_height
-            self.row_height = height/self.rows 
+            self.row_height = height/self.new_rows 
         indexcol = -1
         split = self.feldlist.split(",")
         for ind, feld in enumerate(split):   
@@ -1283,16 +931,16 @@ class AfpDialog_Auswahl(wx.Dialog):
         self.set_size()
         self.adjust_grid_rows()
         self.Pop_grid()
-        if self.ident == [None]: # grid not filled, go for last entries
+        if not self.grid_is_complete(): # grid not filled comletely, go for last entries
             self.On_Ausw_Last()
     ## set size depending on different glabal variables
     def set_size(self, size = None):
         if size is None:
             size = self.globals.get_value(self.typ + "_Size", self.modul)
+            if size is None:
+                size = (560,281)
         if size: 
             self.SetSize(size)
-        else:
-            self.SetSize((560,281))
     ## populate selection grid
     def Pop_grid(self, dynamic = False):
         limit = str(self.offset) + ","+ str(self.rows)      
@@ -1304,9 +952,10 @@ class AfpDialog_Auswahl(wx.Dialog):
             rows = self.mysql.select(self.feldlist, self.select, self.dateien, self.sortname, limit, self.where, self.link)
         lgh = len(rows)
         self.ident = []
-        #print "AfpDialog_DiAusw.Pop_grid lgh:", lgh
+        #print "AfpDialog_Auswahl.Pop_grid lgh:", lgh, self.rows, self.cols, self.grid_auswahl.GetNumberRows(), self.grid_auswahl.GetNumberCols() 
         for row in range(0, self.rows):
-            for col in range(0,self.cols):
+            for col in range(0,self.cols): 
+                #print "AfpDialog_Auswahl.Pop_grid indices:", row, col
                 if row < lgh:
                     self.grid_auswahl.SetCellValue(row, col,  Afp_toString(rows[row][col]))
                 else:
@@ -1367,11 +1016,9 @@ class AfpDialog_Auswahl(wx.Dialog):
     # Event Handlers 
     ## event handler for resizing window
     def On_ReSize(self, event):
-        size = self.GetSize()
-        self.grid_width = size[0] - self.fixed_width
-        height = size[1] - self.fixed_height
+        height = self.GetSize()[1] - self.fixed_height
         self.new_rows = int(height/self.row_height)
-        #print "AfpDialog_Auswahl.Resize:", size, height, self.grid_width, self.row_height, self.rows, self.new_rows
+        #print "AfpDialog_Auswahl.Resize:", size, height, self.row_height, self.rows, self.new_rows
         self.adjust_grid_rows()
         self.Pop_grid(True)
         event.Skip()   
@@ -1477,7 +1124,7 @@ class AfpDialog_Auswahl(wx.Dialog):
     # Selection works either on the 'field.table' entry of the first line or in the 'index' supplied from outside if it can be found in this list. \n
     # Sorting works on the first 'alias' entry if available or is handled simular to the selection. \n
     #
-    # If different tables are involved the 'Ident column' string must hold the connection forumlar. \n
+    # If different tables are involved the 'Ident column' string must hold the connection formular. \n
     # The first 'field.table' string will then be returned in the case of selection.\n
     #
     # Felder = [[Field .Table .Alias,Width], ... , [Field1.Table1,None]]  

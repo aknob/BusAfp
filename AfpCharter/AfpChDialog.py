@@ -86,11 +86,9 @@ def AfpCharter_copy(data):
 ## dialog for selection of charter data \n
 # selects an entry from the fahrten table
 class AfpDialog_ChAusw(AfpDialog_Auswahl):
-#class AfpDialog_ChAusw(AfpDialog_DiAusw):
     ## initialise dialog
     def __init__(self):
         AfpDialog_Auswahl.__init__(self,None, -1, "", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
-        #AfpDialog_DiAusw.__init__(self,None, -1, "")
         self.typ = "Fahrtenauswahl"
         self.datei = "FAHRTEN"
         self.modul = "Charter"
@@ -132,7 +130,7 @@ def AfpLoad_ChAusw(globals, index, value = "", where = None, ask = False):
     if Ok:
         DiAusw = AfpDialog_ChAusw()
         #print Index, value, where
-        text = "Bitte Mietfahrt auswählen:"
+        text = "Bitte Mietfahrt auswählen:".decode("UTF-8")
         DiAusw.initialize(globals, index, value, where, text)
         DiAusw.ShowModal()
         result = DiAusw.get_result()

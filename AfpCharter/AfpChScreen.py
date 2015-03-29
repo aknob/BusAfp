@@ -250,7 +250,7 @@ class AfpChScreen(AfpScreen):
     ## Eventhandler BUTTON - selection
     def On_Fahrt_AuswF(self,event):
         if self.debug: print "Event handler `On_Fahrt_AuswF'!"
-        self.sb.set_debug()
+        #self.sb.set_debug()
         index = self.sb.identify_index().get_name()
         where = AfpSelectEnrich_dbname(self.sb.identify_index().get_where(), "FAHRTEN")
         #value = self.sb.get_string_value(index, True)
@@ -263,7 +263,7 @@ class AfpChScreen(AfpScreen):
             if self.sb_filter: self.sb.select_where("", "FahrtNr", "FAHRTEN")
             self.sb.set_index(index, "FAHRTEN", "FahrtNr")   
             self.Populate()
-        self.sb.unset_debug()
+        #self.sb.unset_debug()
         event.Skip()
 
     ## Eventhandler BUTTON, MENU - document generation

@@ -137,11 +137,9 @@ class AfpDialog_AdAusw(AfpDialog_Auswahl):
 ## dialog for adress selection from attribut \n 
 # selects an entry of the adress table by choosing from the attribut (AdresAtt) table   
 class AfpDialog_AdAttAusw(AfpDialog_Auswahl):
-#class AfpDialog_AdAttAusw(AfpDialog_DiAusw):
     ## initialise class
     def __init__(self):
         AfpDialog_Auswahl.__init__(self,None, -1, "", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
-        #AfpDialog_DiAusw.__init__(self,None, -1, "")
         self.typ = "Adressenauswahl"
         self.datei = "ADRESATT"        
         self.modul = "Adresse"
@@ -178,11 +176,8 @@ def AfpLoad_AdAusw(globals, Datei, index, value = "", where = None, attribut = N
         else:
             text = "Bitte Adresse auswählen:".decode("UTF-8")
         DiAusw.initialize(globals, index, value, where, text)        
-        print "AfpLoad_AdAusw initialized"
         DiAusw.ShowModal()
-        print "AfpLoad_AdAusw ShowModal"
         result = DiAusw.get_result()
-        print "AfpLoad_AdAusw:", result
         DiAusw.Destroy()
     elif Ok is None:
         # flag for direct selection
