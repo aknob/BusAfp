@@ -106,12 +106,15 @@ def AfpAdDi_spezialAttribut(name, attribut, text, tag, no_delete = False):
 
 ## dialog for selection of adress data \n
 # selects an entry from the adress table
-class AfpDialog_AdAusw(AfpDialog_DiAusw):
+class AfpDialog_AdAusw(AfpDialog_Auswahl):
+#class AfpDialog_AdAusw(AfpDialog_DiAusw):
     ## initialise class
     def __init__(self):
-        AfpDialog_DiAusw.__init__(self,None, -1, "")
+        AfpDialog_Auswahl.__init__(self,None, -1, "", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        #AfpDialog_DiAusw.__init__(self,None, -1, "")
         self.typ = "Adressenauswahl"
         self.datei = "ADRESSE"
+        self.modul = "Adresse"
     ## get the definition of the selection grid content \n
     # overwritten for "Adressen" use ! \n
     # Each line defines a column for the "Auswahl" dialog. \n
@@ -133,12 +136,15 @@ class AfpDialog_AdAusw(AfpDialog_DiAusw):
         return Ok
 ## dialog for adress selection from attribut \n 
 # selects an entry of the adress table by choosing from the attribut (AdresAtt) table   
-class AfpDialog_AdAttAusw(AfpDialog_DiAusw):
+class AfpDialog_AdAttAusw(AfpDialog_Auswahl):
+#class AfpDialog_AdAttAusw(AfpDialog_DiAusw):
     ## initialise class
     def __init__(self):
-        AfpDialog_DiAusw.__init__(self,None, -1, "")
+        AfpDialog_Auswahl.__init__(self,None, -1, "", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        #AfpDialog_DiAusw.__init__(self,None, -1, "")
         self.typ = "Adressenauswahl"
-        self.datei = "ADRESATT"
+        self.datei = "ADRESATT"        
+        self.modul = "Adresse"
         # remove 'Neu'-button from panel
         self.button_Neu.Destroy()
     ## get the definition of the selection grid content \n
@@ -171,10 +177,12 @@ def AfpLoad_AdAusw(globals, Datei, index, value = "", where = None, attribut = N
                 text = "Bitte " + attribut + "-Adresse auswählen:".decode("UTF-8")
         else:
             text = "Bitte Adresse auswählen:".decode("UTF-8")
-        DiAusw.initialize(globals, index, value, where, text)
+        DiAusw.initialize(globals, index, value, where, text)        
+        print "AfpLoad_AdAusw initialized"
         DiAusw.ShowModal()
+        print "AfpLoad_AdAusw ShowModal"
         result = DiAusw.get_result()
-        #print result
+        print "AfpLoad_AdAusw:", result
         DiAusw.Destroy()
     elif Ok is None:
         # flag for direct selection
