@@ -540,7 +540,7 @@ class AfpDialog_DiChEin(AfpDialog):
          if self.active is None:
             if self.debug: print "Event handler `On_Activate'"
             self.active = True
-            if self.new: 
+            if self.new and self.data.get_globals().get_value("DiChEin_calendar_gimmick", "Charter"): 
                 self.On_Fahrt_Datum()
                 if self.text_Abfahrt.GetValue() == "":
                     self.text_Abfahrt.SetFocus()
