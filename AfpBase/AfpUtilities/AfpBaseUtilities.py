@@ -133,6 +133,12 @@ def Afp_diffDays(start, ende):
         return diff.days
     else:
         return diff
+## generate datettime from given values
+# @param year - year of date
+# @param month - month of date
+# @param day - day of date
+def Afp_toDate(year, month, day):
+    return datetime.date(year, month, day)
 ## convert timedelta to time
 # @param timedelta - timedelta to be converted
 def Afp_toTime(timedelta):

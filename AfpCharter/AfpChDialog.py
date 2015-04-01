@@ -152,8 +152,10 @@ class AfpDialog_DiChEin(AfpDialog):
         self.zahl_data = None
         AfpDialog.__init__(self,None, -1, "")
         self.lock_data = True
+        self.active = None
         self.SetSize((574,410))
         self.SetTitle("Mietfahrt")
+        self.Bind(wx.EVT_ACTIVATE, self.On_Activate)
     
     ## initialise graphic elements
     def InitWx(self):
@@ -251,17 +253,20 @@ class AfpDialog_DiChEin(AfpDialog):
         self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Kontakt, self.button_BKontakt)
         self.button_BRechAd = wx.Button(panel, -1, label="&Rechnung", pos=(460,88), size=(100,24), name="BRechAd")
         self.Bind(wx.EVT_BUTTON, self.On_Fahrt_RechAd, self.button_BRechAd)
-        self.button_Neu = wx.Button(panel, -1, label="Ko&pie", pos=(460,130), size=(100,30), name="Neu")
-        self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Neu, self.button_Neu)
-        self.button_Zahlung = wx.Button(panel, -1, label="&Zahlung", pos=(460,160), size=(100,30), name="Zahlung")
-        self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Zahl, self.button_Zahlung)
-        self.button_Ausstatt = wx.Button(panel, -1, label="A&usstattung", pos=(460,218), size=(100,24), name="Ausstatt")
+        self.button_Datum = wx.Button(panel, -1, label="&Datum", pos=(460,130), size=(100,24), name="Datum")
+        self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Datum, self.button_Datum)
+        self.button_Ausstatt = wx.Button(panel, -1, label="A&usstattung", pos=(460,154), size=(100,24), name="Ausstatt")
         self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Ausstatt, self.button_Ausstatt)
-        self.button_Info = wx.Button(panel, -1, label="&Info", pos=(460,242), size=(100,24), name="Info")
+        self.button_Info = wx.Button(panel, -1, label="&Info", pos=(460,178), size=(100,24), name="Info")
         self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Info, self.button_Info)
-        self.button_Text = wx.Button(panel, -1, label="Te&xt", pos=(460,266), size=(100,24), name="Text")
+        self.button_Text = wx.Button(panel, -1, label="Te&xt", pos=(460,202), size=(100,24), name="Text")
         self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Text, self.button_Text)
-        self.setWx(panel, [460, 316, 100, 24], [460, 340, 100, 30]) # set Edit and Ok widgets
+        self.button_Neu = wx.Button(panel, -1, label="Ko&pie", pos=(460,250), size=(100,30), name="Neu")
+        self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Neu, self.button_Neu)
+        self.button_Zahlung = wx.Button(panel, -1, label="&Zahlung", pos=(460,280), size=(100,30), name="Zahlung")
+        self.Bind(wx.EVT_BUTTON, self.On_Fahrt_Zahl, self.button_Zahlung)
+
+        self.setWx(panel, [460, 310, 100, 30], [460, 340, 100, 30]) # set Edit and Ok widgets
    
     ## attach data to dialog and invoke population of the graphic elements
     # @param data - AfpCharter object to hold the data to be displayed
@@ -530,6 +535,15 @@ class AfpDialog_DiChEin(AfpDialog):
         else:  
             self.choicevalues = {}
 
+    ## event handler when window is activated
+    def On_Activate(self,event):
+         if self.active is None:
+            if self.debug: print "Event handler `On_Activate'"
+            self.active = True
+            if self.new: 
+                self.On_Fahrt_Datum()
+                if self.text_Abfahrt.GetValue() == "":
+                    self.text_Abfahrt.SetFocus()
     ## event handler when cursor leave textbox
     def On_KillFocus(self,event):
         object = event.GetEventObject()
@@ -649,6 +663,24 @@ class AfpDialog_DiChEin(AfpDialog):
             self.choice_Edit.SetSelection(1)
             self.Set_Editable(True)
         event.Skip()
+
+    ## Eventhandler BUTTON - graphic pick for dates- not yet implemented! \n
+    def On_Fahrt_Datum(self,event = None):
+        if self.debug: print "Event handler `On_Fahrt_Datum'"
+        start = self.text_Abfahrt.GetValue()
+        if start: start = Afp_ChDatum(start)
+        ende= self.text_Ende.GetValue()
+        if ende: ende = Afp_ChDatum(ende)
+        x, y = self.button_Datum.ScreenPosition
+        x += self.button_Datum.GetSize()[0]
+        y += self.button_Datum.GetSize()[1]
+        dates = AfpReq_Calendar((x, y), [start, ende],  "Fahrtdaten Mietfahrt", False, ["Abfahrt", "Fahrtende"])
+        if dates:
+            self.text_Abfahrt.SetValue(dates[0])
+            self.text_Ende.SetValue(dates[1])
+            self.choice_Edit.SetSelection(1)
+            self.Set_Editable(True)
+        if event: event.Skip()
 
     ## Eventhandler BUTTON - change bus configuration desired- not yet implemented! \n
     def On_Fahrt_Ausstatt(self,event):

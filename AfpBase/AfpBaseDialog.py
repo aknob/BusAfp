@@ -37,11 +37,29 @@
 
 import wx
 import wx.grid
+import wx.calendar
 
 import AfpUtilities.AfpBaseUtilities
-from AfpUtilities.AfpBaseUtilities import Afp_isTime, Afp_isDate, Afp_isNumeric
+from AfpUtilities.AfpBaseUtilities import Afp_isTime, Afp_isDate, Afp_toDate, Afp_isNumeric
 import AfpUtilities.AfpStringUtilities
-from AfpUtilities.AfpStringUtilities import Afp_addRootpath, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum
+from AfpUtilities.AfpStringUtilities import Afp_addRootpath, Afp_isString, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum
+
+# routines needded for communication with wx
+#
+## convert python datetime to wx DateTime
+# @param date - python datetime to be converted
+def Afp_pyToWxDate(date):
+     tt = date.timetuple()
+     dmy = (tt[2], tt[1]-1, tt[0])
+     return wx.DateTimeFromDMY(*dmy)
+## convert wx DateTime to python datetime 
+# @param date - wx DateTime to be converted
+def Afp_wxToPyDate(wxdate):
+     if wxdate.IsValid():
+          ymd = map(int, wxdate.FormatISODate().split('-'))
+          return Afp_toDate(*ymd)
+     else:
+          return None
    
 # Simple dialogs often used (requester in superbase)
 #
@@ -188,12 +206,11 @@ def AfpReq_EditText(oldtext = "", header = "TextEditor", label1 = None, label2 =
 # @param width - width of dialog
 # @param no_delete - flag if 'delete' button should be hidden
 def AfpReq_MultiLine(text1, text2, typ, liste, header = "Multi Editing", width = 250, no_delete = True):
-    Ok = False
-    values = None
     dialog = AfpDialog_MultiLines(None, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
     dialog.attach_data(text1 + '\n' + text2 , header, [typ], liste, width, no_delete)
-    ret = dialog.ShowModal()
+    dialog.ShowModal()
     result = dialog.get_result()
+    dialog.Destroy()
     return result
 ## Selection from a list, optional identifiers for the list entries may be given
 # (return selected list/identifier entry, Ok == True(False)
@@ -232,31 +249,29 @@ def AfpReq_FileName(dir = "", header = "", wild = "", open = False):
     fname = dialog.GetPath()
     if ret == wx.ID_OK : Ok = True
     return fname, Ok
-## Display printer dialog
-# - not used
-def AfpReq_Printer(frame):
-    Ok = False
-    pdata = wx.PrintData()
-    pdata.SetPaperId(wx.PAPER_A4)
-    pdata.SetOrientation(wx.PORTRAIT) # wx.LANDSCAPE, wx.PORTRAIT
-    data = wx.PrintDialogData()
-    data.SetPrintData(pdata)
-    data.EnableSelection(False)
-    #data.EnableSelection(True)
-    data.EnablePrintToFile(False)
-    #data.EnablePrintToFile(True)
-    data.EnablePageNumbers(False)
-    #data.EnablePageNumbers(True)
-    data.SetMinPage(1)
-    data.SetMaxPage(5)
-    data.SetAllPages(True)
-    dialog = wx.PrintDialog(frame, data)
-    odata = dialog.GetPrintData()
-    if dialog.ShowModal() == wx.ID_OK:
-        Ok = True    
+## Pick dates from a calendar, returns None if Cancel is pushed, retuns array of datestrings if Ok is pushed
+# @param position - (x, y) position on screen for left, right corner or midpoint
+# @param olddates - string (or list of strings for multiuse) holding the actuel date
+# @param header - if  given, header to be displayed on top ribbon of dialog
+# @param use_mid - flag if midpoint should be used for positioning, None - left corner, True - midpoit, False - right corner
+# @param multi - if given, list of strings - invoke len(multi) calendars, each headed by the appropriate string
+def AfpReq_Calendar(position, olddates = "", header = "Auswahl eines Datums", use_mid = None, multi = None):
+    if multi:
+        dialog = AfpDialog_Calendar(None, -1, header, multi=multi)
+    else:
+        dialog = AfpDialog_Calendar(None, -1, header)
+    if use_mid:
+        dialog.set_mid_position(position)
+    elif use_mid is None:
+        dialog.set_position(position)
+    else:
+        dialog.set_right_position(position)
+    if olddates: dialog.set_data(olddates)
+    dialog.ShowModal() 
+    dates = dialog.get_data()
     dialog.Destroy()
-    return odata, Ok
- 
+    return dates
+
 ## Baseclass Texteditor Requester 
 class AfpDialog_TextEditor(wx.Dialog):
     ## constructor
@@ -370,7 +385,7 @@ class AfpDialog_MultiLines(wx.Dialog):
         self.lower_sizer.AddStretchSpacer(1)
     ## attach data to dialog
     # @param text - text to be displayed above action part
-    # @param header - header to be display in the dialogts top ribbon
+    # @param header - header to be display in the dialogs top ribbon
     # @param types [typ] - typ of data to be provided, typ of input needed,  at least one entry in array is needed. 
     # If not enough types are provides, the last will be used for the rest
     # @param datas - input data depending on typ -
@@ -456,7 +471,152 @@ class AfpDialog_MultiLines(wx.Dialog):
         self.set_values()
         event.Skip()
         self.Destroy()
+        
+## Baseclass Calendar Requester  \n
+# if the parameter: "multi=['Name1', ...]" is given in constructor, 
+# a sequence of calendars are invoked and distributed horizontal, 
+# each labled appropriate ('Name1', ...)
+class AfpDialog_Calendar(wx.Dialog):
+    ## constructor 
+    def __init__(self, *args, **kw):
+        self.multi = [""]
+        if "multi" in kw:
+            self.multi = kw["multi"]
+            del kw["multi"]
+        super(AfpDialog_Calendar, self).__init__(*args, **kw) 
+        self.data = None
+        self.offset = None
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.calendars = []
+        self.calendars.append(wx.calendar.CalendarCtrl(self,  style = wx.calendar.CAL_SHOW_HOLIDAYS | 
+                                                                                                          wx.calendar.CAL_SHOW_SURROUNDING_WEEKS | 
+                                                                                                          wx.calendar.CAL_MONDAY_FIRST))
+        for i in range(1, len(self.multi)):
+            self.calendars.append( wx.calendar.CalendarCtrl(self, style = wx.calendar.CAL_SHOW_HOLIDAYS | 
+                                                                                                              wx.calendar.CAL_SHOW_SURROUNDING_WEEKS |
+                                                                                                              wx.calendar.CAL_MONDAY_FIRST))
+        self.Bind(wx.calendar.EVT_CALENDAR, self.On_Button_Ok)
+        self.Bind(wx.calendar.EVT_CALENDAR_SEL_CHANGED, self.On_Changed)
+        # gtk truncates the year - this fixes it
+        w, h =  self.calendars[0].Size
+        size = (w+25, h-20)
 
+        self.upper_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.upper_sizer.AddSpacer(10)
+        for i, calendar in enumerate(self.calendars):
+            calendar.Size = size
+            calendar.MinSize = size
+            cal_sizer =  wx.BoxSizer(wx.VERTICAL)
+            if self.multi[i]:
+                label = wx.StaticText(self, -1, label=self.multi[i] + ":")   
+                cal_sizer.Add(label, 0)
+            cal_sizer.Add(calendar, 0)
+            self.upper_sizer.Add(cal_sizer, 0, wx.EXPAND)
+            self.upper_sizer.AddSpacer(10)
+        self.button_cancel =  wx.Button(self, wx.ID_CANCEL)
+        self.Bind(wx.EVT_BUTTON, self.On_Button_Cancel, self.button_cancel)
+        self.button_ok =  wx.Button(self, wx.ID_OK) 
+        self.button_ok.SetDefault()       
+        self.Bind(wx.EVT_BUTTON, self.On_Button_Ok, self.button_ok)
+        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        button_sizer.AddStretchSpacer(1)
+        button_sizer.Add(self.button_cancel, 0, wx.EXPAND)
+        button_sizer.AddStretchSpacer(1)
+        button_sizer.Add(self.button_ok, 0, wx.EXPAND)
+        button_sizer.AddStretchSpacer(1)
+        self.sizer.Add(self.upper_sizer, 0, wx.EXPAND)
+        self.sizer.Add(button_sizer, 1, wx.EXPAND)
+        self.SetSizerAndFit(self.sizer)
+        self.SetAutoLayout(1)
+        self.sizer.Fit(self)
+        self.calendars[0].SetFocus()
+    ## set the left corner of dialog to given position
+    # @param pos - postion of left corner
+    def set_position(self, pos):
+        self.SetPosition(pos)
+    ## set the midpoint of upper border of dialog to given position
+    # @param pos - postion of midpoint
+    def set_mid_position(self, pos):
+        width = self.GetSize()[0]
+        pos = (pos[0] - width/2, pos[1])
+        self.SetPosition(pos)
+    ## set the right corner of dialog to given position
+    # @param pos - postion of right corner
+    def set_right_position(self, pos):
+        width = self.GetSize()[0]
+        pos = (pos[0] - width, pos[1])
+        self.SetPosition(pos)
+    ## sets dates to given value
+    # @param strings - string or list of strings holding date values
+    # @param offset - only used for multi use, integer or list of integers holding the offset in days between calendars, default: 0 \n
+    #   - None: no dependencies \n
+    #   - integer: offset is used between all calendars, adding offset from left to right \n
+    #  - list of integers: offset[i] is used between calendars[i] and [i+1], last offset may be spreaded
+    def set_data(self, strings, offset=0):
+        if Afp_isNumeric(offset):
+            offset = [offset]
+        self.offset = offset
+        if Afp_isString(strings):
+            strings = [strings]
+        wxDat = None
+        len_c = len(self.calendars)
+        for i, string in enumerate(strings):
+            if string:
+                datum = Afp_fromString(string)
+                wxDat = Afp_pyToWxDate(datum)
+                #print "AfpDialog_Calendar.set_datum explicit:", i, datum, "WX:", wxDat
+                if i < len_c:
+                    self.calendars[i].SetDate(wxDat)
+       # print "AfpDialog_Calendar.set_datum length:", len_c,  range(len(strings), len_c)
+        if len_c > len(strings) and wxDat:
+            for i in range(len(strings), len_c):
+                #print "AfpDialog_Calendar.set_datum implicit:", i, datum, "WX:", wxDat
+                self.calendars[i].SetDate(wxDat)
+        len_o = len(self.offset)
+        for i in range(len_o, len_c - 1):
+            self.offset.append(self.offset[-1])
+    ## retrieve date strings from dialog
+    def get_data(self):
+        return self.data
+    ## Eventhandler BUTTON - Cancel button pushed
+    # @param event - event which initiated this action    
+    def On_Changed(self, event):
+        if self.offset:
+            calendar = event.GetEventObject()
+            index = self.calendars.index(calendar)
+            date = calendar.GetDate()
+            if index > 0:
+                sum = wx.DateSpan()
+                for i in range(index-1, -1, -1):
+                    sum += wx.DateSpan(0,0,0,self.offset[i])
+                    newdat = date - sum
+                    #print "AfpDialog_Calendar.On_Changed -:", i, date, newdat, self.calendars[i].GetDate()
+                    if self.calendars[i].GetDate().IsLaterThan(newdat):
+                        self.calendars[i].SetDate(newdat)
+            len_c = len(self.calendars) - 1
+            if index < len_c:
+                sum = wx.DateSpan()
+                for i in range(index, len_c):
+                    sum += wx.DateSpan(0,0,0,self.offset[i])
+                    newdat = date + sum
+                    #print "AfpDialog_Calendar.On_Changed +:", i, date, newdat, self.calendars[i+1].GetDate()
+                    if self.calendars[i+1].GetDate().IsEarlierThan(newdat):
+                        self.calendars[i+1].SetDate(newdat)
+    ## Eventhandler BUTTON - Cancel button pushed
+    # @param event - event which initiated this action    
+    def On_Button_Cancel(self, event):
+        event.Skip()
+        self.Destroy()
+    ## Eventhandler BUTTON - Ok button pushed
+    # @param event - event which initiated this action
+    def On_Button_Ok(self, event):
+        self.data = []
+        for calendar in self.calendars:
+            datum = Afp_wxToPyDate(calendar.GetDate())
+            self.data.append(Afp_toString(datum))
+        event.Skip()
+        self.Destroy()
+        
 ## Baseclass for all  dialogs 
 class AfpDialog(wx.Dialog):
     ## constructor
@@ -785,7 +945,7 @@ class AfpDialog_Auswahl(wx.Dialog):
         self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_DCLICK, self.On_DClick, self.grid_auswahl)
         self.Bind(wx.grid.EVT_GRID_CMD_CELL_RIGHT_CLICK, self.On_RClick, self.grid_auswahl)
 
-        self.left_sizer =wx.BoxSizer(wx.HORIZONTAL)
+        self.left_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.left_sizer.Add(self.grid_auswahl,10,wx.EXPAND)        
         
         self.button_Suchen = wx.Button(self, -1, label="&Suchen", name="Suchen")
