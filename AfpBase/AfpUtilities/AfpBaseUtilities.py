@@ -35,6 +35,7 @@ import os.path
 import os
 import platform
 import datetime
+import tzlocal
 import logging
 import shutil
 import glob
@@ -111,9 +112,13 @@ def Afp_extractPureValues(indices, array):
 ## return today
 def Afp_getToday():
     return datetime.date.today()
-## return today
-def Afp_getNow():
-    return datetime.datetime.now()
+## return a datetime object holding the actuel date and time
+# @param tzlocal - flag if local timezone should be added
+def Afp_getNow(settz = False):
+    if settz:
+        return datetime.datetime.now(tzlocal.get_localzone())
+    else:
+        return datetime.datetime.now()
 ## add number of days to given date
 # @param date - initial date
 # @param ndays - number of days to be added
@@ -139,6 +144,21 @@ def Afp_diffDays(start, ende):
 # @param day - day of date
 def Afp_toDate(year, month, day):
     return datetime.date(year, month, day)
+## generate datettime from given values
+# @param year - year of date
+# @param month - month of date
+# @param day - day of date
+# @param hour - hour of time 
+# @param minute - minute of time 
+# @param second - second of time 
+# @param tzlocal - flag if local timezone should be added
+def Afp_toDatetime(year, month, day, hour = 0, minute = 0, second  = 0, settz = False):
+    if settz:
+        return datetime.datetime(year, month, day, hour, minute, second, tzinfo=tzlocal.get_localzone())
+    else:
+        return datetime.datetime(year, month, day, hour, minute, second)
+def Afp_toTzDatetime(dtime):
+    return datetime.datetime(dtime.year, dtime.month, dtime.day, dtime.hour, dtime.minute, dtime.second, tzinfo=tzlocal.get_localzone())
 ## convert timedelta to time
 # @param timedelta - timedelta to be converted
 def Afp_toTime(timedelta):
@@ -247,7 +267,8 @@ def AfpPy_checkModule(modul):
 # a handle to the modul will be returned
 # @param modul - name of modul to be imported
 # @param path - path to modul to be imported
-def AfpPy_Import(modul, path):
+def AfpPy_Import(modul, path=None):
+    # path = None: to load standart modul not implemented/tested yet
     mod = None
     pathname = None
     try:

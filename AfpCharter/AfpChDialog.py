@@ -152,10 +152,8 @@ class AfpDialog_DiChEin(AfpDialog):
         self.zahl_data = None
         AfpDialog.__init__(self,None, -1, "")
         self.lock_data = True
-        self.active = None
         self.SetSize((574,410))
         self.SetTitle("Mietfahrt")
-        self.Bind(wx.EVT_ACTIVATE, self.On_Activate)
     
     ## initialise graphic elements
     def InitWx(self):
@@ -280,6 +278,7 @@ class AfpDialog_DiChEin(AfpDialog):
         if self.new: self.choice_Edit.SetSelection(1)
         self.Populate()
         self.Set_Editable(self.new, False)
+        #if self.new: self.On_Fahrt_Datum()
    
     ## read values from dialog and invoke writing to database
     def store_database(self):
@@ -535,15 +534,6 @@ class AfpDialog_DiChEin(AfpDialog):
         else:  
             self.choicevalues = {}
 
-    ## event handler when window is activated
-    def On_Activate(self,event):
-         if self.active is None:
-            if self.debug: print "Event handler `On_Activate'"
-            self.active = True
-            if self.new and self.data.get_globals().get_value("DiChEin_calendar_gimmick", "Charter"): 
-                self.On_Fahrt_Datum()
-                if self.text_Abfahrt.GetValue() == "":
-                    self.text_Abfahrt.SetFocus()
     ## event handler when cursor leave textbox
     def On_KillFocus(self,event):
         object = event.GetEventObject()

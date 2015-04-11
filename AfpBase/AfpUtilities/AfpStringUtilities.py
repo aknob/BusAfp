@@ -72,6 +72,8 @@ def Afp_toString(data):
                     split[1] = "00"
                     split[0] = str(int(split[0]) + 1)
             string = split[0] + ":" + split[1]
+    elif typ == datetime.datetime:
+        string = data.isoformat()
     elif typ == list:
         string = "".join(str(data))
     elif not data is None:
