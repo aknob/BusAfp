@@ -34,9 +34,10 @@ import sys
 import os.path
 import os
 import platform
+import getpass
 import datetime
 import tzlocal
-import logging
+#import logging
 import shutil
 import glob
 # for email sending
@@ -57,6 +58,7 @@ def Afp_getGlobalVar(name):
             return None
     if name == "op-system": return platform.system()
     if name == "net-name": return platform.node()
+    if name == "user": return getpass.getuser()
     if name == "path-delimiter": 
         deli = os.sep
         if deli == '\\': deli = "\\"
@@ -325,6 +327,11 @@ def Afp_genHomeDir():
 # @param toFile - destination
 def Afp_copyFile(fromFile, toFile):
     shutil.copyfile(fromFile, toFile) 
+## delete a file
+# @param filename - file to be deleted
+def Afp_deleteFile(filename):
+    if Afp_existsFile(filename):
+        os.remove(filename) 
 ## generate an empty file
 # @param filename - name of file
 def Afp_genEmptyFile(filename):
@@ -380,23 +387,23 @@ def Afp_startProgramFile(programname, debug, filename, parameter = None):
     #subprocess.call("soffice -pt HP_Color_LaserJet *", shell=True)
     #subprocess.call("soffice --invisible --convert-to pdf filename)
   
-## start of implementation of a logger
+# start of implementation of a logger
 # - not used (yet) -
 # @param level - debug level
 # @param to_file - if given logs are send to this file
-def Afp_configLogger(level, to_file):
+#def Afp_configLogger(level, to_file):
     # level specify --log=DEBUG or --log=debug
-    numeric_level = getattr(logging, level.upper(), None)
-    if not isinstance(numeric_level, int):
-         print  "WARNING: Invalid log level:", level
-         return
-    logging.basicConfig(level=numeric_level)
-    if to_file:
-        logging.basicConfig(filename=to_file)
-## get a logger
+#    numeric_level = getattr(logging, level.upper(), None)
+#    if not isinstance(numeric_level, int):
+#         print  "WARNING: Invalid log level:", level
+#         return
+#    logging.basicConfig(level=numeric_level)
+#    if to_file:
+#        logging.basicConfig(filename=to_file)
+# get a logger
 # @param name - name of the newly generated logger
-def Afp_getLogger(name):
-    return logging.getLogger(name)
+#def Afp_getLogger(name):
+#    return logging.getLogger(name)
 
 ## send an email over a SMTP-server \n
 # sender, recipient, smtphost and message or html_message have to be given.

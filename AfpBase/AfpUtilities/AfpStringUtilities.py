@@ -77,7 +77,7 @@ def Afp_toString(data):
     elif typ == list:
         string = "".join(str(data))
     elif not data is None:
-        print "WARNING: \"" + typ.__name__ + "\" conversion type not specified!", data
+        print "WARNING: Afp_toString \"" + typ.__name__ + "\" conversion type not specified!", data
     return string 
 ## convert data to string, string to quoted strings, 
 # dates and times to strings describing the  timedelta or date creation
@@ -363,10 +363,13 @@ def Afp_isIP4(string):
 ## flag if string may represent a mail address
 # @param string - string to be analysed
 def Afp_isMailAddress(string):
-    Ok = True
-    if not "@" in string: Ok = False
-    split = string.split(".")
-    if len(split[-1]) > 3: Ok = False
+    if string:
+        Ok = True
+        if not "@" in string: Ok = False
+        split = string.split(".")
+        if len(split[-1]) > 3: Ok = False
+    else:
+        Ok = False
     return Ok
 ## flag if string may represent a numeric value
 # @param string - string to be analysed
@@ -639,12 +642,18 @@ def Afp_pathname(path, delimit = None, file = False):
         path = path.replace("\\",delimiter)
     if not file and not path[-1] == delimiter: path += delimiter
     return path
+## check if given name holds a complete path (includig a root)
+def Afp_isRootpath(filename):
+    if filename[0] == "/" or ":" in filename:
+        return True
+    else:
+        return False
 ## check if given name holds a complete path (includig a root), \n
 # if not, given rootdir is added at the beginning of the name.
 # @param rootdir - rootpath to be added
 # @param filename - name to be checked
 def Afp_addRootpath(rootdir, filename):
-    if filename[0] == "/" or ":" in filename:
+    if  Afp_isRootpath(filename):
         # root already in filename, don't do anything
         composite = filename
     else:

@@ -8,6 +8,7 @@
 # - AfpSQLTableSelection
 #
 #   History: \n
+#        14 Apr. 2015 - AfpSQLTableSelection: keep original values in modification - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
 
@@ -341,6 +342,7 @@ class AfpSQLTableSelection(object):
         self.select_clause = None
         self.debug = debug
         self.new = False
+        self.last_manipulation = None
         self.manipulation = []
         self.data = []
         if self.debug: print "AfpSQLTableSelection Konstruktor", self.tablename
@@ -357,7 +359,7 @@ class AfpSQLTableSelection(object):
     ## return an initialized copy of this TableSelection
     def create_initialized_copy(self):
         return AfpSQLTableSelection(self.mysql, self.tablename, self.debug, self.unique_feldname, self.feldnamen)
-    ## returns if data of this TableSelection has been deleted last load or write
+    ## returns if data of this TableSelection has been deleted after last load or write
     # @param row - if given, index of row which should be checked
     def has_been_deleted(self, row = None):
         deleted = False
@@ -372,15 +374,7 @@ class AfpSQLTableSelection(object):
     def has_changed(self, feld = None):
         changed = False
         if self.manipulation:
-            if feld is None:
-                changed = True
-            else:
-                for entry in self.manipulation: 
-                    values = entry[1]
-                    if values is None or type(values) == list:
-                        changed = True
-                    elif type(values) == dict:
-                        if feld in values: changed = True
+            changed = self.manipulation_has_changed(self.manipulation, feld)
         elif self.new: changed = True
         return changed
     ## returns if given column has been set to last inserted id
@@ -473,6 +467,7 @@ class AfpSQLTableSelection(object):
             print "AfpSQLTableSelection manipulate_data:", entry
             index = entry[0]
             values = entry[1]
+            originals = None
             typ = ""
             if type(values) == dict: typ = "dict"
             elif type(values) == list: typ = "list"
@@ -482,20 +477,115 @@ class AfpSQLTableSelection(object):
             elif values is None:
                 action = "delete"
             if self.unique_feldname: index = 0
-            if action == "delete":
-                # delete data row
+            if action == "delete":  # fill row into values to allow postprocessing, delete data row
+                originals = self.data[index]
                 del self.data[index]
             elif action == "replace" and typ == "dict":
+                originals = {}
                 for key in values:
+                    originals[key] = self.get_value(key, index)
                     self.set_value(key, values[key], index)
             elif action == "replace" and typ == "list" and len(values) == len(self.feldnamen):
+                originals = self.data[index]
                 self.data[index] = values
             elif action == "insert"  and typ == "list" and len(values) == len(self.feldnamen):
                     self.data.append(values)
                     self.set_select_criteria()
             else:
                 print "ERROR: AfpSQLTableSelection.manipulate_data incorrect values"
-            self.manipulation.append([action, index, values])
+            self.manipulation.append([action, index, originals, values])
+    ## returns the length of the actuel manipulation data 
+    def manipulation_get_length(self):
+        return len(self.manipulation)
+    ## returns the dedicated manipulation data 
+    def manipulation_get(self, index):
+        return self.manipulation[index]
+    ## returns the indices of rows of changed data in new value array,
+    # if a row has been deleted, the index is set to 'None'.
+    def manipulation_get_entry_indices(self):
+        indices = []
+        for entry in self.manipulation:
+            if entry[0] == "delete":
+                del_ind = entry[1]
+                for i, ind in enumerate(indices):
+                    if ind == del_ind:
+                        indices[i] = None
+                    elif ind > del_ind:
+                        indices[i] = ind - 1
+            else:
+                indices.append(entry[1])
+        return indices
+    ## returns the original of the column in the actuel manipulation data 
+    # @param feld - it will be checked if this column has been changed
+    # @param orig - flag if original or new value should be retrieved
+    # @param row - if given, only look in this row
+    def manipulation_get_value(self, feld, orig = False, row = None):
+        if row is None:
+            original, new = self.manipulation_get_values(self.manipulation, feld)
+        else:
+            original, new = self.manipulation_get_from_row(self.manipulation, feld, row)
+        if orig:
+            return original
+        else:
+            return new
+    ## returns the original and the changed value of the column in this  manipulation data 
+    # @param manipulation - manipulation data to be checked 
+    # @param feld - it will be checked if this column has been changed
+    # @param row - iindex of row from where values should be extracted
+    def manipulation_get_from_row(self, manipulation, feld, row):
+        index = None
+        if feld in self.feldnamen:
+            index = self.feldnamen.index(feld)
+        entry = manipulation[row]
+        original, value = self.manipulation_get_value_from_entry(entry, feld, index) 
+        return original, value
+    ## returns the original and the changed value of the column in this  manipulation data 
+    # @param manipulation - manipulation data to be checked 
+    # @param feld - it will be checked if this column has been changed
+    def manipulation_get_values(self, manipulation, feld):
+        value = None
+        original = None
+        index = None
+        if feld in self.feldnamen:
+            index = self.feldnamen.index(feld)
+        for entry in manipulation: 
+            orig, value = self.manipulation_get_value_from_entry(entry, feld, index) 
+            if original is None: original = orig
+        return original, value
+    ## returns the original and the changed value of one manipulation entry 
+    # @param entry - manipulation entry to be checked 
+    # @param feld - name of field to be checked
+    # @param index - index of field to be checked
+    def manipulation_get_value_from_entry(self, entry, feld, index):
+        original = None
+        value = None
+        values = entry[3]
+        originals = entry[2]
+        if type(values) == list:
+            if not index is None:
+                if values: value = values[index]
+                if originals: original = originals[index]
+        elif type(values) == dict:
+            if feld in values: 
+                value = values[feld]  
+                original = originals[feld]  
+        return original, value
+    ## returns if the given manipulation data holds changed entries
+    # @param manipulation - manipulation data to be checked 
+    # @param feld - if given it will be checked if this column has been changed
+    def manipulation_has_changed(self, manipulation, feld = None):
+        changed = False
+        if manipulation:
+            if feld is None:
+                changed = True
+            else:
+                for entry in manipulation: 
+                    values = entry[3]
+                    if values is None or type(values) == list:
+                        changed = True
+                    elif type(values) == dict:
+                        if feld in values: changed = True
+        return changed
     ## return length of data list
     def get_data_length(self):
         return len(self.data)
@@ -571,6 +661,12 @@ class AfpSQLTableSelection(object):
         for row in rows:
             lines.append(Afp_ArraytoLine(row))
         return lines
+    ## retrieve actuel manipulation data 
+    def get_manipulation(self):
+        return self.manipulation
+    ## retrieve manipulation data of last storage
+    def get_last_manipulation(self):
+        return self.last_manipulation
     ## spread value of indicated column to all rows
     # @param feldname - indicated column name
     # @param value -  value to be filled in indicated column
@@ -612,10 +708,11 @@ class AfpSQLTableSelection(object):
     def set_manipulation(self, feldname, row, value):
         for mani in self.manipulation:
             if mani[0] == "replace" and mani[1] == row:
-                mani[2][feldname] = value
+                mani[3][feldname] = value
                 break
         else:
-            self.manipulation.append(["replace", row, {feldname: value}])
+            original = self.get_value(feldname, row)
+            self.manipulation.append(["replace", row, {feldname: original}, {feldname: value}])
     ## set a lock on database table accordint to actuel select clause
     def lock_data(self):
         self.mysql.lock(self.tablename,  self.select)
@@ -663,5 +760,6 @@ class AfpSQLTableSelection(object):
                 print "AfpSQLTableSelection.store no_unique:", self.get_values()            
                 self.mysql.write_no_unique(self.select_clause, self.feldnamen, self.get_values())
         self.new = False
+        self.last_manipulation = self.manipulation
         self.manipulation = []
       

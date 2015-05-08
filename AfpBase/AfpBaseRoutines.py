@@ -47,11 +47,13 @@ def Afp_graphicModulNames():
     return ["Adresse","Charter"]
 ## get all possible internal moduls
 def Afp_internalModulNames():
-    return ["Finance","Einsatz"]
+    return ["Finance","Einsatz","Calendar"]
 ## get modul short names - used for filename generation
 def Afp_getModulShortName(modul):
-    if modul == "Einsatz": return "Ein"
-    return modul[:2]
+    if modul == "Einsatz" or modul == "Calendar": 
+        return modul[:3]
+    else:
+        return modul[:2]
 ## return possible user-moduls \n
 # - check if needed python moduls are present has to be implemented
 def Afp_ModulNames():
@@ -86,7 +88,7 @@ def Afp_ModulPyNames(modul):
     parent = "Afp" + modul + "."
     files = [parent + "Afp" + md + "Screen", parent + "Afp" + md + "Dialog", parent + "Afp" + md + "Routines" ]
     if modul in Afp_internalModulNames():
-        if modul == "Finance":
+        if modul == "Finance" or modul == "Calendar":
             return [files[2]]
         else:
             return files[1:3]
@@ -1097,6 +1099,7 @@ class AfpMailSender(object):
             self.sender = self.globals.get_value("mail-sender")
             if self.sender is None and self.user and Afp_isMailAddress(self.user):
                 self.sender = self.user
+        if self.debug: print "AfpMailSender Konstruktor"
     ## return if automatic sending may be possible
     def is_possible(self):
         return self.server and self.sender
@@ -1112,6 +1115,13 @@ class AfpMailSender(object):
         elif self.message is None and self.htmltext is None:
             ready = False
         return ready
+    ## clear data for new email
+    def clear(self):
+        self.subject = None
+        self.recipients = []
+        self.message = None
+        self.htmltext = None
+        self.attachments = []
     ## fill line with attachment names
     def get_attachment_names(self):
         deli = self.globals.get_value("path-delimiter")

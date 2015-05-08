@@ -50,7 +50,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
         self.times = {}
         self.fremd = None
         self.changed_data = False
-        self.charter_modul = None
+        self.calling_modul = None
       
         self.SetSize((452,430))
         self.SetTitle("Einsatz")
@@ -242,7 +242,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
         self.choice_Bus.AppendItems(values)
         super(AfpDialog_DiEinsatz, self).attach_data(data, new, editable)
         if self.data.is_typ("Miet"):
-            self.charter_modul = Afp_importPyModul("AfpCharter.AfpChDialog", data.get_globals())
+            self.calling_modul = Afp_importPyModul("AfpCharter.AfpChDialog", data.get_globals())
         if self.typ_hasTime("Ab"):
             self.times["Ab"]  = self.get_typTime("Ab", True)
         if self.typ_hasTime("Stell"):
@@ -337,7 +337,10 @@ class AfpDialog_DiEinsatz(AfpDialog):
         typZeit = typ + "Zeit"       
         TextBox = self.FindWindowByName(typZeit)
         timestring, tage = Afp_ChZeit(TextBox.GetValue())
-        return Afp_datetimeString(datestring, timestring, end)
+        if datestring and timestring:
+            return Afp_datetimeString(datestring, timestring, end)
+        else:
+            return None
     ## write input time value to date and time widgets for different types
     # @param time - time value for which the widgets are written
     # @param typ - typ for which the widgets are written
@@ -376,34 +379,36 @@ class AfpDialog_DiEinsatz(AfpDialog):
             dattime= None
             if typ == "End":
                 dattime = self.get_typTime("End", True)
-                self.set_typTime(dattime, "End")
+                if dattime: self.set_typTime(dattime, "End")
             if typ == "Ab":
                 delta = None
                 if typ in self.times and "Stell" in self.times:     
                     delta = self.times[typ] - self.times["Stell"]
                 dattime = self.get_typTime("Ab")
-                self.set_typTime(dattime,"Ab")
-                if delta:
-                    dattime = dattime - delta
-                else:
-                    value = Afp_toTimedelta(self.data.globals.get_value("stell-difference","Einsatz"))
-                    if not value is None: dattime = dattime -  value
+                if dattime: 
+                    self.set_typTime(dattime,"Ab")
+                    if delta:
+                        dattime = dattime - delta
+                    else:
+                        value = Afp_toTimedelta(self.data.globals.get_value("stell-difference","Einsatz"))
+                        if not value is None: dattime = dattime -  value
                 if self.typ_hasTime(typ):  typ = "Stell"      
             if typ == "Stell":
                 delta = None
                 if typ in self.times and "Start" in self.times:     
                     delta = self.times[typ] - self.times["Start"]
-                if not dattime: dattime = self.get_typTime("Stell")  
-                self.set_typTime(dattime,"Stell")
-                if delta:
-                    dattime = dattime - delta
-                else:
-                    value = Afp_toTimedelta(self.data.globals.get_value("start-difference","Einsatz"))
-                    if not value is None: dattime = dattime -  value
+                if not dattime: dattime = self.get_typTime("Stell") 
+                if dattime: 
+                    self.set_typTime(dattime,"Stell")
+                    if delta:
+                        dattime = dattime - delta
+                    else:
+                        value = Afp_toTimedelta(self.data.globals.get_value("start-difference","Einsatz"))
+                        if not value is None: dattime = dattime -  value
                 if self.typ_hasTime(typ):  typ = "Start"
             if typ == "Start":
                 if not dattime: dattime = self.get_typTime("Start")
-                self.set_typTime(dattime,"Start")
+                if dattime: self.set_typTime(dattime,"Start")
         event.Skip()
       
     ##Eventhandler CHOICE - handle vehicle choice changes
@@ -417,11 +422,12 @@ class AfpDialog_DiEinsatz(AfpDialog):
     ##Eventhandler BUTTON - edit triggering incident
     def On_Ein_Typ(self,event):
         if self.debug: print "Event handler `On_Ein_Typ'"
-        if not self.charter_modul is None:
-            FahrtNr = self.data.get_value("MietNr")
-            globals = self.data.get_globals()
-            #print "On_Ein_Typ:",FahrtNr
-            self.charter_modul .AfpLoad_DiChEin_fromFNr(globals, FahrtNr)
+        if self.calling_modul:
+            if self.data.is_typ("Miet"):
+                FahrtNr = self.data.get_value("MietNr")
+                globals = self.data.get_globals()
+                #print "AfpDialog_DiEinsatz.On_Ein_Typ:",FahrtNr
+                self.calling_modul .AfpLoad_DiChEin_fromFNr(globals, FahrtNr)
         event.Skip()
 
     ##Eventhandler BUTTON - select address of extern operator
@@ -444,8 +450,10 @@ class AfpDialog_DiEinsatz(AfpDialog):
         Ok = False
         KNr = AfpLoad_AdAttAusw(self.data.get_globals(), "Fahrer")
         if KNr:
-            if not self.charter_modul is None:
-                index = self.charter_modul.AfpChInfo_selectEntry(self.data.get_selection("FAHRTI"))
+            index = None
+            if self.calling_modul:
+                if self.data.is_typ("Miet"):
+                    index = self.calling_modul.AfpChInfo_selectEntry(self.data.get_selection("FAHRTI"))
             Ok = AfpLoad_DiFahrer(self.data, None, KNr, index)
         if Ok: 
             self.Pop_FahrList()
@@ -471,9 +479,10 @@ class AfpDialog_DiEinsatz(AfpDialog):
         if self.debug: print "Event handler `On_Ein_Neu'"
         Ok = False
         index = None
-        if not self.charter_modul is None:
-            index = self.charter_modul.AfpChInfo_selectEntry(self.data.get_selection("FAHRTI"))
-            print index
+        if self.calling_modul:
+            if self.data.is_typ("Miet"):
+                index = self.calling_modul.AfpChInfo_selectEntry(self.data.get_selection("FAHRTI"))
+                print "AfpDialog_DiEinsatz.On_Ein_Neu:",index
         if index is None:
             Ok = AfpReq_Question("Zusätzlichen Einsatz für diese Fahrt erstellen?".decode("UTF-8"),"Einsatzdaten werden kopiert.","zusätzlicher Einsatz?".decode("UTF-8"))
         if Ok: 

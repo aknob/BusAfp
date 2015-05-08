@@ -34,7 +34,7 @@ import tempfile
 
 import AfpUtilities
 from AfpUtilities import *
-from AfpUtilities.AfpStringUtilities import Afp_toString, Afp_fromString, Afp_pathname, Afp_isIP4
+from AfpUtilities.AfpStringUtilities import Afp_toString, Afp_fromString, Afp_pathname, Afp_isIP4, Afp_isMailAddress
 from AfpUtilities.AfpBaseUtilities import *
 import AfpBaseRoutines
 from AfpBaseRoutines import Afp_getModulInfo
@@ -47,6 +47,7 @@ def Afp_setGlobalVars(settings):
     if pythonpath: settings["python-path"] = pythonpath
     settings["op-system"] = Afp_getGlobalVar("op-system")
     settings["net-name"] = Afp_getGlobalVar("net-name")
+    settings["user"] = Afp_getGlobalVar("user")
     settings["path-delimiter"] = Afp_getGlobalVar("path-delimiter")
     settings["homedir"] = Afp_genHomeDir()
     settings["tempdir"] = tempfile.gettempdir()
@@ -69,6 +70,10 @@ def Afp_iniGlobalVars(settings, modul = None):
             settings["database-word"] = settings["database-word"].decode('base64')
         if "smtp-word" in settings:
             settings["smtp-word"] = settings["smtp-word"].decode('base64')
+        # set mailsender to user if possible
+        if not "mail-sender" in settings and "smtp-user" in settings:
+            if Afp_isMailAddress(settings["smtp-user"]):
+                settings["mail-sender"] = settings["smtp-user"]
         # set directory pathes
         if not "afpdir" in settings:
             settings["afpdir"] = settings["homedir"]
