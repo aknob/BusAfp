@@ -227,16 +227,20 @@ class AfpCalCalConnector (AfpCalConnector):
                 for self.event_index in range(len(self.events)):
                     self.generate_ics_content()
                     event = None
-                    action = self.events[self.event_index].get_type()
+                    action = self.events[self.event_index].get_type() 
+                    print "AfpCalCalConnector.perform_action:", self.action , self.check_new, "\n", self.content.to_ical()
                     if action == "modify" or action == "delete" or (self.check_new and action == "new"):
                         uid = self.events[self.event_index].get_uid()
                         eventurl = self.url + self.destination + "/" + uid + ".ics"
                         event = calendar.event_by_url(eventurl)
+                        print "AfpCalCalConnector.perform_action event found:", event
                     if event and (action == "modify" or action == "new"):
-                        event.set_data(self.content)
-                        event.save()    
+                        event.set_data(self.content.to_ical())
+                        event.save()  
+                        print "AfpCalCalConnector.perform_action event modified:", event  
                     if event is None and self.action == "new":
-                        event = calendar.add_event(self.content)
+                        event = calendar.add_event(self.content.to_ical())
+                        print "AfpCalCalConnector.perform_action event created:", event
                     if event and self.action == "delete":
                         event.delete()
                  
@@ -397,7 +401,7 @@ class AfpCalEvent(object):
                 event.add('dtstamp', Afp_getNow(True))
                 event['uid'] = self.get_uid()
                 #event.add('priority', 5)
-                if self.description: event.add('descrition', self.description)
+                if self.description: event.add('description', self.description)
                 if self.organizer:
                     organizer = vCalAddress("MAILTO:" + self.organizer[1])
                     organizer.params['cn'] = vText(self.organizer[0])
