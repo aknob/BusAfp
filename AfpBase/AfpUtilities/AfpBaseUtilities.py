@@ -144,7 +144,7 @@ def Afp_diffDays(start, ende):
 # @param year - year of date
 # @param month - month of date
 # @param day - day of date
-def Afp_toDate(year, month, day):
+def Afp_genDate(year, month, day):
     return datetime.date(year, month, day)
 ## generate datettime from given values
 # @param year - year of date
@@ -154,17 +154,29 @@ def Afp_toDate(year, month, day):
 # @param minute - minute of time 
 # @param second - second of time 
 # @param tzlocal - flag if local timezone should be added
-def Afp_toDatetime(year, month, day, hour = 0, minute = 0, second  = 0, settz = False):
+def Afp_genDatetime(year, month, day, hour = 0, minute = 0, second  = 0, settz = False):
     if settz:
         return datetime.datetime(year, month, day, hour, minute, second, tzinfo=tzlocal.get_localzone())
     else:
         return datetime.datetime(year, month, day, hour, minute, second)
+## convert input date and time to datetime, will return a result for any input, 
+# not delivered values are taken from 'now'
+# @param date - input date value 
+# @param time - input time value 
+def Afp_toDatetime(date, time):
+    if Afp_isString(date):
+        date = Afp_fromString(Afp_ChDatum(date))
+    if Afp_isString(time):
+        time = Afp_fromString(Afp_ChZeit(time)) 
+    time = Afp_toTime(time)
+    return Afp_genDatetime(date.year, date.month, date.day, time.hour, time.minute, time.second)
 def Afp_toTzDatetime(dtime):
     return datetime.datetime(dtime.year, dtime.month, dtime.day, dtime.hour, dtime.minute, dtime.second, tzinfo=tzlocal.get_localzone())
 ## convert timedelta to time
 # @param timedelta - timedelta to be converted
 def Afp_toTime(timedelta):
-    if  type(timedelta) != datetime.timedelta: return datetime.time()
+    if type(timedelta) == datetime.time: return timedelta
+    elif type(timedelta) != datetime.timedelta: return datetime.time()
     hours = int(timedelta.total_seconds()/3600)
     minutes = int((timedelta.total_seconds() - 3600*hours)/60)
     return datetime.time(hours, minutes)

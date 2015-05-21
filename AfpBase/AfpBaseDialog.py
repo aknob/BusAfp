@@ -40,7 +40,7 @@ import wx.grid
 import wx.calendar
 
 import AfpUtilities.AfpBaseUtilities
-from AfpUtilities.AfpBaseUtilities import Afp_isTime, Afp_isDate, Afp_toDate, Afp_isNumeric
+from AfpUtilities.AfpBaseUtilities import Afp_isTime, Afp_isDate, Afp_genDate, Afp_isNumeric
 import AfpUtilities.AfpStringUtilities
 from AfpUtilities.AfpStringUtilities import Afp_addRootpath, Afp_isString, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum
 
@@ -57,7 +57,7 @@ def Afp_pyToWxDate(date):
 def Afp_wxToPyDate(wxdate):
      if wxdate.IsValid():
           ymd = map(int, wxdate.FormatISODate().split('-'))
-          return Afp_toDate(*ymd)
+          return Afp_genDate(*ymd)
      else:
           return None
    

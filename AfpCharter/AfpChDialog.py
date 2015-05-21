@@ -1046,6 +1046,11 @@ class AfpDialog_DiMfInfo(AfpDialog):
     def store_data(self):
         self.Ok = False
         data = {}
+        if self.new:
+            if not "Datum" in self.changed_text:
+                self.changed_text.append("Datum")
+            if not "Adresse" in self.changed_text:
+                self.changed_text.append("Adresse")
         #print self.changed_text
         for entry in self.changed_text:
             name, wert = self.Get_TextValue(entry)

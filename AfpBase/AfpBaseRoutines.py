@@ -778,7 +778,7 @@ class AfpSelectionList(object):
                         self.selections[sel].spread_value(target, -value)
                     else:
                         self.selections[sel].spread_value(target, value)
-    ## sample newly created unique identifier value od dependent selection to the appropriate entries in the main selectrion
+    ## sample newly created unique identifier value of dependent selection to the appropriate entries in the main selectrion
     # @param selname - name of TableSelection where new identifier has been created
     def resample_value(self, selname):
         print "AfpTableSelectionList.resample_value initiated:", selname

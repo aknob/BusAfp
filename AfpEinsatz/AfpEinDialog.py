@@ -178,7 +178,8 @@ class AfpDialog_DiEinsatz(AfpDialog):
         for row in rows:
             liste.append(self.Set_FahrerLineFromRow(row))
         self.list_FahrList.Clear()
-        self.list_FahrList.InsertItems(liste, 0)
+        if liste:
+            self.list_FahrList.InsertItems(liste, 0)
     ## create one line info of driver row
     # @param row - input row line is created from \n
     # - row = [Kuerzel, Datum, Von, Bis, EndDatum, AbZeit, Abfahrt, AbOrt] 
@@ -363,6 +364,42 @@ class AfpDialog_DiEinsatz(AfpDialog):
         TextBox = self.FindWindowByName(typZeit)
         if TextBox.GetValue(): return True
         else: return False
+    ## spread times into dialog according to given typ
+    # @param typ - name of master timefields (Start, Stell, Ab, End)
+    def spread_times(self, typ):
+        dattime= None
+        if typ == "End":
+            dattime = self.get_typTime("End", True)
+            if dattime: self.set_typTime(dattime, "End")
+        if typ == "Ab":
+            delta = None
+            if typ in self.times and "Stell" in self.times:     
+                delta = self.times[typ] - self.times["Stell"]
+            dattime = self.get_typTime("Ab")
+            if dattime: 
+                self.set_typTime(dattime,"Ab")
+                if delta:
+                    dattime = dattime - delta
+                else:
+                    value = Afp_toTimedelta(self.data.globals.get_value("stell-difference","Einsatz"))
+                    if not value is None: dattime = dattime -  value
+            if self.typ_hasTime(typ):  typ = "Stell"      
+        if typ == "Stell":
+            delta = None
+            if typ in self.times and "Start" in self.times:     
+                delta = self.times[typ] - self.times["Start"]
+            if not dattime: dattime = self.get_typTime("Stell") 
+            if dattime: 
+                self.set_typTime(dattime,"Stell")
+                if delta:
+                    dattime = dattime - delta
+                else:
+                    value = Afp_toTimedelta(self.data.globals.get_value("start-difference","Einsatz"))
+                    if not value is None: dattime = dattime -  value
+            if self.typ_hasTime(typ):  typ = "Start"
+        if typ == "Start":
+            if not dattime: dattime = self.get_typTime("Start")
+            if dattime: self.set_typTime(dattime,"Start")
       
     # Event Handlers 
     ##  Eventhandler TEXT,  check if time entry has the correct format, \n
@@ -376,39 +413,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
             if "Zeit" in name: typ = name[:-4]
             else: typ = name[:-3]
             #print "ENTER:", name, typ      
-            dattime= None
-            if typ == "End":
-                dattime = self.get_typTime("End", True)
-                if dattime: self.set_typTime(dattime, "End")
-            if typ == "Ab":
-                delta = None
-                if typ in self.times and "Stell" in self.times:     
-                    delta = self.times[typ] - self.times["Stell"]
-                dattime = self.get_typTime("Ab")
-                if dattime: 
-                    self.set_typTime(dattime,"Ab")
-                    if delta:
-                        dattime = dattime - delta
-                    else:
-                        value = Afp_toTimedelta(self.data.globals.get_value("stell-difference","Einsatz"))
-                        if not value is None: dattime = dattime -  value
-                if self.typ_hasTime(typ):  typ = "Stell"      
-            if typ == "Stell":
-                delta = None
-                if typ in self.times and "Start" in self.times:     
-                    delta = self.times[typ] - self.times["Start"]
-                if not dattime: dattime = self.get_typTime("Stell") 
-                if dattime: 
-                    self.set_typTime(dattime,"Stell")
-                    if delta:
-                        dattime = dattime - delta
-                    else:
-                        value = Afp_toTimedelta(self.data.globals.get_value("start-difference","Einsatz"))
-                        if not value is None: dattime = dattime -  value
-                if self.typ_hasTime(typ):  typ = "Start"
-            if typ == "Start":
-                if not dattime: dattime = self.get_typTime("Start")
-                if dattime: self.set_typTime(dattime,"Start")
+            self.spread_times(typ)
         event.Skip()
       
     ##Eventhandler CHOICE - handle vehicle choice changes

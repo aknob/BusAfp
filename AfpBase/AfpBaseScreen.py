@@ -299,7 +299,8 @@ class AfpScreen(wx.Frame):
                 self.list_id[entry] = rows[ind+1:]
                 rows = rows[:ind]
             list.Clear()
-            list.InsertItems(rows, 0)
+            if rows:
+                list.InsertItems(rows, 0)
     ## populate grids
     # @param name - if given ,name of grid to be populated 
     def Pop_grid(self, name = None):

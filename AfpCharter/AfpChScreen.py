@@ -291,7 +291,7 @@ class AfpChScreen(AfpScreen):
             #print "AfpChScreen.On_Fahrt_EinF:", selection.get_data_length(), selection, Charter.selections
             New = False
             if selection.get_data_length() == 0:
-                New = AfpReq_Question("Kein Einsatz für diese Mietfahrt vorhanden,","neuen Einsatz erstellen?","Einsatz?")
+                New = AfpReq_Question("Kein Einsatz für diese Mietfahrt vorhanden,".decode("UTF-8"),"neuen Einsatz erstellen?","Einsatz?")
                 if New:
                     Einsatz2 = None
                     Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, "start")

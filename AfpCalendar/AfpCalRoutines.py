@@ -203,6 +203,7 @@ class AfpCalCalConnector (AfpCalConnector):
         if self.url:
             path = self.globals.get_value("python-path") + self.globals.get_value("path-delimiter") + "caldav"
             self.caldav_modul = AfpPy_Import("davclient", path)
+            if self.debug: print "AfpCalCalConnector Caldav Modul:", self.caldav_modul
     ## perform check on destination string, return 'None' if check is not passed,  
     # overwrittenfrom AfpCalConnector 
     def check_destination(self, calname):
@@ -217,10 +218,12 @@ class AfpCalCalConnector (AfpCalConnector):
     ## execution routine,  overwritten from AfpCalConnector \n
     # events are processed individually
     def perform_action(self):
+        print "AfpCalCalConnector.perform_action available:", self.is_available()
         if self.is_available():
             calendars = self.caldav_modul.DAVClient(self.url, ssl_verify_cert = False).principal().calendars()
             calendar = None
             for cal in calendars:
+                print "AfpCalCalConnector.perform_action Calendar URLs:", cal.url 
                 if self.url + self.destination + "/"  == cal.url:
                     calendar = cal
             if calendar:
@@ -274,24 +277,6 @@ class AfpCalEventTarget(object):
     # @param event - AfpCalEvent to be added
     def add_event(self, event):
         self.events.append(event)
-    ## get destination calendar name, if set, otherwise return 'None'
-    def get_destination_calendar(self):
-        return self.calendar
-    ## get destination e-mail address, if set, otherwise return 'None'
-    def get_destination_email(self):
-        return self.email
-    ## get destination filename, \n
-    # if given filename holds absolut path, return filename, \n
-    # otherwise generate name from calendar name or e-mail address, if given \n
-    # if not, return given filename
-    def get_destination_file(self):
-        if Afp_isRootpath(self.filename):
-            return self.filename
-        elif self.calendar:
-            return "calendar_" + self.calendar + ".ics"
-        elif self.email: 
-            return self.email + ".ics"
-        return self.filename
     ## retrieve events from collectioin
     def get_events(self):
         return self.events
@@ -425,7 +410,9 @@ class AfpCalendar (object):
     ## initialize AfpCalendar class
     # @param globals - globals variables possibly holding caldav-server and smtp-server data
     # @param debug - flag for debug information
-    def  __init__(self, globals, debug = False):
+    # @param use_calendar - flag if direct calendar connection should be used, if available
+    # @param use_email- flag if .ics data should sent via email, if available
+    def  __init__(self, globals, debug = False, use_calendar = True, use_email = True):
         self.globals = globals
         self.debug = debug
         self.name = globals.get_string_value("name")
@@ -434,11 +421,11 @@ class AfpCalendar (object):
         self.email_connector = None
         self.file_connector = None
         connector = AfpCalCalConnector(globals, None, self.name, self.version, debug)
-        print "AfpCalendar.init CalConnector:",connector.is_available(),  self.globals.get_value("calendar-skip-cal"),  not self.globals.get_value("calendar-skip-cal")
-        if connector.is_available() and not self.globals.get_value("calendar-skip-cal"):
+        print "AfpCalendar.init CalConnector:", connector.is_available()
+        if connector.is_available() and use_calendar:
             self.cal_connector = connector
         connector = AfpCalMailConnector(globals, None, self.name, self.version, debug)
-        if connector.is_available() and not self.globals.get_value("calendar-skip-email"):
+        if connector.is_available() and use_email:
             self.email_connector = connector
         self.file_connector = AfpCalFileConnector(globals, None, self.name, self.version, debug)
         self.target = None
@@ -448,6 +435,8 @@ class AfpCalendar (object):
     # @param target - valid AfpCalEventTarget collection to be added
     def add_target(self, target):
         if target.is_valid():
+            if target.filename is None:
+                target.filename = self.gen_target_filename(target.calendar, target.email)
             self.targets.append(target)
     ## generate new target for direct input of events
     # @param calname - name of destination calendar (for direct access)
@@ -456,7 +445,22 @@ class AfpCalendar (object):
     def gen_new_target(self, calname, email, filename = None):
         if self.target and self.target.is_valid():
             self.targets.append(self.target)
+        if filename is None:
+            filename = self.gen_target_filename(calname, email)
         self.target = AfpCalEventTarget(self.debug, calname, email, filename)
+    ## generate filname if calendarname or email is given
+    # @param calname - name of destination calendar (for direct access)
+    # @param email - email address this target is destinated to, if different mail addresses are separated by a ',', the first address is used
+    def gen_target_filename(self, calname, email):
+        fname = None
+        dir = self.globals.get_value("caldir")
+        if not dir: dir = self.globals.get_value("tempdir")
+        if  calname:
+            fname = dir + "calendar_" + calname + ".ics"
+        elif email: 
+            split = email.split(",")
+            fname = dir + split[0].strip() + ".ics"
+        return fname
     ## clear targets
     def clear_targets(self):
         self.target = None
@@ -497,18 +501,18 @@ class AfpCalendar (object):
         print "AfpCalendar.drop_on_targets:", self.targets
         if self.targets:
             for target in self.targets: 
-                print "AfpCalendar.drop_on_targets Calendar:", target.get_destination_calendar(), self.cal_connector
-                print "AfpCalendar.drop_on_targets EMail:", target.get_destination_email(), self.email_connector
-                print "AfpCalendar.drop_on_targets File:", target.get_destination_file(), self.file_connector
-                if target.get_destination_calendar() and self.cal_connector:
+                print "AfpCalendar.drop_on_targets Calendar:", target.calendar, self.cal_connector
+                print "AfpCalendar.drop_on_targets EMail:", target.email, self.email_connector
+                print "AfpCalendar.drop_on_targets File:", target.filename, self.file_connector
+                if target.calendar and self.cal_connector:
                     connector = self.cal_connector
-                    destination = target.get_destination_calendar() 
-                elif target.get_destination_email() and self.email_connector:
+                    destination = target.calendar
+                elif target.email and self.email_connector:
                     connector = self.email_connector
-                    destination = target.get_destination_email()              
+                    destination = target.email              
                 else:
                     connector = self.file_connector
-                    destination = target.get_destination_file() 
+                    destination = target.filename 
                 connector.set_destination(destination)
                 connector.set_events(target.get_events()) 
                 connector.perform_action()

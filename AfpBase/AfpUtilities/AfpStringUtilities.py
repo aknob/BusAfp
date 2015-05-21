@@ -644,7 +644,7 @@ def Afp_pathname(path, delimit = None, file = False):
     return path
 ## check if given name holds a complete path (includig a root)
 def Afp_isRootpath(filename):
-    if filename[0] == "/" or ":" in filename:
+    if filename and (filename[0] == "/" or ":" in filename):
         return True
     else:
         return False
