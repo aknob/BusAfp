@@ -68,7 +68,7 @@ class AfpEinsatz(AfpSelectionList):
         if MietNr or ReiseNr: self.set_new(MietNr, ReiseNr, None, typ)
         self.calendar = None
         self.calendar_modul = None
-#       self.calendar_modul = Afp_importPyModul("AfpCalendar.AfpCalRoutines", globals)
+        self.calendar_modul = Afp_importPyModul("AfpCalendar.AfpCalRoutines", globals)
         if self.calendar_modul:
             self.calendar = self.calendar_modul.AfpCalendar(globals, debug)
         if self.debug: print "AfpEinsatz Konstruktor:", self.mainindex, self.mainvalue 
@@ -80,7 +80,7 @@ class AfpEinsatz(AfpSelectionList):
     # @param MietNr - if given, identifier of charter this operation should be attached to
     # @param ReiseNr -  if given, identifier of touristic tour this operation should be attached to
     # @param infoindex -  if given, index of info the data should be extracted from
-    # @param typ -  if given, typ how start and enddate of input data have to be interpreted
+    # @param typ -  if given, typ how start and enddate of input data have to be interpreted (None, start, end)
     def set_new(self, MietNr =  None, ReiseNr = None, infoindex = None,  typ = None):
         data = {}
         keep = []
@@ -108,21 +108,25 @@ class AfpEinsatz(AfpSelectionList):
             data["Datum"] = selection.get_value("Abfahrt")
             data["EndDatum"] = selection.get_value("Fahrtende")
             info = self.get_Fahrtinfo(infoindex, typ)         
-            if typ:
-                #if typ == "start": data["Datum"] = Afp_addDaysToDate(selection.get_value("Abfahrt"), 1, "-")
-                if typ == "end": data["EndDatum"] = Afp_addDaysToDate(selection.get_value("Fahrtende"), 1)
             if info:
                 data["Datum"] = info[0]
                 data["Zeit"] = info[1] 
                 data["StellOrt"] = info[2]
                 if info[0] and info[1]:
                     dattime = Afp_toDatetime(info[0], info[1]) 
-                    diff1 = Afp_toTimedelta(self.data.globals.get_value("stell-difference","Einsatz"))
-                    diff2 = Afp_toTimedelta(self.data.globals.get_value("start-difference","Einsatz"))
+                    endtime = self.gen_arrivaltime(dattime, typ)
+                    if endtime:
+                         data["EndDatum"] = endtime.date()
+                         data["EndZeit"] = endtime.time()
+                    diff1 = Afp_toTimedelta(self.globals.get_value("stell-difference","Einsatz"))
                     if diff1: dattime -= diff1
                     data["StellDatum"] = dattime.date()
                     data["StellZeit"] = dattime.time()
-                    if diff2: dattime -= diff2
+                    if typ == "end":
+                        dattime = self.gen_arrivaltime(dattime, "minus")
+                    else:
+                        diff2 = Afp_toTimedelta(self.globals.get_value("start-difference","Einsatz"))
+                        if diff2: dattime -= diff2
                     data["AbDatum"] = dattime.date()
                     data["AbZeit"] = dattime.time()
             self.set_data_values(data, "EINSATZ")
@@ -140,7 +144,6 @@ class AfpEinsatz(AfpSelectionList):
     def add_vehicle_to_calendar(self): 
         Einsatz = self.get_selection()
         print "AfpEinsatz.add_vehicle_to_calendar new:", self.new, "has changed:", Einsatz.has_changed(None, True)
-        #if self.new or Einsatz.has_changed("Bus"):
         if self.new or Einsatz.has_changed(None, True):
             orig = Einsatz.manipulation_get_value("Bus", True)
             new = Einsatz.get_value("Bus")
@@ -155,9 +158,10 @@ class AfpEinsatz(AfpSelectionList):
                 self.calendar.add_event_to_target("delete", None, None, None, uid)
             if not new: new = default_calendar
             self.calendar.gen_new_target(new, email)
-            start = self.get_datetime("Ab")
-            ende = self.get_datetime("End")
+            start = self.get_datetime("Ab")# start == None: wenn Zeit fehlt auf 0:00 oder festen Wert setzen?
+            ende = self.get_datetime("End") # ende == None: wenn Zeit fehlt auf 23:59oder festen Wert setzen?
             summary = self.get_cal_summary()
+            print "AfpEinsatz.add_vehicle_to_calendar times:", start, ende
             if not uid: 
                 uid = self.gen_cal_uid()
                 self.set_value("Datei", uid)
@@ -279,7 +283,26 @@ class AfpEinsatz(AfpSelectionList):
             return Afp_toDatetime(date, time)
         else:
             return None
-    ## return summary of calnedar entry
+    ## generate approximated time of arrival
+    # @param start - datetime object holding starttime
+    # @param typ - typ for result generation (None, start, end, minus)
+    def gen_arrivaltime(self, starttime, typ):
+        endtime = None
+        if self.is_typ("Miet"):
+            if self.get_value("Art", "FAHRTEN") == "Transfer":
+                km = self.get_value("Km", "FAHRTEN")
+                if km:
+                    if typ == "end" or typ == "minus": km = km/4
+                    else: km = km/2
+                    kmph = self.globals.get_value("km-per-hour","Einsatz")
+                    if not kmph: kmph = 60
+                    hours = int(km/kmph) + 1
+                    if typ == "minus":
+                        endtime = starttime - Afp_fromString(Afp_toString(hours) + ":00")
+                    else:
+                        endtime = starttime + Afp_fromString(Afp_toString(hours) + ":00")
+        return endtime
+     ## return summary of calnedar entry
     def get_cal_summary(self):
         if self.get_value("MietNr"):
             summary = self.get_string_value("Zielort","Fahrten") + " " + self.get_string_value("Art","Fahrten") + " " + self.get_string_value("Name","FahrtAdresse")

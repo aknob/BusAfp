@@ -781,7 +781,10 @@ class AfpDialog(wx.Dialog):
             list.Enable(ed_flag)
             if ed_flag: list.SetBackgroundColour(self.editcolor)
             else: list.SetBackgroundColour(self.readonlycolor)    
-        if not ed_flag:
+        if ed_flag:
+            if self.choice_Edit.GetCurrentSelection() != 1: 
+                self.choice_Edit.SetSelection(1)
+        else:
             self.changelist = []
         if lock_data:
             if ed_flag:
@@ -796,7 +799,7 @@ class AfpDialog(wx.Dialog):
             object = event.GetEventObject()
             name = object.GetName()
             if not name in self.changed_text: self.changed_text.append(name)    
-    ## Eventhandler CHOICE - handle event of the 'edit','read' od 'quit' choice
+    ## Eventhandler CHOICE - handle event of the 'edit','read' or 'quit' choice
     # @param event - event which initiated this action
     def On_CEdit(self,event):
         editable = self.is_editable()

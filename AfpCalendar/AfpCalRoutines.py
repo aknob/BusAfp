@@ -182,7 +182,7 @@ class AfpCalMailConnector (AfpCalConnector):
             self.write_to_ics_file(filename)
             print "AfpCalMailConnector.perform_action file:", filename
             if Afp_existsFile(filename):
-                print "AfpCalMailConnector.perform_action, file exsists"
+                print "AfpCalMailConnector.perform_action, file exists"
                 self.mailsender.clear()
                 for recipient in self.destination:
                     self.mailsender.add_recipient(recipient)
@@ -482,7 +482,7 @@ class AfpCalendar (object):
             event = AfpCalEvent(self.globals, self.debug, typ)
             if typ == "delete":
                 event.set_uid(uid)
-            else:
+            elif start and end:
                 orgamail = self.globals.get_value("mail-sender")
                 if orgamail is None: orgamail = ""
                 organizer =  [self.name, orgamail]

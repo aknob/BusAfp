@@ -333,6 +333,11 @@ class AfpSQLTableSelection(object):
     # @param unique_feldname - name of identifying column, if primary key exsists, otherwise None
     # @param feldnamen - names of columns, if not given they will be retrieved from database
     def  __init__(self, mysql, tablename, debug = False, unique_feldname = None, feldnamen = None):
+        #self.dbg = True # hardecode switch for storage logging
+        self.dbg = False # hardecode switch for storage logging
+        if tablename == "FAHRTI": 
+            print "AfpSQLTableSelection Konstruktor dbg On", tablename
+            self.dbg = True # hardecode switch for storage logging
         self.mysql = mysql      
         self.tablename = tablename
         self.feldnamen = feldnamen
@@ -371,10 +376,15 @@ class AfpSQLTableSelection(object):
         return deleted
     ## returns if this TableSelection has been altered since last load or write
     # @param feld - if given it will be checked if this column has been changed
-    def has_changed(self, feld = None):
+    # @param last - flag if manipulations before last storage should be checked
+    def has_changed(self, feld = None, last = False):
         changed = False
-        if self.manipulation:
-            changed = self.manipulation_has_changed(self.manipulation, feld)
+        if last:
+            manipulation = self.last_manipulation
+        else:
+            manipulation = self.manipulation
+        if manipulation:
+            changed = self.mani_has_changed(manipulation, feld)
         elif self.new: changed = True
         return changed
     ## returns if given column has been set to last inserted id
@@ -393,7 +403,7 @@ class AfpSQLTableSelection(object):
         if self.last_inserted_id and feldname in self.feldnamen:
             index = self.feldnamen.index(feldname)
             self.data[row][index] = self.last_inserted_id
-            print "set_last_inserted_id:", self.last_inserted_id, self.data[row][index], self.data
+            if self.dbg: print "set_last_inserted_id:", self.last_inserted_id, self.data[row][index], self.data
     ## sets the data column in last row to indicated select criteria
     def set_select_criteria(self):
         # feld [<>=] integer
@@ -464,7 +474,7 @@ class AfpSQLTableSelection(object):
     # - insert: rowindex  == -1 and  values = [value1, value2, ...] , len == len(self.feldnamen)
     def manipulate_data(self, changes):
         for entry in changes:
-            print "AfpSQLTableSelection manipulate_data:", entry
+            if self.dbg: print "AfpSQLTableSelection manipulate_data:", entry
             index = entry[0]
             values = entry[1]
             originals = None
@@ -494,69 +504,77 @@ class AfpSQLTableSelection(object):
             else:
                 print "ERROR: AfpSQLTableSelection.manipulate_data incorrect values"
             self.manipulation.append([action, index, originals, values])
-    ## returns the length of the actuel manipulation data 
-    def manipulation_get_length(self):
-        return len(self.manipulation)
-    ## returns the dedicated manipulation data 
-    def manipulation_get(self, index):
-        return self.manipulation[index]
-    ## returns the indices of rows of changed data in new value array,
-    # if a row has been deleted, the index is set to 'None'.
-    def manipulation_get_entry_indices(self):
-        indices = []
-        for entry in self.manipulation:
-            if entry[0] == "delete":
-                del_ind = entry[1]
-                for i, ind in enumerate(indices):
-                    if ind == del_ind:
-                        indices[i] = None
-                    elif ind > del_ind:
-                        indices[i] = ind - 1
-            else:
-                indices.append(entry[1])
-        return indices
-    ## returns the original of the column in the actuel manipulation data 
+    ## returns the original or the new value of the column in the actuel manipulation data, 
+    # if no actuel manipulation data is present, the last manipulation data is schecked 
     # @param feld - it will be checked if this column has been changed
     # @param orig - flag if original or new value should be retrieved
     # @param row - if given, only look in this row
     def manipulation_get_value(self, feld, orig = False, row = None):
+        manipulation = self.mani_get()
         if row is None:
-            original, new = self.manipulation_get_values(self.manipulation, feld)
+            original, new = self.mani_get_values(manipulation, feld)
         else:
-            original, new = self.manipulation_get_from_row(self.manipulation, feld, row)
+            original, new = self.mani_get_from_row(manipulation, feld, row)
         if orig:
             return original
         else:
             return new
-    ## returns the original and the changed value of the column in this  manipulation data 
+    ## return actuel indices of manipulated rows
+    def manipulation_get_indices(self):
+        indices = []
+        manipulation = self.mani_get()
+        for mani in manipulation:
+            if mani[0] == "delete":
+                index = mani[1]
+                for i in range(len(indices)):
+                    if indices[i] > index:
+                        indices[i] -= 1
+                    elif indices[i] == index:
+                        indices[i] = None
+                indices.append(None)
+            else:
+                indices.append(mani[1])
+        return indices
+    ## return appropriate manipulation data,
+    # if no actuel manipulation is available, the manipulation 
+    # before last storage will be returned
+    def mani_get(self):
+        if self.last_manipulation and not self.manipulation:
+            return self.last_manipulation
+        else:
+            return self.manipulation        
+    ## returns the original and the changed value of the column in this  manipulation data \n
+    # only used internally!
     # @param manipulation - manipulation data to be checked 
     # @param feld - it will be checked if this column has been changed
     # @param row - iindex of row from where values should be extracted
-    def manipulation_get_from_row(self, manipulation, feld, row):
+    def mani_get_from_row(self, manipulation, feld, row):
         index = None
         if feld in self.feldnamen:
             index = self.feldnamen.index(feld)
         entry = manipulation[row]
-        original, value = self.manipulation_get_value_from_entry(entry, feld, index) 
+        original, value = self.mani_get_value_from_entry(entry, feld, index) 
         return original, value
-    ## returns the original and the changed value of the column in this  manipulation data 
+    ## returns the original and the changed value of the column in this  manipulation data \n
+    # only used internally!
     # @param manipulation - manipulation data to be checked 
     # @param feld - it will be checked if this column has been changed
-    def manipulation_get_values(self, manipulation, feld):
+    def mani_get_values(self, manipulation, feld):
         value = None
         original = None
         index = None
         if feld in self.feldnamen:
             index = self.feldnamen.index(feld)
         for entry in manipulation: 
-            orig, value = self.manipulation_get_value_from_entry(entry, feld, index) 
+            orig, value = self.mani_get_value_from_entry(entry, feld, index) 
             if original is None: original = orig
         return original, value
-    ## returns the original and the changed value of one manipulation entry 
+    ## returns the original and the changed value of one manipulation entry \n
+    # only used internally!
     # @param entry - manipulation entry to be checked 
     # @param feld - name of field to be checked
     # @param index - index of field to be checked
-    def manipulation_get_value_from_entry(self, entry, feld, index):
+    def mani_get_value_from_entry(self, entry, feld, index):
         original = None
         value = None
         values = entry[3]
@@ -570,10 +588,11 @@ class AfpSQLTableSelection(object):
                 value = values[feld]  
                 original = originals[feld]  
         return original, value
-    ## returns if the given manipulation data holds changed entries
+    ## returns if the given manipulation data holds changed entries \n
+    # only used internally!
     # @param manipulation - manipulation data to be checked 
     # @param feld - if given it will be checked if this column has been changed
-    def manipulation_has_changed(self, manipulation, feld = None):
+    def mani_has_changed(self, manipulation, feld = None):
         changed = False
         if manipulation:
             if feld is None:
@@ -661,12 +680,6 @@ class AfpSQLTableSelection(object):
         for row in rows:
             lines.append(Afp_ArraytoLine(row))
         return lines
-    ## retrieve actuel manipulation data 
-    def get_manipulation(self):
-        return self.manipulation
-    ## retrieve manipulation data of last storage
-    def get_last_manipulation(self):
-        return self.last_manipulation
     ## spread value of indicated column to all rows
     # @param feldname - indicated column name
     # @param value -  value to be filled in indicated column
@@ -680,20 +693,20 @@ class AfpSQLTableSelection(object):
     # @param row -  index of row where value has to be inserted \n
     # if row points behind last datarow, a new datarow is attached and the value is inserted there
     def set_value(self, feldname, value, row = 0):
-        #print "AfpSQLTableSelection.set_value:", feldname, value, type(value), self.feldnamen
+        if self.dbg: print "AfpSQLTableSelection.set_value:", feldname, value, type(value), self.feldnamen
         if row >= self.get_data_length():
             row = self.add_data_row()
         if feldname in self.feldnamen:
             index = self.feldnamen.index(feldname)
             #if Afp_isString(value): value = Afp_fromString(value)
-            self.data[row][index] = value
             #print "AfpSQLTableSelection.set_value:", row, index, feldname, value, type(value)
             self.set_manipulation(feldname, row, value)
+            self.data[row][index] = value
     ## set data values from given dictionary
     # @param changed_data - dictionary holding appropriate value in entry [column name]
     # @param row -  index of row where values have to be inserted 
     def set_data_values(self, changed_data, row = 0):
-        print "AfpSQLTableSelection.set_data_value:", changed_data
+        #print "AfpSQLTableSelection.set_data_value:", changed_data
         for data in changed_data:
             self.set_value(data, changed_data[data], row)
     ## add a row with data values from given dictionary
@@ -711,8 +724,8 @@ class AfpSQLTableSelection(object):
                 mani[3][feldname] = value
                 break
         else:
-            original = self.get_value(feldname, row)
-            self.manipulation.append(["replace", row, {feldname: original}, {feldname: value}])
+            original = self.get_values(feldname, row)
+            self.manipulation.append(["replace", row, {feldname: original[0][0]}, {feldname: value}])
     ## set a lock on database table accordint to actuel select clause
     def lock_data(self):
         self.mysql.lock(self.tablename,  self.select)
@@ -722,42 +735,42 @@ class AfpSQLTableSelection(object):
     ## write attached data to database
     def store(self):
         # writes data hold directly in this SelectionTable
-        print "AfpSQLTableSelection.store:",self.tablename, self.unique_feldname
+        if self.dbg: print "AfpSQLTableSelection.store:",self.tablename, self.unique_feldname
         if self.unique_feldname:
             for row in range(self.get_data_length()):
                 unique_value = self.get_values(self.unique_feldname, row)[0][0]
                 if not unique_value:
-                    print "AfpSQLTableSelection.store unique new value:", self.last_inserted_id, self.get_values(None, row)[0]
+                    if self.dbg: print "AfpSQLTableSelection.store unique new value:", self.last_inserted_id, self.get_values(None, row)[0]
                     self.mysql.write_insert( self.tablename, self.feldnamen, self.get_values(None, row))
                     self.last_inserted_id = self.mysql.get_last_inserted_id() 
-                    print "AfpSQLTableSelection.store uniquelast_inserted_id:",  self.last_inserted_id
+                    if self.dbg: print "AfpSQLTableSelection.store uniquelast_inserted_id:",  self.last_inserted_id
                     self.set_last_inserted_id(self.unique_feldname, row)
                 else:
                     select = self.unique_feldname + " = " + Afp_toString(unique_value)
-                    print "AfpSQLTableSelection.store unique value already set:", select, self.get_values(None, row)[0]
+                    if self.dbg: print "AfpSQLTableSelection.store unique value already set:", select, self.get_values(None, row)[0]
                     self.mysql.write_unique( self.tablename,  self.feldnamen, self.get_values(None, row)[0], select)  
             if self.get_data_length() == 0:
                 # check if data has been deleted
                 if self.has_been_deleted():
-                    print "AfpSQLTableSelection.store delete unique:", self.select_clause
+                    if self.dbg: print "AfpSQLTableSelection.store delete unique:", self.select_clause
                     self.mysql.write_delete(self.select_clause)
         else:
             new = False 
             if self.select_clause is None: 
                 new = True
             else:
-                print "AfpSQLTableSelection.store manipulation:", self.manipulation
-                print "AfpSQLTableSelection.store data:", self.data
+                if self.dbg: print "AfpSQLTableSelection.store manipulation:", self.manipulation
+                if self.dbg: print "AfpSQLTableSelection.store data:", self.data
                 if self.manipulation:
                     new = True
                     for mani in self.manipulation:
                         if not mani[0] == "insert": new = False
-            print "AfpSQLTableSelection.store new:", new, self.new
+            if self.dbg: print "AfpSQLTableSelection.store new:", new, self.new
             if new or self.new:
-                print "AfpSQLTableSelection.store insert:", self.get_values()
+                if self.dbg: print "AfpSQLTableSelection.store insert:", self.get_values()
                 self.mysql.write_insert( self.tablename, self.feldnamen, self.get_values())
             else:
-                print "AfpSQLTableSelection.store no_unique:", self.get_values()            
+                if self.dbg: print "AfpSQLTableSelection.store no_unique:", self.get_values()            
                 self.mysql.write_no_unique(self.select_clause, self.feldnamen, self.get_values())
         self.new = False
         self.last_manipulation = self.manipulation

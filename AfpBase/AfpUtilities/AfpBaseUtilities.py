@@ -159,17 +159,8 @@ def Afp_genDatetime(year, month, day, hour = 0, minute = 0, second  = 0, settz =
         return datetime.datetime(year, month, day, hour, minute, second, tzinfo=tzlocal.get_localzone())
     else:
         return datetime.datetime(year, month, day, hour, minute, second)
-## convert input date and time to datetime, will return a result for any input, 
-# not delivered values are taken from 'now'
-# @param date - input date value 
-# @param time - input time value 
-def Afp_toDatetime(date, time):
-    if Afp_isString(date):
-        date = Afp_fromString(Afp_ChDatum(date))
-    if Afp_isString(time):
-        time = Afp_fromString(Afp_ChZeit(time)) 
-    time = Afp_toTime(time)
-    return Afp_genDatetime(date.year, date.month, date.day, time.hour, time.minute, time.second)
+## assign local timzone to datetime object
+# @param dtime - input datetime object
 def Afp_toTzDatetime(dtime):
     return datetime.datetime(dtime.year, dtime.month, dtime.day, dtime.hour, dtime.minute, dtime.second, tzinfo=tzlocal.get_localzone())
 ## convert timedelta to time

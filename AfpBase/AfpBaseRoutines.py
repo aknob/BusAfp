@@ -272,6 +272,17 @@ def Afp_printToInfoFile(globals, lines, sort = False, fname = None):
             fout.write("   " + entry  + '\n')
     fout.close()
     Afp_startFile( fname, globals, globals.is_debug(), True) 
+## convert input date and time to datetime, will return a result for any input, 
+# not delivered values are taken from 'now'
+# @param date - input date value 
+# @param time - input time value 
+def Afp_toDatetime(date, time):
+    if Afp_isString(date):
+        date = Afp_fromString(Afp_ChDatum(date))
+    if Afp_isString(time):
+        time = Afp_fromString(Afp_ChZeit(time)) 
+    time = Afp_toTime(time)
+    return Afp_genDatetime(date.year, date.month, date.day, time.hour, time.minute, time.second)
 ##  provide a list from a SQLTableSelection object - \n
 #    mostly to allow additional selection
 # @param table_sel - input AfpSQLTableSelection object for which an additional selection has to be made
