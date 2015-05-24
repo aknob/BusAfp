@@ -473,11 +473,12 @@ class AfpDialog_MultiLines(wx.Dialog):
         self.Destroy()
         
 ## Baseclass Calendar Requester  \n
-# if the parameter: "multi=['Name1', ...]" is given in constructor, 
+# if the parameter: "multi=['Name1', "[x1:]'Name2', ...]" is given in constructor, x1 may be the value for the offsets,
 # a sequence of calendars are invoked and distributed horizontal, 
-# each labled appropriate ('Name1', ...)
+# each labled appropriate ('Name1', ...) and will be syncronised to hold the offset x1 between claendar Name1 and Name2
 class AfpDialog_Calendar(wx.Dialog):
-    ## constructor 
+    ## constructor \n
+    # strings for multi calendar
     def __init__(self, *args, **kw):
         self.multi = [""]
         if "multi" in kw:
@@ -485,6 +486,7 @@ class AfpDialog_Calendar(wx.Dialog):
             del kw["multi"]
         super(AfpDialog_Calendar, self).__init__(*args, **kw) 
         self.data = None
+        self.offset = None
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.calendars = []
         self.calendars.append(wx.calendar.CalendarCtrl(self,  style = wx.calendar.CAL_SHOW_HOLIDAYS | 
@@ -495,6 +497,7 @@ class AfpDialog_Calendar(wx.Dialog):
                                                                                                               wx.calendar.CAL_SHOW_SURROUNDING_WEEKS |
                                                                                                               wx.calendar.CAL_MONDAY_FIRST))
         self.Bind(wx.calendar.EVT_CALENDAR, self.On_Button_Ok)
+        self.Bind(wx.calendar.EVT_CALENDAR_SEL_CHANGED, self.On_Changed)
         # gtk truncates the year - this fixes it
         w, h =  self.calendars[0].Size
         size = (w+25, h-20)
@@ -506,7 +509,11 @@ class AfpDialog_Calendar(wx.Dialog):
             calendar.MinSize = size
             cal_sizer =  wx.BoxSizer(wx.VERTICAL)
             if self.multi[i]:
-                label = wx.StaticText(self, -1, label=self.multi[i] + ":")   
+                offset, string = self.get_offset(self.multi[i])
+                if not offset is None:
+                    if self.offset is None: self.offset = [offset]
+                    else: self.offset.append(offset)
+                label = wx.StaticText(self, -1, label=string + ":")   
                 cal_sizer.Add(label, 0)
             cal_sizer.Add(calendar, 0)
             self.upper_sizer.Add(cal_sizer, 0, wx.EXPAND)
@@ -528,6 +535,18 @@ class AfpDialog_Calendar(wx.Dialog):
         self.SetAutoLayout(1)
         self.sizer.Fit(self)
         self.calendars[0].SetFocus()
+    ## separate offset from string, indicated by a ":"
+    # @param string - input string to be checked
+    def get_offset(self, string):
+        offset = None
+        #print "AfpDialog_Calendar.get_offset:", string
+        if ":" in string:
+            ind = string.index(":")
+            nr = Afp_fromString(string[:ind])
+            if Afp_isNumeric(nr):
+                offset = nr
+                string = string[ind+1:]
+        return offset, string
     ## set the left corner of dialog to given position
     # @param pos - postion of left corner
     def set_position(self, pos):
@@ -557,17 +576,42 @@ class AfpDialog_Calendar(wx.Dialog):
             if string:
                 datum = Afp_fromString(string)
                 wxDat = Afp_pyToWxDate(datum)
-                print "AfpDialog_Calendar.set_datum explicit:", i, datum, "WX:", wxDat
+                #print "AfpDialog_Calendar.set_datum explicit:", i, datum, "WX:", wxDat
                 if i < len_c:
                     self.calendars[i].SetDate(wxDat)
-        print "AfpDialog_Calendar.set_datum length:", len_c,  range(len(strings), len_c)
+        #print "AfpDialog_Calendar.set_datum length:", len_c,  range(len(strings), len_c)
         if len_c > len(strings) and wxDat:
             for i in range(len(strings), len_c):
-                print "AfpDialog_Calendar.set_datum implicit:", i, datum, "WX:", wxDat
+                #print "AfpDialog_Calendar.set_datum implicit:", i, datum, "WX:", wxDat
                 self.calendars[i].SetDate(wxDat)
     ## retrieve date strings from dialog
     def get_data(self):
         return self.data
+    ## Eventhandler calendar selection has changed
+    # @param event - event which initiated this action    
+    def On_Changed(self, event):
+        #print "AfpDialog_Calendar.On_Changed:", self.offset
+        if self.offset:
+            calendar = event.GetEventObject()
+            index = self.calendars.index(calendar)
+            date = calendar.GetDate()
+            if index > 0:
+                sum = wx.DateSpan()
+                for i in range(index-1, -1, -1):
+                    sum += wx.DateSpan(0,0,0,self.offset[i])
+                    newdat = date - sum
+                    #print "AfpDialog_Calendar.On_Changed -:", i, date, newdat, self.calendars[i].GetDate()
+                    if self.calendars[i].GetDate().IsLaterThan(newdat):
+                        self.calendars[i].SetDate(newdat)
+            len_c = len(self.calendars) - 1
+            if index < len_c:
+                sum = wx.DateSpan()
+                for i in range(index, len_c):
+                    sum += wx.DateSpan(0,0,0,self.offset[i])
+                    newdat = date + sum
+                    #print "AfpDialog_Calendar.On_Changed +:", i, date, newdat, self.calendars[i+1].GetDate()
+                    if self.calendars[i+1].GetDate().IsEarlierThan(newdat):
+                        self.calendars[i+1].SetDate(newdat)
     ## Eventhandler BUTTON - Cancel button pushed
     # @param event - event which initiated this action    
     def On_Button_Cancel(self, event):

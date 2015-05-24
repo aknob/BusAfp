@@ -676,7 +676,7 @@ def Afp_leftSpCnt(string):
 # possibly complete date with current day, month or year.
 # @param string - string to be analysed
 # @param only_past - flag if date is assumed to lie in the past,  \n
-# short years will be completed with the last century, if the normal completation would set them to lie in the future.
+# short years will be completed with the last century, if the normal completation would set them to ly in the future.
 def Afp_ChDatum(string, only_past = False):
     if string is None: return string
     today = datetime.date.today()

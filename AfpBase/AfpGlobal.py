@@ -8,6 +8,7 @@
 # - AfpGlobal
 #
 #   History: \n
+#        23 May 2015 - enable variable setting via configuration string - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
 
@@ -260,6 +261,22 @@ class AfpGlobal(object):
             self.add_setting(module, set)
         if set and name:
             set.set(name, value)
+    ## set values according to direct configuration string
+    # @param conf - cobniguration string to be evaluated
+    def set_configuration(self, conf):
+        config = conf.split(",")
+        for entry in config:
+            split = entry.split("=")
+            if len(split) == 2:
+                value = split[1]
+                vars = split[0].split(".")
+                if len(vars) == 2:
+                    variable = vars[1]
+                    modul = vars[0]
+                else:
+                    variable = vars[0]
+                    modul = None
+                self.set_value(variable, value, modul)
     ## set common information for this program package
     # @param version - version number of this package
     # @param copyright - copyright of this package

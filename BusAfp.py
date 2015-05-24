@@ -6,8 +6,9 @@
 #    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch) \n
 # \n
 #   History: \n
-#        19 Okt.2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
-#        30 Nov.2012 - inital code generated - Andreas.Knoblauch@afptech.de
+#        23 May 2015 - enable variable setting via command line option - Andreas.Knoblauch@afptech.de \n
+#        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
+#        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
 
 #
 # This file is part of the  'Open Source' project "BusAfp" by 
@@ -45,7 +46,8 @@ class BusAfp(wx.App):
     # @param dbhost - host for database
     # @param dbuser - user on host for database
     # @param dbword - password for user on host for database
-    def initialize(self, debug, startpath, confpath, dbhost, dbuser, dbword): 
+    # @param config - configuration string to set global variables
+    def initialize(self, debug, startpath, confpath, dbhost, dbuser, dbword, config): 
         name = 'BusAfp'
         version = "6.0.0 alpha"       
         copyright = '(C) 1989 - 2015 AfpTech.de'
@@ -92,6 +94,7 @@ class BusAfp(wx.App):
         mysql = AfpBase.AfpDatabase.AfpSQL.AfpSQL(set.get("database-host"), set.get("database-user"), set.get("database-word"), set.get("database"), set.is_debug())
         self.globals = AfpBase.AfpGlobal.AfpGlobal(name, mysql, set)
         self.globals.set_infos(version, copyright, website, description, license, picture, developers)
+        if config: self.globals.set_configuration(config)
         wx.InitAllImageHandlers()
     
     ## load appropriate modul     
@@ -113,28 +116,32 @@ module = "Adresse"
 dbhost= None
 dbuser = None
 dbword = None
+config = None
 lgh = len(sys.argv)
 ev_indices = []
 startpath = os.path.dirname(os.path.abspath(sys.argv[0]))
 for i in range(1,lgh):
     if sys.argv[i] == "-p" or sys.argv[i] == "--password": 
         ev_indices.append(i+1)
-        if i < lgh-1 and not "-" in sys.argv[i+1]: dbword = sys.argv[i+1]
+        if i < lgh-1 and sys.argv[i+1][0] != "-": dbword = sys.argv[i+1]
     if sys.argv[i] == "-s" or sys.argv[i] == "--server": 
         ev_indices.append(i+1)
-        if i < lgh-1 and not "-" in sys.argv[i+1]: dbhost= sys.argv[i+1]
+        if i < lgh-1 and sys.argv[i+1][0] != "-": dbhost= sys.argv[i+1]
     if sys.argv[i] == "-u" or sys.argv[i] == "--user": 
         ev_indices.append(i+1)
-        if i < lgh-1 and not "-" in sys.argv[i+1]: dbuser = sys.argv[i+1] 
+        if i < lgh-1 and sys.argv[i+1][0] != "-": dbuser = sys.argv[i+1] 
+    if sys.argv[i] == "-o" or sys.argv[i] == "--option": 
+        ev_indices.append(i+1)
+        if i < lgh-1 and sys.argv[i+1][0] != "-": config = sys.argv[i+1] 
     if sys.argv[i] == "-m" or sys.argv[i] == "--module": 
         ev_indices.append(i+1)
-        if i < lgh-1 and not "-" in sys.argv[i+1]: module = sys.argv[i+1]
+        if i < lgh-1 and sys.argv[i+1][0] != "-": module = sys.argv[i+1]
     if sys.argv[i] == "-v" or sys.argv[i] == "--verbose": debug = True
     if sys.argv[i] == "-h" or sys.argv[i] == "--help": execute = False
 if execute:
     if lgh > 1 and not "-" in sys.argv[lgh-1] and not lgh-1 in ev_indices: confpath = sys.argv[lgh-1]
     BusAfp = BusAfp(0)
-    BusAfp.initialize(debug, startpath, confpath, dbhost, dbuser, dbword)
+    BusAfp.initialize(debug, startpath, confpath, dbhost, dbuser, dbword, config)
     loaded = BusAfp.load_module(module)
     if loaded:
         BusAfp.MainLoop()
@@ -152,6 +159,8 @@ else:
     print "               Default: loclahost (127.0.0.1) will be used"
     print "-u,--user      user for mysql authentification follows"
     print "               Default: user \"server\" will be used"
+    print "-o,--option    manuel setting of different configuration settings follows"
+    print "               Usage: variablename[:Modul]=value[, ...]"
     print "-v,--verbose   display comments on all actions (debug-information)"
     print "file           configuration read from python script file"
    

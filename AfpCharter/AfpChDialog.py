@@ -152,8 +152,10 @@ class AfpDialog_DiChEin(AfpDialog):
         self.zahl_data = None
         AfpDialog.__init__(self,None, -1, "")
         self.lock_data = True
+        self.active = None
         self.SetSize((574,410))
         self.SetTitle("Mietfahrt")
+        self.Bind(wx.EVT_ACTIVATE, self.On_Activate)
     
     ## initialise graphic elements
     def InitWx(self):
@@ -278,7 +280,6 @@ class AfpDialog_DiChEin(AfpDialog):
         if self.new: self.choice_Edit.SetSelection(1)
         self.Populate()
         self.Set_Editable(self.new, False)
-        #if self.new: self.On_Fahrt_Datum()
    
     ## read values from dialog and invoke writing to database
     def store_database(self):
@@ -409,36 +410,35 @@ class AfpDialog_DiChEin(AfpDialog):
             tage = Afp_diffDays(sdat, edat) + 1
             if tage > 32000:  # > 90 years!
                 tage = -1
+        elif start:
+            tage = 1
         return start, ende, tage
     ## check if durance and 'Art' selector coincident \n
-    # try to sycronise
+    # try to syncronise
     # @param choice_prio - give the choice selector priority during syncronisation
-    def ch_durance(self, choice_prio = False):
+    # @param reset_end - end date may be resetted for one day operation
+    def ch_durance(self, choice_prio = False, reset_end = False):
         start, ende, tage = self.get_durance()
-        #print "ch_durance:", start, ende, tage
         select = self.choice_Art.GetCurrentSelection()
-        if tage < 0:  ende = ""
+        if tage < 1:  
+            if self.debug: print "AfpDialog_DiChEin.ch_durance: days < 0, reset enddate!"
+            if choice_prio:
+                if select == 0: ende = start
+                else: ende = Afp_toString(Afp_addDaysToDate(Afp_fromString(start), 1))
         if tage == 1:
             if choice_prio: 
-                if select > 0: ende = ""
-            elif select == 1: select = 0 # MTF -> Tagesfahrt
+                if select > 0: 
+                    ende = Afp_toString(Afp_addDaysToDate(Afp_fromString(start), 1))
+                elif reset_end: 
+                    ende = start
+            elif select > 0: select = 0 # MTF, Transfer -> Tagesfahrt
         elif tage > 1:
             if choice_prio:
                 if select == 0: ende = start
             elif select == 0: select = 1 # Tagesfahrt -> MTF
-        #else: # tage <= 0
-            #if not choice_prio: select = 0
-            #if start == "": start = ende
-            #elif ende == "": ende = start
         self.text_Abfahrt.SetValue(start)
         self.text_Ende.SetValue(ende)
         self.choice_Art.SetSelection(select)   
-        if select == 0 and tage == 1:
-            self.text_Ende.SetEditable(False)
-            self.text_Ende.SetBackgroundColour(self.readonlycolor)
-        else:
-            self.text_Ende.SetEditable(True)
-            self.text_Ende.SetBackgroundColour(self.editcolor)
         self.ch_km()
     ## toggle distance setting due to 'Art' selection
     def ch_km(self):
@@ -460,7 +460,7 @@ class AfpDialog_DiChEin(AfpDialog):
     def Pop_Extras(self):
         pers = Afp_fromString(self.text_Pers.GetValue())
         rows = self.data.get_value_rows("FAHRTEX", "Info,Preis,Extra,noPausch")
-        liste = ["--- Extraleistung hinzufügen ---"]
+        liste = ["--- Extraleistung hinzufügen ---".decode("UTF-8")]
         #print "Pop_Extras:", rows
         for row in rows:
             preis = Afp_floatString(row[1])
@@ -533,8 +533,20 @@ class AfpDialog_DiChEin(AfpDialog):
             if self.data.is_accountable(): self.choice_Art.Enable(False)
         else:  
             self.choicevalues = {}
+            
+    ## event handler when window is activated
+    # @param event - event which initiated this action   
+    def On_Activate(self,event):
+         if self.active is None:
+            if self.debug: print "Event handler `On_Activate'"
+            self.active = True
+            if self.new and self.data.get_globals().get_value("edit-date-first","Charter"): 
+                self.On_Fahrt_Datum()
+                if self.text_Abfahrt.GetValue() == "":
+                    self.text_Abfahrt.SetFocus()
 
     ## event handler when cursor leave textbox
+    # @param event - event which initiated this action   
     def On_KillFocus(self,event):
         object = event.GetEventObject()
         name = object.GetName()
@@ -544,15 +556,19 @@ class AfpDialog_DiChEin(AfpDialog):
         if name == "Preis": self.set_proPers()
   
     ## event handler when one of the durance relevant textboxes is left 
+    # @param event - event which initiated this action   
     def On_Check_Dauer(self,event):
         if self.debug: print "Event handler `On_Check_Dauer'"
-        self.ch_durance(True)
+        object = event.GetEventObject()
+        name = object.GetName()
+        self.ch_durance(True, name == "Ende")
         self.On_KillFocus(event)
         event.Skip()
 
     ## event handler when start or destination textbox is left \n
     # only invokes the On_KillFocus method \n
     # may be used for connection to a route map
+    # @param event - event which initiated this action   
     def On_Check_Strecke(self,event):
         print "Event handler `On_Check_Strecke' not implemented!"
         self.On_KillFocus(event)
@@ -560,6 +576,7 @@ class AfpDialog_DiChEin(AfpDialog):
 
     ## event handler for click into the 'Extra' listbox \n
     # invokes the AfpDialog_DiMfEx dialog to edit additional tour features
+    # @param event - event which initiated this action   
     def On_Fahrt_Extras(self,event):
         if self.debug: print "Event handler `On_Fahrt_Extras'"
         index = self.list_Extras.GetSelections()[0] - 1
@@ -582,6 +599,7 @@ class AfpDialog_DiChEin(AfpDialog):
 
     ##Eventhandler BUTTON - change address \n
     # invokes the AfpDialog_DiAdEin dialog
+    # @param event - event which initiated this action   
     def On_Adresse_aendern(self,event):
         if self.debug: print "Event handler `On_Adresse_aendern'"
         KNr = self.data.get_value("KundenNr.ADRESSE")
@@ -592,6 +610,7 @@ class AfpDialog_DiChEin(AfpDialog):
 
     ##Eventhandler BUTTON - change contact address \n
     # invokes the address selection dialog
+    # @param event - event which initiated this action   
     def On_Fahrt_Kontakt(self,event):
         if self.debug: print "Event handler `On_Fahrt_Kontakt'" 
         name = self.data.get_value("Name.Kontakt")
@@ -611,6 +630,7 @@ class AfpDialog_DiChEin(AfpDialog):
     ## Eventhandler BUTTON - change invoice address,
     # only available whe an invoice is attached to this charter \n
     # invokes the address selection dialog
+    # @param event - event which initiated this action   
     def On_Fahrt_RechAd(self,event):
         if self.debug: print "Event handler `On_Fahrt_RechAd'"
         if self.data.get_value("RechNr"):
@@ -629,6 +649,7 @@ class AfpDialog_DiChEin(AfpDialog):
 
     ##  Eventhandler BUTTON  for new entry \n
     # a copy of the actuel charter may be made completely or partly
+    # @param event - event which initiated this action   
     def On_Fahrt_Neu(self,event):
         if self.debug: print "Event handler `On_Fahrt_Neu'"
         new_data = AfpCharter_copy(self.data)
@@ -641,6 +662,7 @@ class AfpDialog_DiChEin(AfpDialog):
         event.Skip()
 
     ##  Eventhandler BUTTON  for a payment \n
+    # @param event - event which initiated this action   
     def On_Fahrt_Zahl(self,event):
         if self.debug: print "Event handler `On_Fahrt_Zahl'"
         Ok, data = AfpLoad_DiFiZahl(self.data, True)
@@ -654,7 +676,8 @@ class AfpDialog_DiChEin(AfpDialog):
             self.Set_Editable(True)
         event.Skip()
 
-    ## Eventhandler BUTTON - graphic pick for dates- not yet implemented! \n
+    ## Eventhandler BUTTON - graphic pick for dates 
+    # @param event - event which initiated this action   
     def On_Fahrt_Datum(self,event = None):
         if self.debug: print "Event handler `On_Fahrt_Datum'"
         start = self.text_Abfahrt.GetValue()
@@ -664,21 +687,24 @@ class AfpDialog_DiChEin(AfpDialog):
         x, y = self.button_Datum.ScreenPosition
         x += self.button_Datum.GetSize()[0]
         y += self.button_Datum.GetSize()[1]
-        dates = AfpReq_Calendar((x, y), [start, ende],  "Fahrtdaten Mietfahrt", False, ["Abfahrt", "Fahrtende"])
+        dates = AfpReq_Calendar((x, y), [start, ende],  "Fahrtdaten Mietfahrt", False, ["Abfahrt", "0:Fahrtende"])
         if dates:
             self.text_Abfahrt.SetValue(dates[0])
             self.text_Ende.SetValue(dates[1])
+            self.ch_durance(False)
             self.choice_Edit.SetSelection(1)
             self.Set_Editable(True)
         if event: event.Skip()
 
-    ## Eventhandler BUTTON - change bus configuration desired- not yet implemented! \n
+    ## Eventhandler BUTTON - change bus configuration desired- not yet implemented! 
+    # @param event - event which initiated this action   
     def On_Fahrt_Ausstatt(self,event):
         print "Event handler `On_Fahrt_Ausstatt' not implemented!"
         event.Skip()
 
     ##  Eventhandler BUTTON  change charter information \n
     # arrival- or departure- -times and -.adresses may be set here for different fixpoints of the journey
+    # @param event - event which initiated this action   
     def On_Fahrt_Info(self,event):
         if self.debug: print "Event handler `On_Fahrt_Info'"
         index = AfpChInfo_selectEntry(self.data.get_selection("FAHRTI"), True)
@@ -695,6 +721,7 @@ class AfpDialog_DiChEin(AfpDialog):
 
     ##  Eventhandler BUTTON  change charter freetext infos \n
     # additional informations or remarks may be stored here
+    # @param event - event which initiated this action   
     def On_Fahrt_Text(self,event):
         if self.debug: print "Event handler `On_Fahrt_Text'"
         oldtext = self.data.get_string_value("Brief.FAHRTEN")
@@ -709,6 +736,7 @@ class AfpDialog_DiChEin(AfpDialog):
 
     ##  Eventhandler CHOICE  change the 'art' of charter \n
     # available values are 'Tagesfahrt' (day trip), MTF (Mehrtagesfahrt, serveral day journey) or 'Transfer'
+    # @param event - event which initiated this action   
     def On_CArt(self,event):
         if self.debug: print "Event handler `On_CArt'"  
         select = self.choice_Art.GetCurrentSelection()
@@ -718,6 +746,7 @@ class AfpDialog_DiChEin(AfpDialog):
         event.Skip()  
     ##  Eventhandler CHOICE  change the state (zustand) of the charter \n
     # depending on the state, payment is available, an invoice is created and financial transactions are recorded
+    # @param event - event which initiated this action   
     def On_CZustand(self,event):
         if self.debug: print "Event handler `On_CZustand'"
         select = self.choice_Zustand.GetCurrentSelection()
@@ -902,6 +931,7 @@ class AfpDialog_DiMfEx(AfpDialog):
      # Event Handlers 
     ##  Eventhandler CHOICE  change the state of visablity in output \n
     # depending on the state this entry may be listed as a separate line in the output
+    # @param event - event which initiated this action   
     def On_CSicht(self,event = None):
         if self.debug: print "Event handler `On_CSicht'"
         select = self.choice_Sicht.GetCurrentSelection()
@@ -914,6 +944,7 @@ class AfpDialog_DiMfEx(AfpDialog):
         if event: event.Skip()  
     ##  Eventhandler CHOICE  flag if price has to be interpreted on a per person base \n
     # toggelling this flag, the price will be multiplied by or devided through the number of persons
+    # @param event - event which initiated this action   
     def On_CIndi(self,event = None):
         if self.debug: print "Event handler `On_CIndi'"
         select = self.choice_Indi.GetCurrentSelection()
@@ -936,6 +967,7 @@ class AfpDialog_DiMfEx(AfpDialog):
         if event: event.Skip()  
     ##  Eventhandler CHOICE  toggle tax choice \n
     # depending on the choice, the price will be assumed to be tax relevant or not
+    # @param event - event which initiated this action   
     def On_CUmst(self,event = None):
         if self.debug: print "Event handler `On_CUmst'"
         select = self.choice_Umst.GetCurrentSelection()
@@ -947,6 +979,7 @@ class AfpDialog_DiMfEx(AfpDialog):
 
     ##  Eventhandler BUTTON  delete this line from list in calling dialog, \n
     # resp. mark it to be ignored for price calculation
+    # @param event - event which initiated this action   
     def On_Loeschen(self,event):
         if self.debug: print "Event handler `On_Loeschen'", self.index
         self.changed_text = []
@@ -1124,6 +1157,7 @@ class AfpDialog_DiMfInfo(AfpDialog):
          
     ##  Eventhandler TEXT,  check if date entry has the correct format, \n
     # complete date-text if necessary 
+    # @param event - event which initiated this action   
     def On_ChangeDatum(self,event):
         if self.debug: print "Event handler `On_ChangeDatum'"
         datum = self.text_Datum.GetValue()
@@ -1133,6 +1167,7 @@ class AfpDialog_DiMfInfo(AfpDialog):
         event.Skip()  
    ##  Eventhandler TEXT,  check if time entry has the correct format, \n
     # complete date-text if necessary 
+    # @param event - event which initiated this action   
     def On_ChangeZeit(self,event):
         if self.debug: print "Event handler `On_ChangeZeit'"
         zeit = self.text_Zeit.GetValue()
@@ -1143,12 +1178,14 @@ class AfpDialog_DiMfInfo(AfpDialog):
 
     ##  Eventhandler CHOICE,  record if a choice had been changed \n
     # and the set_choicevalues method has to be invoked during storing
+    # @param event - event which initiated this action   
     def On_ChangeChoice(self,event):
         if self.debug: print "Event handler `On_ChangeChoice'"
         self.choice_changed = True
         event.Skip()  
       
     ##  Eventhandler BUTTON  delete this line from list in calling dialog,
+    # @param event - event which initiated this action   
     def On_Loeschen(self,event):
         if self.debug: print "Event handler `On_Loeschen'", self.index
         self.changed_text = []
