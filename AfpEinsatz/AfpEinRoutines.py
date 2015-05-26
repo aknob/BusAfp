@@ -67,10 +67,10 @@ class AfpEinsatz(AfpSelectionList):
         self.selects["ReiseAdresse"] = [ "ADRESSE","KundenNr = KundenNr.REISEN"]  
         if MietNr or ReiseNr: self.set_new(MietNr, ReiseNr, None, typ)
         self.calendar = None
-        self.calendar_modul = None
-        self.calendar_modul = Afp_importPyModul("AfpCalendar.AfpCalRoutines", globals)
-        if self.calendar_modul:
-            self.calendar = self.calendar_modul.AfpCalendar(globals, debug)
+        if self.globals.get_value("enable-calendar","Einsatz"):
+            calendar_modul = Afp_importPyModul("AfpCalendar.AfpCalRoutines", globals)
+            if calendar_modul:
+                self.calendar = calendar_modul.AfpCalendar(globals, debug)
         if self.debug: print "AfpEinsatz Konstruktor:", self.mainindex, self.mainvalue 
     ## destructor
     def __del__(self):    
@@ -101,10 +101,10 @@ class AfpEinsatz(AfpSelectionList):
             keep.append("ReiseAdresse")
             self.clear_selections(keep)
         if data and select:
-            print "AfpEinsatz.set_new:", infoindex, typ, data, select
+            #print "AfpEinsatz.set_new:", infoindex, typ, data, select
             self.set_data_values(data,"EINSATZ")
             selection = self.get_selection(select)
-            print "AfpEinsatz.set_new:", selection, selection.select, selection.data
+            #print "AfpEinsatz.set_new:", selection, selection.select, selection.data
             data["Datum"] = selection.get_value("Abfahrt")
             data["EndDatum"] = selection.get_value("Fahrtende")
             info = self.get_Fahrtinfo(infoindex, typ)         
@@ -114,10 +114,11 @@ class AfpEinsatz(AfpSelectionList):
                 data["StellOrt"] = info[2]
                 if info[0] and info[1]:
                     dattime = Afp_toDatetime(info[0], info[1]) 
-                    endtime = self.gen_arrivaltime(dattime, typ)
-                    if endtime:
-                         data["EndDatum"] = endtime.date()
-                         data["EndZeit"] = endtime.time()
+                    if typ:
+                        endtime = self.gen_arrivaltime(dattime, typ)
+                        if endtime:
+                             data["EndDatum"] = endtime.date()
+                             data["EndZeit"] = endtime.time()
                     diff1 = Afp_toTimedelta(self.globals.get_value("stell-difference","Einsatz"))
                     if diff1: dattime -= diff1
                     data["StellDatum"] = dattime.date()
@@ -145,32 +146,32 @@ class AfpEinsatz(AfpSelectionList):
         Einsatz = self.get_selection()
         print "AfpEinsatz.add_vehicle_to_calendar new:", self.new, "has changed:", Einsatz.has_changed(None, True)
         if self.new or Einsatz.has_changed(None, True):
-            orig = Einsatz.manipulation_get_value("Bus", True)
-            new = Einsatz.get_value("Bus")
+            orig_cal = Einsatz.manipulation_get_value("Bus", True)
+            new_cal = Einsatz.get_value("Bus")
             email = self.globals.get_value("mail-sender")
-            print "AfpEinsatz.add_vehicle_to_calendar orig:", orig, "new:", new
             uid = self.get_value("Datei")
+            print "AfpEinsatz.add_vehicle_to_calendar orig:", orig_cal, "UID:", uid, "new:", new_cal
             default_calendar = self.globals.get_value("calendar-default","Einsatz")
             if not default_calendar: default_calendar = "Default"
-            if not orig is None:
-                if not orig: orig = default_calendar
-                self.calendar.gen_new_target(orig, email)
+            if orig_cal or uid:
+                if not orig_cal and uid: orig_cal = default_calendar
+                self.calendar.gen_new_target(orig_cal, email)
                 self.calendar.add_event_to_target("delete", None, None, None, uid)
-            if not new: new = default_calendar
-            self.calendar.gen_new_target(new, email)
+            if not new_cal: new_cal = default_calendar
+            self.calendar.gen_new_target(new_cal, email)
             start = self.get_datetime("Ab")# start == None: wenn Zeit fehlt auf 0:00 oder festen Wert setzen?
             ende = self.get_datetime("End") # ende == None: wenn Zeit fehlt auf 23:59oder festen Wert setzen?
             summary = self.get_cal_summary()
             print "AfpEinsatz.add_vehicle_to_calendar times:", start, ende
-            if not uid: 
-                uid = self.gen_cal_uid()
-                self.set_value("Datei", uid)
             content = self.get_cal_content()
             location = self.get_value("StellOrt")
-            if self.new:
+            if not uid or orig_cal: 
+                if not uid:
+                    uid = self.gen_cal_uid()
+                    self.set_value("Datei", uid)
                 self.calendar.add_event_to_target("new", start, ende, summary, uid, content, location)
             else:
-                self.calendar.add_event_to_target("replace", start, ende, summary, uid, content, location)
+                self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, location)
     ## add calendar changes due to driver modifications to calendar
     def add_driver_to_calendar(self): 
         print "AfpEinsatz.add_driver_to_calendar"
@@ -212,7 +213,7 @@ class AfpEinsatz(AfpSelectionList):
                             content += "\n" + Fahrer.get_cal_content()
                             location = Fahrer.get_value("AbOrt")
                             if location is None: location = self.get_value("StellOrt")
-                            self.calendar.add_event_to_target("replace", start, ende, summery, uid, content, location)
+                            self.calendar.add_event_to_target("modify", start, ende, summery, uid, content, location)
     ## decide whether a new or modified calendar entry is needed                            
     def driver_cal_changed(self, row):
         Fahrer = self.get_selection("Fahrer")
@@ -264,33 +265,32 @@ class AfpEinsatz(AfpSelectionList):
         if self.is_typ("Miet"):
             rows = self.get_value_rows("FAHRTI","Datum,Abfahrtszeit,Adresse1,Adresse2")
             sel = self.selections["FAHRTI"]
-            print "AfpEinsatz.get_fahrtinfo sel:",sel.select, sel.data
-            print "AfpEinsatz.get_fahrtinfo rows:", rows
             if index is None:
                 for i, row in enumerate(rows):
                     if (typ == "start" and "Hin Ab" in row[3]) or (typ == "end" and "Her Ab" in row[3]):
                         index = i
             if not index is None:
                 info = rows[index][:3]
-        print "AfpEinsatz.get_fahrtinfo:", index, typ, info
         return info
     ## get appropriate datetime value from date and time entry
     # @param name - name of timevalue to be composted
     def get_datetime(self, name):
         date = self.get_value(name + "Datum")
         time = self.get_value(name + "Zeit")
+        if name == "End": hightime = True
+        else: hightime = False
         if date and time:
-            return Afp_toDatetime(date, time)
+            return Afp_toDatetime(date, time, hightime)
         else:
             return None
     ## generate approximated time of arrival
-    # @param start - datetime object holding starttime
+    # @param starttime - datetime object holding starttime
     # @param typ - typ for result generation (None, start, end, minus)
     def gen_arrivaltime(self, starttime, typ):
         endtime = None
         if self.is_typ("Miet"):
-            if self.get_value("Art", "FAHRTEN") == "Transfer":
-                km = self.get_value("Km", "FAHRTEN")
+            if self.get_value("Art.FAHRTEN") == "Transfer":
+                km = self.get_value("Km.FAHRTEN")
                 if km:
                     if typ == "end" or typ == "minus": km = km/4
                     else: km = km/2
@@ -301,11 +301,12 @@ class AfpEinsatz(AfpSelectionList):
                         endtime = starttime - Afp_fromString(Afp_toString(hours) + ":00")
                     else:
                         endtime = starttime + Afp_fromString(Afp_toString(hours) + ":00")
+                    print "AfpEinsatz.gen_arrivaltime:", starttime, typ, km, kmph, hours, endtime
         return endtime
      ## return summary of calnedar entry
     def get_cal_summary(self):
         if self.get_value("MietNr"):
-            summary = self.get_string_value("Zielort","Fahrten") + " " + self.get_string_value("Art","Fahrten") + " " + self.get_string_value("Name","FahrtAdresse")
+            summary = self.get_string_value("Zielort.FAHRTEN") + " " + self.get_string_value("Art.FAHRTEN") + " " + self.get_string_value("Name.FahrtAdresse")
         else:
             summary = "AfpEinsatz: Calendar-Summery not implemented!"
         return summary
@@ -319,9 +320,9 @@ class AfpEinsatz(AfpSelectionList):
         else:
             content = "AfpEinsatz: Calendar-Content not implemented!"
         return content
-    ## generate unified id for this vehicle operation calendar entr\y  \n
+    ## generate unified id for this vehicle operation calendar entry  \n
     # id will be generated in the following manner: \n
-    # VOP-xxxxx-Name@database-host
+    # VOP-xxxxx-Name(at)database-host
     # - VOP - abbraviation for 'vehicle operation'
     # - xxxxx - internal identification numer of vehicle operation
     # - Name - name of product used
@@ -333,9 +334,9 @@ class AfpEinsatz(AfpSelectionList):
         else:
             uid = None
         return uid
-    ## generate unified id for this driver calendar entr\y  \n
+    ## generate unified id for this driver calendar entry  \n
     # id will be generated in the following manner: \n
-    # DRV-xxxxx-yyyzz-Name@database-host
+    # DRV-xxxxx-yyyzz-Name(at)database-host
     # - DRV - abbraviation for 'driver operation'
     # - xxxxx - internal identification numer of vehicle operation
     # - yyy - short form of driver identification
@@ -346,7 +347,7 @@ class AfpEinsatz(AfpSelectionList):
     def gen_driver_uid(self, index):
         ENr = self.get_string_value("EinsatzNr")
         if ENr:
-            uid = "DRV-" + ENr + "-" + self.get_string_value("Kuerzel","FAHRER") + Afp_toString(index)
+            uid = "DRV-" + ENr + "-" + self.get_string_value("Kuerzel.FAHRER") + Afp_toString(index)
             uid += self.globals.get_value("name") + "@"+  self.globals.get_value("database-host")
         else:
             uid = None

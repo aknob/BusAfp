@@ -570,7 +570,11 @@ class AfpDialog_DiChEin(AfpDialog):
     # may be used for connection to a route map
     # @param event - event which initiated this action   
     def On_Check_Strecke(self,event):
-        print "Event handler `On_Check_Strecke' not implemented!"
+        if self.debug: print "Event handler `On_Check_Strecke'"        
+        object = event.GetEventObject()
+        name = object.GetName()
+        if name == "Von" and self.text_Von.GetValue() == "":
+            self.text_Von.SetValue(self.data.get_globals().get_string_value("standart-location","Adresse"))
         self.On_KillFocus(event)
         event.Skip()
 
@@ -694,6 +698,8 @@ class AfpDialog_DiChEin(AfpDialog):
             self.ch_durance(False)
             self.choice_Edit.SetSelection(1)
             self.Set_Editable(True)
+            if not "Abfahrt" in self.changed_text: self.changed_text.append("Abfahrt")
+            if not "Ende" in self.changed_text: self.changed_text.append("Ende")
         if event: event.Skip()
 
     ## Eventhandler BUTTON - change bus configuration desired- not yet implemented! 

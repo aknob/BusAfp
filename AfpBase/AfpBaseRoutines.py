@@ -276,12 +276,13 @@ def Afp_printToInfoFile(globals, lines, sort = False, fname = None):
 # not delivered values are taken from 'now'
 # @param date - input date value 
 # @param time - input time value 
-def Afp_toDatetime(date, time):
+# @param hightime - flag how time should be initialised, if no valid time is given (None, True. False)
+def Afp_toDatetime(date, time, hightime = None):
     if Afp_isString(date):
         date = Afp_fromString(Afp_ChDatum(date))
     if Afp_isString(time):
         time = Afp_fromString(Afp_ChZeit(time)) 
-    time = Afp_toTime(time)
+    time = Afp_toTime(time, hightime)
     return Afp_genDatetime(date.year, date.month, date.day, time.hour, time.minute, time.second)
 ##  provide a list from a SQLTableSelection object - \n
 #    mostly to allow additional selection
@@ -610,13 +611,14 @@ class AfpSelectionList(object):
             selection.load_data(select_clause)
     ## return selection, create new if not existend
     # @param name - if given, name of TableSelection, otherwise get main selection
-    def get_selection(self, name = None):
+    # @param allow_new_creation - if selection has to be created allow new plain creation if approritate flag is set
+    def get_selection(self, name = None, allow_new_creation = True):
         selection = None
         if name is None: selname = self.mainselection
         else: selname = name
         #print "AfpSelectionList.get_selection:", selname in self.selections, selname, self.selections
         if not selname in self.selections:  
-            self.create_selection(selname)
+            self.create_selection(selname, allow_new_creation)
             #print "AfpSelectionList.get_selection created:", selname in self.selections, selname, self.selections
         if selname in self.selections: 
             selection = self.selections[selname]  
@@ -719,7 +721,7 @@ class AfpSelectionList(object):
         feld = split[0]
         selname = self.mainselection
         if len(split) > 1: selname = split[1]
-        selection = self.get_selection(selname)
+        selection = self.get_selection(selname, False)
         if selection is None:
             return None
         else:
@@ -857,7 +859,8 @@ class AfpSelectionList(object):
                 self.spread_mainvalue()
                 print "AfpTableSelectionList.store: new mainvalue spreaded to other selections", self.mainvalue
         #print "AfpTableSelectionList.store() selections 2:", self.selections
-        for sel in self.selections:
+        for sel in self.selections: 
+            print "AfpTableSelectionList.store:", sel, self.new, self.selections[sel].new, self.selections[sel].has_changed(), self.selections[sel].select,"\n", self.selections[sel].data
             if not (sel == self.mainselection) and self.selections[sel].has_changed():
                 if self.selects[sel] == []:
                     self.spezial_save(sel)
@@ -938,7 +941,6 @@ class AfpExport(object):
     #  - .asc - ASCII file, static length \n
     #  - .csv - ASCII file, comma separated values \n
     #  - .dbf - DBF database file \n
-    # @param caller - if given, Afp-modul name from where export is called (may be used to retieve default parameter from globas)
     # @param debug - flag for debug information
     def  __init__(self, globals, data, filename, debug = False):
         self.globals = globals

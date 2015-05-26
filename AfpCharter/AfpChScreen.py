@@ -293,12 +293,17 @@ class AfpChScreen(AfpScreen):
             if selection.get_data_length() == 0:
                 New = AfpReq_Question("Kein Einsatz für diese Mietfahrt vorhanden,".decode("UTF-8"),"neuen Einsatz erstellen?","Einsatz?")
                 if New:
-                    Einsatz2 = None
-                    Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, "start")
-                    if Charter.get_value("Art") == "Transfer":
-                         Einsatz2 = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, "end")
-                    Einsatz.store()
-                    if Einsatz2: Einsatz2.store()
+                    transfer = Charter.get_value("Art") == "Transfer"
+                    print "AfpChScreen.On_Fahrt_EinF Art:", transfer
+                    if transfer: typ = "start"
+                    else: typ = None
+                    Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, typ)  
+                    Einsatz.store()                    
+                    print "AfpChScreen.On_Fahrt_EinF Einsatz:", Einsatz
+                    if transfer:
+                        Einsatz2 = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, "end") 
+                        Einsatz2.store()
+                        print "AfpChScreen.On_Fahrt_EinF Einsatz2:", Einsatz2
                     selection.reload_data()
             if selection.get_data_length() > 0: 
                 if selection.get_data_length() > 1:
@@ -312,7 +317,8 @@ class AfpChScreen(AfpScreen):
                 else:
                     ENr = selection.get_value("EinsatzNr")
                     Ok = True
-                if Ok:
+                if Ok: 
+                    print "AfpChScreen.On_Fahrt_EinF EinsatzNr:", ENr
                     Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), ENr)
                     Ok = self.einsatz[0].AfpLoad_DiEinsatz(Einsatz, New)
         else:

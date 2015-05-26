@@ -56,6 +56,7 @@ def Afp_setGlobalVars(settings):
     return settings
 ## initialize needed global variables, if they aren't already set
 # @param settings - dictionary where values are checked and possibly added
+# @param modul - name of initialized modul
 def Afp_iniGlobalVars(settings, modul = None):
     if modul is None:
         if not "database" in settings:
@@ -95,7 +96,7 @@ def Afp_iniGlobalVars(settings, modul = None):
             settings[".fodt"] = "libreoffice"
         if not ".txt" in settings:
             settings[".txt"] = "vim"
-    elif modul ==" Adresse":
+    elif modul =="Adresse":
         if not "standart-location" in settings:
             settings["standart-location"] = "Braunschweig"
         

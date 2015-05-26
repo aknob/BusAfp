@@ -40,6 +40,9 @@ from AfpBase.AfpUtilities.AfpBaseUtilities import Afp_getNow
 class AfpCalConnector (object):
     ## initialize AfpCalConnector class
     # @param globals - globals variables possibly holding smtp-server data
+    # @param destination - string holding destination value
+    # @param name - name of product, to be used in .ics header
+    # @param version - version of product, to be used in .ics header
     # @param debug - flag for debug information
     def  __init__(self, globals, destination, name, version, debug = False):
         self.globals = globals
@@ -147,6 +150,9 @@ class AfpCalFileConnector (AfpCalConnector):
 class AfpCalMailConnector (AfpCalConnector):
     ## initialize AfpCalConnector class
     # @param globals - globals variables possibly holding smtp-server data
+    # @param recipient - string holding email address
+    # @param name - name of product, to be used in .ics header
+    # @param version - version of product, to be used in .ics header
     # @param debug - flag for debug information
     def  __init__(self, globals, recipient, name, version, debug = False):
         AfpCalConnector.__init__(self, globals, recipient, name, version, debug)
@@ -194,15 +200,21 @@ class AfpCalMailConnector (AfpCalConnector):
 class AfpCalCalConnector (AfpCalConnector):
     ## initialize AfpCalConnector class
     # @param globals - globals variables possibly holding smtp-server data
+    # @param calname - string holding calendar name
+    # @param name - name of product, to be used in .ics header
+    # @param version - version of product, to be used in .ics header
     # @param debug - flag for debug information
-    def  __init__(self, calname, globals, name, version, debug = False):
-        AfpCalConnector.__init__(self, calname, globals, name, version, debug)
+    def  __init__(self, globals, calname, name, version, debug = False):
+        AfpCalConnector.__init__(self, globals, calname, name, version, debug)
         self.check_new = False
         self.caldav_modul = None
         self.url = self.globals.get_value("caldav-url")
         if self.url:
-            path = self.globals.get_value("python-path") + self.globals.get_value("path-delimiter") + "caldav"
-            self.caldav_modul = AfpPy_Import("davclient", path)
+            #path = self.globals.get_value("python-path") + self.globals.get_value("path-delimiter") + "caldav"
+            #self.caldav_modul = AfpPy_Import("davclient", path)
+            if AfpPy_checkModule('caldav'):
+                self.caldav_modul = AfpPy_Import("caldav")
+            print "AfpCalCalConnector Caldav Modul:", self.caldav_modul
             if self.debug: print "AfpCalCalConnector Caldav Modul:", self.caldav_modul
     ## perform check on destination string, return 'None' if check is not passed,  
     # overwrittenfrom AfpCalConnector 
@@ -220,10 +232,11 @@ class AfpCalCalConnector (AfpCalConnector):
     def perform_action(self):
         print "AfpCalCalConnector.perform_action available:", self.is_available()
         if self.is_available():
-            calendars = self.caldav_modul.DAVClient(self.url, ssl_verify_cert = False).principal().calendars()
+            #calendars = self.caldav_modul.DAVClient(self.url, ssl_verify_cert = False).principal().calendars()
+            calendars = self.caldav_modul.davclient.DAVClient(self.url, ssl_verify_cert = False).principal().calendars()
             calendar = None
             for cal in calendars:
-                print "AfpCalCalConnector.perform_action Calendar URLs:", cal.url 
+                #print "AfpCalCalConnector.perform_action Calendar URLs:", cal.url 
                 if self.url + self.destination + "/"  == cal.url:
                     calendar = cal
             if calendar:
@@ -231,22 +244,25 @@ class AfpCalCalConnector (AfpCalConnector):
                     self.generate_ics_content()
                     event = None
                     action = self.events[self.event_index].get_type() 
-                    print "AfpCalCalConnector.perform_action:", self.action , self.check_new, "\n", self.content.to_ical()
+                    print "AfpCalCalConnector.perform_action:", self.destination, "\n", self.action , self.check_new, "\n", self.content.to_ical()
                     if action == "modify" or action == "delete" or (self.check_new and action == "new"):
                         uid = self.events[self.event_index].get_uid()
                         eventurl = self.url + self.destination + "/" + uid + ".ics"
                         event = calendar.event_by_url(eventurl)
-                        print "AfpCalCalConnector.perform_action event found:", event
+                        print "AfpCalCalConnector.perform_action event found:", self.destination, "\n", event
                     if event and (action == "modify" or action == "new"):
                         event.set_data(self.content.to_ical())
                         event.save()  
-                        print "AfpCalCalConnector.perform_action event modified:", event  
+                        print "AfpCalCalConnector.perform_action event modified:", self.destination, "\n", event  
                     if event is None and self.action == "new":
                         event = calendar.add_event(self.content.to_ical())
-                        print "AfpCalCalConnector.perform_action event created:", event
+                        print "AfpCalCalConnector.perform_action event created:", self.destination, "\n", event
                     if event and self.action == "delete":
                         event.delete()
-                 
+                        print "AfpCalCalConnector.perform_action event deleted:", self.destination, "\n", event
+            else:
+                print "ERROR: AfpCalCalConnector Calendar", self. destination, "not found!!"
+                
                     
 ## class to handle calendar events 
 class AfpCalEventTarget(object):

@@ -115,7 +115,7 @@ def Afp_extractPureValues(indices, array):
 def Afp_getToday():
     return datetime.date.today()
 ## return a datetime object holding the actuel date and time
-# @param tzlocal - flag if local timezone should be added
+# @param settz - flag if local timezone should be added
 def Afp_getNow(settz = False):
     if settz:
         return datetime.datetime.now(tzlocal.get_localzone())
@@ -153,7 +153,7 @@ def Afp_genDate(year, month, day):
 # @param hour - hour of time 
 # @param minute - minute of time 
 # @param second - second of time 
-# @param tzlocal - flag if local timezone should be added
+# @param settz - flag if local timezone should be added
 def Afp_genDatetime(year, month, day, hour = 0, minute = 0, second  = 0, settz = False):
     if settz:
         return datetime.datetime(year, month, day, hour, minute, second, tzinfo=tzlocal.get_localzone())
@@ -165,14 +165,21 @@ def Afp_toTzDatetime(dtime):
     return datetime.datetime(dtime.year, dtime.month, dtime.day, dtime.hour, dtime.minute, dtime.second, tzinfo=tzlocal.get_localzone())
 ## convert timedelta to time
 # @param timedelta - timedelta to be converted
-def Afp_toTime(timedelta):
+# @param high - flag how time should be initialised, if no valid time is given:
+# - None - normal initialisation 12:34.56
+# - False - low initialisation 01:23.45
+# - True - high initialisation 23:45.42
+def Afp_toTime(timedelta, high = None):
     if type(timedelta) == datetime.time: return timedelta
-    elif type(timedelta) != datetime.timedelta: return datetime.time()
+    elif type(timedelta) != datetime.timedelta: 
+        if high is None: return datetime.time(12, 34, 56)
+        elif high: return datetime.time(23, 45, 42)
+        else: return datetime.time(01, 23, 45)
     hours = int(timedelta.total_seconds()/3600)
     minutes = int((timedelta.total_seconds() - 3600*hours)/60)
     return datetime.time(hours, minutes)
 ## convert time to timedelta
-# @param time - time to be converted
+# @param time - tim e to be converted
 # @param complement - flag if difference to 24:00 should be used instead of 0:00
 def Afp_toTimedelta(time, complement = False):
     if time is None: return datetime.timedelta()
@@ -282,7 +289,10 @@ def AfpPy_Import(modul, path=None):
         pass
     try:
         #print "AfpPy_Import:", modul, path
-        fp, pathname, description = imp.find_module(modul, [path])
+        if path:
+            fp, pathname, description = imp.find_module(modul, [path])
+        else:
+            fp, pathname, description = imp.find_module(modul)
         #print "AfpPy_Import:", fp, pathname, description
         mod = imp.load_module(modul, fp, pathname, description)   
     except:
@@ -314,8 +324,8 @@ def Afp_copyArray(array):
   
 # path and file handling 
 ## add filername to path
-# @püaram path - path
-# @püaram file - name of file
+# @param path - path
+# @param file - name of file
 def Afp_addPath(path, file):
     return os.path.join(path, file)
 ## return home directory

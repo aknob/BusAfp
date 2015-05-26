@@ -1060,7 +1060,7 @@ class AfpDialog_Auswahl(wx.Dialog):
             #print "AfpDialog_Auswahl.adjust_grid_rows Del:", self.rows - self.new_rows, self.grid_auswahl.GetNumberRows()
             self.rows = self.new_rows
         grid_width = self.GetSize()[0] - self.fixed_width
-        print "AfpDialog_Auswahl.adjust_grid_rows Width:", grid_width, self.col_percents
+        #print "AfpDialog_Auswahl.adjust_grid_rows Width:", grid_width, self.col_percents
         if self.col_percents:
             for col in range(self.cols):  
                 self.grid_auswahl.SetColLabelValue(col, self.col_labels[col])
@@ -1074,7 +1074,7 @@ class AfpDialog_Auswahl(wx.Dialog):
     # @param where - filter for this selection
     # @param text - text to be displayed above selection list
     def initialize(self, globals, index, value, where, text): 
-        print "AfpDialog_Auswahl.initialize Index:", index, "Value:", value, "Where:", where, "Text:", text
+        #print "AfpDialog_Auswahl.initialize Index:", index, "Value:", value, "Where:", where, "Text:", text
         value = Afp_toInternDateString(value)
         self.globals = globals
         self.mysql = globals.get_mysql()

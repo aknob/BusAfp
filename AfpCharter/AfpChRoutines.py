@@ -109,7 +109,7 @@ def AfpChInfo_genLine(datum, zeit, dirflags, adresse):
     return zeile
 ## text to be shown in selection for the different possibillities of the dirflags
 def AfpChInfo_getDirSelValues():
-    return ["Hinfahrt", "Rückfahrt","Ausflugsfahrt"],["Ab", "An"]
+    return ["Hinfahrt", "Rückfahrt".decode("UTF-8"),"Ausflugsfahrt"],["Ab", "An"]
 ## translation routine between above text indices and the dirflag values
 # @param selfahrt - index in 'Fahrt' array (AfpChInfo_getDirSelValues()[0])
 # @param selaban - index in start/end (ab/an) array (AfpChInfo_getDirSelValues()[1])

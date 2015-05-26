@@ -698,8 +698,6 @@ class AfpSQLTableSelection(object):
             row = self.add_data_row()
         if feldname in self.feldnamen:
             index = self.feldnamen.index(feldname)
-            #if Afp_isString(value): value = Afp_fromString(value)
-            #print "AfpSQLTableSelection.set_value:", row, index, feldname, value, type(value)
             self.set_manipulation(feldname, row, value)
             self.data[row][index] = value
     ## set data values from given dictionary
