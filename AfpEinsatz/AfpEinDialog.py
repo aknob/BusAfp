@@ -41,6 +41,53 @@ import AfpEinsatz
 from AfpEinsatz import AfpEinRoutines
 from AfpEinsatz.AfpEinRoutines import *
 
+## create one line info of driver row
+# @param datum - startdate of the vehicle oeration
+# @param row - input row line is created from \n
+# - row = [Kuerzel, Datum, Von, Bis, EndDatum, AbZeit, Abfahrt, AbOrt] 
+def AfpEinsatz_setFahrerLineFromRow(datum, row):
+    line = ""
+    ADat = ""
+    EDat = ""
+    SDat = ""
+    lgh = len(row)
+    if lgh: line = Afp_toString(row[0])
+    if lgh > 1 and row[1]:
+        dat = Afp_fromString(row[1])
+        if dat != datum:
+            ADat = Afp_toShortDateString(dat)
+    if lgh > 2 and row[2]:
+        space = ""
+        if ADat: space = " "
+        ADat += space + Afp_toString(row[2])
+    if lgh > 3 and row[3] :
+        EDat = Afp_toString(row[3])
+    if lgh > 4 and row[4]:
+        dat = Afp_fromString(row[4])
+        if dat != datum:
+            space = ""
+            if EDat: space = " "
+            EDat += space + Afp_toShortDateString(dat)
+    if lgh > 5 and row[5] :
+        SDat = Afp_toString(row[5])
+    if lgh > 6 and row[6]:
+        dat = Afp_fromString(row[6])
+        if dat != datum:
+            space = ""
+            if SDat: space = " "
+            SDat += space + Afp_toShortDateString(dat)
+    if lgh > 7 and row[7]:
+        space = ""
+        if SDat: space = " "
+        SDat += space + Afp_toString(row[7])
+    if ADat or EDat: 
+        if ADat: line += " " + ADat
+        line += " - "
+        if EDat: line += EDat
+    if SDat: 
+        line += " > " + SDat
+    return line
+
 ## display and manipulation of vehicle operations
 class AfpDialog_DiEinsatz(AfpDialog):
     ## initialise dialog
@@ -176,7 +223,7 @@ class AfpDialog_DiEinsatz(AfpDialog):
         rows = self.data.get_value_rows("FAHRER", "Kuerzel,Datum,Von,Bis,EndDatum,AbZeit,Abfahrt,AbOrt")
         liste = []
         for row in rows:
-            liste.append(self.Set_FahrerLineFromRow(row))
+            liste.append(AfpEinsatz_setFahrerLineFromRow(self.data.get_value("Datum"),row))
         self.list_FahrList.Clear()
         if liste:
             self.list_FahrList.InsertItems(liste, 0)
@@ -250,6 +297,8 @@ class AfpDialog_DiEinsatz(AfpDialog):
             self.times["Stell"] = self.get_typTime("Stell", True)
         if self.typ_hasTime("Start"):
             self.times["Start"] = self.get_typTime("Start", True)
+        if self.data.no_calendar():
+            self.button_Termin.Enable(False)
         if self.data_is_fremd():
             self.choice_Bus.SetSelection(1)
             self.switch_driver_external(True)
@@ -506,7 +555,8 @@ class AfpDialog_DiEinsatz(AfpDialog):
     ##Eventhandler BUTTON - edit date entry
     # only needed if calendar-modul has been implemented
     def On_Ein_Termin(self,event):
-        print "Event handler `On_Ein_Termin' not implemented!"
+        if self.debug: print "Event handler `On_Ein_Termin'"
+        result = AfpLoad_DiTermin(self.data)
         event.Skip()
 
     ##Eventhandler BUTTON - edit extern file
@@ -939,4 +989,227 @@ def AfpLoad_DiFahrer(data, index , KundenNr = None, info = None):
     DiFahr.Destroy()
     return Ok
 
+## dialog for archiv editing
+class AfpDialog_DiTermin(AfpDialog):
+    ## initialise dialog
+    def __init__(self, *args, **kw):   
+        AfpDialog.__init__(self,None, -1, "")
+        self.changed = False
+        self.SetTitle("Termine")
+        self.SetSizer(self.sizer)
+        self.SetAutoLayout(1)
+        self.sizer.Fit(self)
+        #self.SetSize((350,350))
+        self.SetSize((400,350))
+        
+    ## initialise graphic elements
+    def InitWx(self):
+        self.label_text_1= wx.StaticText(self, -1, name="text_1")        
+        self.label_text_2= wx.StaticText(self, -1, name="text_2")        
+        self.label_cal_url = wx.StaticText(self, -1, name="cal_url")        
+        self.label_cal_name = wx.StaticText(self, -1, name="cal_name")
+        self.label_mail_server = wx.StaticText(self, -1, name="mail_server")
+        self.label_mail_address = wx.StaticText(self, -1, name="mail_address")
+        self.text_filename = wx.TextCtrl(self, -1, name="filename")
+        self.list_Events = wx.ListBox(self, -1, name="Events")      
+        self.listmap.append("Events")
+        self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_Set_Event, self.list_Events)
+        self.button_delete = wx.Button(self, -1, label="&Löschen".decode("UTF-8"), name="delete")
+        self.Bind(wx.EVT_BUTTON, self.On_Button_Delete, self.button_delete)
+        self.button_insert = wx.Button(self, -1, label="&Eintragen".decode("UTF-8"), name="insert")
+        self.Bind(wx.EVT_BUTTON, self.On_Button_Insert, self.button_insert)
+        self.button_send = wx.Button(self, -1, label="&Versenden".decode("UTF-8"), name="send")
+        self.Bind(wx.EVT_BUTTON, self.On_Button_Send, self.button_send)
+        self.button_write = wx.Button(self, -1, label="&Schreiben".decode("UTF-8"), name="write")
+        self.Bind(wx.EVT_BUTTON, self.On_Button_Write, self.button_write)
+        self.cal_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.cal_left_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.cal_left_sizer.Add(self.label_cal_name,0,wx.EXPAND)
+        self.cal_left_sizer.Add(self.label_cal_url,0,wx.EXPAND)        
+        self.cal_right_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.cal_right_sizer.Add(self.button_delete,0,wx.EXPAND)
+        self.cal_right_sizer.Add(self.button_insert,0,wx.EXPAND)        
+        #self.cal_sizer.AddStretchSpacer(1)       
+        self.cal_sizer.Add(self.cal_left_sizer,0,wx.EXPAND)        
+        #self.cal_sizer.AddSpacer(10)           
+        self.cal_sizer.AddStretchSpacer(1)                                 
+        self.cal_sizer.Add(self.cal_right_sizer,0,wx.EXPAND)        
+        self.mail_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.mail_left_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.mail_left_sizer.Add(self.label_mail_address,0,wx.EXPAND)
+        self.mail_left_sizer.Add(self.label_mail_server,0,wx.EXPAND)         
+        #self.mail_sizer.AddStretchSpacer(1)              
+        self.mail_sizer.Add(self.mail_left_sizer,0,wx.EXPAND)        
+        #self.mail_sizer.AddSpacer(10)        
+        self.mail_sizer.AddStretchSpacer(1)                            
+        self.mail_sizer.Add(self.button_send,0,wx.EXPAND)        
+        self.file_sizer = wx.BoxSizer(wx.HORIZONTAL)        
+        #self.file_sizer.AddStretchSpacer(1)       
+        self.file_sizer.Add(self.text_filename,1,wx.EXPAND)         
+        self.file_sizer.AddSpacer(10)                     
+        self.file_sizer.Add(self.button_write,0,wx.EXPAND)        
+        self.lower_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.setWx(self.lower_sizer,[1, 3, 1], [0, 3, 1]) 
+        self.inner_sizer=wx.BoxSizer(wx.VERTICAL)
+        self.inner_sizer.Add(self.label_text_1,0,wx.EXPAND)
+        self.inner_sizer.Add(self.label_text_2,0,wx.EXPAND)
+        self.inner_sizer.AddSpacer(10)
+        self.inner_sizer.Add(self.list_Events,1,wx.EXPAND)
+        self.inner_sizer.AddSpacer(10)
+        self.inner_sizer.Add(self.cal_sizer,0,wx.EXPAND)
+        self.inner_sizer.AddSpacer(10)
+        self.inner_sizer.Add(self.mail_sizer,0,wx.EXPAND)
+        self.inner_sizer.AddSpacer(10)
+        self.inner_sizer.Add(self.file_sizer,0,wx.EXPAND)
+        self.inner_sizer.AddSpacer(10)
+        self.inner_sizer.Add(self.lower_sizer,0,wx.EXPAND)
+        self.inner_sizer.AddSpacer(10)
+        self.sizer=wx.BoxSizer(wx.HORIZONTAL)  
+        self.sizer.AddSpacer(10)     
+        self.sizer.Add(self.inner_sizer,1,wx.EXPAND)
+        self.sizer.AddSpacer(10)    
+        
+    ## attach data and labels to dialog
+    # @param data - SelectionList tzo be used for this dialog
+    def attach_data(self, data):
+        self.cal = None
+        self.mail = None
+        self.data = data
+        self.globals = data.get_globals()
+        self.calendar = data.calendar
+        self.debug = data.is_debug()
+        self.Populate()
+    ## overwritten population routine for labels 
+    def Pop_label(self):
+        bus = self.data.get_string_value("Bus") 
+        globals = self.data.get_globals()
+        label1 = "Einsatz " + bus + " nach ".decode("UTF-8") +  self.data.get_cal_summary()
+        #label1 = ("Einsatz %s nach %s") % self.data.get_string_value("Bus"),  self.data.get_cal_summary()
+        #label1 = label1.decode("UTF-8")
+        uid = self.data.get_string_value("Datei")
+        if not uid: uid = "kein Termin erzeuigt!"        
+        label2 = "vom " +  self.data.get_string_value("AbDatum") + " bis zum "  + self.data.get_string_value("EndDatum") + ",\nUID: " + uid
+        #label2 = ("vom %s um %s bis zum %s um %s")% self.data.get_string_value("AbDatum"), self.data.get_string_value("AbZeit"),self.data.get_string_value("EndDatum"), self.data.get_string_value("EndZeit")
+        #label2 = label2.decode("UTF-8")
+        self.label_text_1.SetLabel(label1)
+        self.label_text_2.SetLabel(label2)
+        url = ""
+        if self.calendar:
+            url = self.globals.get_value("caldav-url")
+        if not url: 
+            url = "nicht aktiv!"
+            self.enable_cal(False)
+        self.cal = bus
+        self.label_cal_name.SetLabel("Kalendername: " + bus)
+        self.label_cal_url.SetLabel("Kalenderadresse:\n" + url)
+        host = self.globals.get_value("smtp-host")
+        if not host: 
+            host = "nicht aktiv!"
+            self.enable_mail(False)
+        self.mail = self.globals.get_value("mail-sender")
+        self.label_mail_server.SetLabel("Mailserver: " + host)
+        self.label_mail_address.SetLabel("EMail an: " + self.mail)
+        temp = self.globals.get_value("tempdir")
+        fname = temp + "icalendar.ics"
+        if self.mail: fname = temp + self.mail + ".ics"
+        if self.cal: fname = temp + self.cal + ".ics"
+        self.text_filename.SetValue(fname) 
+    ## enable calendar widgets
+    # @param flag - flag if widget should be enabled or disabled
+    def enable_cal(self, flag = True):
+        self.label_cal_name.Enable(flag)
+        self.label_cal_url.Enable(flag)
+        self.button_delete.Enable(flag)
+        self.button_insert.Enable(flag)
+    ## enable email widgets
+    # @param flag - flag if widget should be enabled or disabled
+    def enable_mail(self, flag = True):
+        self.label_mail_address.Enable(flag)
+        self.label_mail_server.Enable(flag)
+        self.button_send.Enable(flag)
+    ## populate the 'Events' list, \n
+    # this routine is called from the AfpDialog.Populate
+    def Pop_Events(self): 
+        liste = [] 
+        if self.data:
+            liste = self.data.get_selection().get_value_lines("Bus,StellDatum,StellZeit,EndZeit,EndDatum,Zeit,Datum,StellOrt")
+            if self.data.exists_selection("FAHRER"):
+                rows = self.data.get_value_rows("FAHRER", "Kuerzel,Datum,Von,Bis,EndDatum,AbZeit,Abfahrt,AbOrt")
+                for row in rows:
+                    liste.append(AfpEinsatz_setFahrerLineFromRow(self.data.get_value("Datum"),row))
+        self.list_Events.Clear()
+        self.list_Events.InsertItems(liste, 0)
+    ## Eventhandler CLICK - list entry selected
+    # @param event - event which initiated this action
+    def On_Set_Event(self, event):
+        if self.debug: print "Event handler `On_Set_Event'"
+        index = self.list_Events.GetSelections()[0] 
+        if index:
+            Fahrer = AfpFahrer(self.globals, self.data, index-1, self.debug)
+            self.mail = Fahrer.get_value("Mail.ADRESSE")
+            self.cal = Fahrer.get_value("Kuerzel")
+            name = Fahrer.get_name().replace(" ", "_")
+            temp = self.globals.get_value("tempdir")
+            self.label_cal_name.SetLabel("Kalendername: " + self.cal)
+            self.label_mail_address.SetLabel("EMail an: " + self.mail)
+            self.text_filename.SetValue(temp + name + ",ics") 
+        else:
+            self.Pop_label()
+        
+    ## Eventhandler BUTTON - Delete button pushed
+    # @param event - event which initiated this action
+    def On_Button_Delete(self, event):
+        print "Event handler `On_Button_Delete' not implemented!"
+    ## Eventhandler BUTTON - Insert button pushed
+    # @param event - event which initiated this action
+    def On_Button_Insert(self, event):
+        if self.debug: print "Event handler `On_Button_Insert'"
+        selects = self.list_Events.GetSelections()
+        if selects: index = selects[0]
+        else: index = 0
+        if index:
+            self.data.gen_driver_targetevent(index-1, self.cal, None)
+        else:
+            self.data.gen_vehicle_targetevent(True, self.cal, None)
+        self.data.perform_calendar_action("strict")
+    ## Eventhandler BUTTON - Send button pushed
+    # @param event - event which initiated this action
+    def On_Button_Send(self, event):
+        if self.debug: print "Event handler `On_Button_Send'"
+        selects = self.list_Events.GetSelections()
+        if selects: index = selects[0]
+        else: index = 0
+        if index:
+            self.data.gen_driver_targetevent(index-1, None, self.mail)
+        else:
+            self.data.gen_vehicle_targetevent(True, None, self.mail)
+        self.data.perform_calendar_action("keep_mails")
+        mailsenders = self.data.get_calendar_mailsenders()
+        if mailsenders:
+            for sender in mailsenders:
+                mail, ok = Afp_editMail(sender)
+                if ok: mail.send_mail()
+    ## Eventhandler BUTTON - Write button pushed
+    # @param event - event which initiated this action
+    def On_Button_Write(self, event):
+        if self.debug: print "Event handler `On_Button_Write'"
+        fname = self.text_filename.GetValue()
+        selects = self.list_Events.GetSelections()
+        if selects: index = selects[0]
+        else: index = 0
+        if index:
+            self.data.gen_driver_targetevent(index-1, None, None, fname)
+        else:
+            self.data.gen_vehicle_targetevent(True, None, None, fname)
+        self.data.perform_calendar_action("strict")
+ 
+## loader routine for dialog editArchiv \n
+# @param data - given SelectionList, where archiv should be manipulated
+def AfpLoad_DiTermin(data):
+    dialog = AfpDialog_DiTermin(None)
+    dialog.attach_data(data)
+    Ok = None
+    dialog.ShowModal()
+    dialog.Destroy()
+    return Ok  
 

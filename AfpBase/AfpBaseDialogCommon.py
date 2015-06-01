@@ -136,6 +136,8 @@ def Afp_editMail(mail):
     text += "Betreff: "
     if mail.subject:
         text += mail.subject
+    if mail.message:
+        text += "\n" + mail.message
     attachs = "Anhang: " + mail.get_attachment_names()
     text, ok = AfpReq_EditText(text,"E-Mail Versand", von, an, attachs, True)
     if ok:

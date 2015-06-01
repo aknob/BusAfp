@@ -156,11 +156,15 @@ class AfpCalMailConnector (AfpCalConnector):
     # @param debug - flag for debug information
     def  __init__(self, globals, recipient, name, version, debug = False):
         AfpCalConnector.__init__(self, globals, recipient, name, version, debug)
+        self.send = True
         self.mailsender = None
         mailsender = AfpMailSender(globals, debug)
         if mailsender.is_possible():
             self.mailsender = mailsender
         if self.debug: print "AfpCalMailConnector Konstruktor"
+    # keep mail for later retrieve
+    def keep_mail(self):
+        self.send = False
     ## perform check on destination string, return 'None' if check is not passed,  
     # overwrittenfrom AfpCalConnector 
     def check_destination(self, destination):
@@ -177,24 +181,30 @@ class AfpCalMailConnector (AfpCalConnector):
     # overwritten from AfpCalConnector  
     def is_available(self):
         return not self.mailsender is None 
-    ## execution routine, 
-    # overwritten from AfpCalConnector 
-    def perform_action(self):
-        print "AfpCalMailConnector.perform_action:", self.is_available()
+    ## fill all necessary entries in mailsender
+    def prepare_action(self):
+        print "AfpCalMailConnector.prepare_action:", self.is_available()
         if self.is_available():
             filename = self.globals.get_value("tempdir") + "icalendar.ics"
             Afp_deleteFile(filename)
             self.generate_ics_content()
             self.write_to_ics_file(filename)
-            print "AfpCalMailConnector.perform_action file:", filename
+            print "AfpCalMailConnector.prepare_action file:", filename
             if Afp_existsFile(filename):
-                print "AfpCalMailConnector.perform_action, file exists"
+                print "AfpCalMailConnector.prepare_action, file exists"
                 self.mailsender.clear()
                 for recipient in self.destination:
                     self.mailsender.add_recipient(recipient)
-                self.mailsender.set_message(self.events[0].summary, self.connector_name + "-Kalendereintrag vom ".decode("UTF-8") + Afp_toString(self.events[0].starttime))
+                self.mailsender.set_message(self.events[0].summary, self.events[0].description)
                 self.mailsender.add_attachment(filename)
-                self.mailsender.send_mail()
+    ## execution routine, 
+    # overwritten from AfpCalConnector 
+    def perform_action(self):
+        self.prepare_action()
+        if self.send: self.mailsender.send_mail()
+    # retrieve mailsender, used for manuel mail-sending dialog
+    def get_mailsender(self):
+        return self.mailsender
 
 ## class to handle direct calendar connection via caldav 
 class AfpCalCalConnector (AfpCalConnector):
@@ -261,7 +271,7 @@ class AfpCalCalConnector (AfpCalConnector):
                         event.delete()
                         print "AfpCalCalConnector.perform_action event deleted:", self.destination, "\n", event
             else:
-                print "ERROR: AfpCalCalConnector Calendar", self. destination, "not found!!"
+                print "ERROR: AfpCalCalConnector.perform_action calendar", self. destination, "not found!!"
                 
                     
 ## class to handle calendar events 
@@ -427,8 +437,9 @@ class AfpCalendar (object):
     # @param globals - globals variables possibly holding caldav-server and smtp-server data
     # @param debug - flag for debug information
     # @param use_calendar - flag if direct calendar connection should be used, if available
-    # @param use_email- flag if .ics data should sent via email, if available
-    def  __init__(self, globals, debug = False, use_calendar = True, use_email = True):
+    # @param use_email - flag if .ics data should sent via email, if available
+    # @param use_file - flag if .ics data should be written to disc, if no other method is available
+    def  __init__(self, globals, debug = False, use_calendar = True, use_email = True,  use_file = True):
         self.globals = globals
         self.debug = debug
         self.name = globals.get_string_value("name")
@@ -436,6 +447,9 @@ class AfpCalendar (object):
         self.cal_connector = None
         self.email_connector = None
         self.file_connector = None
+        self.allow_no_filename = use_file
+        self.keep_mails = False
+        self.mailsenders = []
         connector = AfpCalCalConnector(globals, None, self.name, self.version, debug)
         print "AfpCalendar.init CalConnector:", connector.is_available()
         if connector.is_available() and use_calendar:
@@ -451,8 +465,6 @@ class AfpCalendar (object):
     # @param target - valid AfpCalEventTarget collection to be added
     def add_target(self, target):
         if target.is_valid():
-            if target.filename is None:
-                target.filename = self.gen_target_filename(target.calendar, target.email)
             self.targets.append(target)
     ## generate new target for direct input of events
     # @param calname - name of destination calendar (for direct access)
@@ -461,8 +473,6 @@ class AfpCalendar (object):
     def gen_new_target(self, calname, email, filename = None):
         if self.target and self.target.is_valid():
             self.targets.append(self.target)
-        if filename is None:
-            filename = self.gen_target_filename(calname, email)
         self.target = AfpCalEventTarget(self.debug, calname, email, filename)
     ## generate filname if calendarname or email is given
     # @param calname - name of destination calendar (for direct access)
@@ -476,11 +486,16 @@ class AfpCalendar (object):
         elif email: 
             split = email.split(",")
             fname = dir + split[0].strip() + ".ics"
+        else:
+            fname =  dir + "icalendar.ics"
         return fname
-    ## clear targets
+    ## clear targets and mailsenders cache
     def clear_targets(self):
         self.target = None
-        self.targets = []     
+        self.targets = [] 
+    ## clear mailsenders
+    def clear_senders(self):
+        self.mailsenders = []
     ## add a new event to the actuel target collection \n
     # convenience method to avoid explicit AfpCalEvent and AfpCalEventTarget construction (not all parameters possible)
     # @param typ - type of modification for this event, possible values:
@@ -510,7 +525,11 @@ class AfpCalendar (object):
         elif self.debug:
             print "WARNING: AfpCalendar.add_event_to_target: target collection not present!"
     ## perform event syncronisation (drop events on targets)
-    def drop_on_targets(self):
+    # @param typ - types used, the following possibillities are implemented:
+    # - None - use file-creation as fallback
+    # - not None - strict fileusage
+    # - 'keep_mails' - mails are not send, but mailsenders cached for later use
+    def drop_on_targets(self, typ = None):
         if self.target and self.target.is_valid():
             self.targets.append(self.target)
         self.target = None
@@ -520,18 +539,34 @@ class AfpCalendar (object):
                 print "AfpCalendar.drop_on_targets Calendar:", target.calendar, self.cal_connector
                 print "AfpCalendar.drop_on_targets EMail:", target.email, self.email_connector
                 print "AfpCalendar.drop_on_targets File:", target.filename, self.file_connector
+                email_kept = False
+                connector = None
                 if target.calendar and self.cal_connector:
                     connector = self.cal_connector
                     destination = target.calendar
                 elif target.email and self.email_connector:
                     connector = self.email_connector
-                    destination = target.email              
-                else:
+                    destination = target.email  
+                    if typ == "keep_mails": 
+                        connector.keep_mail()
+                        email_kept = True
+                elif target.filename or type is None:
                     connector = self.file_connector
-                    destination = target.filename 
-                connector.set_destination(destination)
-                connector.set_events(target.get_events()) 
-                connector.perform_action()
+                    if target.filename is None:
+                        destination = self.gen_target_filename(target.calendar, target.email)
+                    else:
+                        destination = target.filename                         
+                if connector:
+                    connector.set_destination(destination)
+                    connector.set_events(target.get_events()) 
+                    connector.perform_action()
+                    if email_kept: 
+                        self.mailsenders.append(connector.get_mailsender())
+                else:
+                    print "WARNING: AfpCalendar.drop_on_targets no connector available!", target.calendar, target.email, target.filename
+    ## get mailsenders
+    def get_mailsenders(self):
+        return self.mailsenders
     ## read ics-file and print componrnt names
     # @param filepath - path to source ics-file   
     def read_ics_components(self, filepath):

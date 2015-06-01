@@ -105,7 +105,7 @@ class AfpEinsatz(AfpSelectionList):
             self.set_data_values(data,"EINSATZ")
             selection = self.get_selection(select)
             #print "AfpEinsatz.set_new:", selection, selection.select, selection.data
-            data["Datum"] = selection.get_value("Abfahrt")
+            data["Datum"] = selection.F("Abfahrt")
             data["EndDatum"] = selection.get_value("Fahrtende")
             info = self.get_Fahrtinfo(infoindex, typ)         
             if info:
@@ -132,7 +132,9 @@ class AfpEinsatz(AfpSelectionList):
                     data["AbZeit"] = dattime.time()
             self.set_data_values(data, "EINSATZ")
         self.new = True
-
+    ## calendar not available
+    def no_calendar(self):
+        return self.calendar is None
     ## update all calendar entries
     def update_calendar(self):
         if self.calendar:
@@ -146,6 +148,7 @@ class AfpEinsatz(AfpSelectionList):
         Einsatz = self.get_selection()
         print "AfpEinsatz.add_vehicle_to_calendar new:", self.new, "has changed:", Einsatz.has_changed(None, True)
         if self.new or Einsatz.has_changed(None, True):
+            new = False
             orig_cal = Einsatz.manipulation_get_value("Bus", True)
             new_cal = Einsatz.get_value("Bus")
             email = self.globals.get_value("mail-sender")
@@ -153,25 +156,38 @@ class AfpEinsatz(AfpSelectionList):
             print "AfpEinsatz.add_vehicle_to_calendar orig:", orig_cal, "UID:", uid, "new:", new_cal
             default_calendar = self.globals.get_value("calendar-default","Einsatz")
             if not default_calendar: default_calendar = "Default"
-            if orig_cal or uid:
+            if orig_cal or uid and Einsatz.has_changed("Bus", True):
                 if not orig_cal and uid: orig_cal = default_calendar
                 self.calendar.gen_new_target(orig_cal, email)
                 self.calendar.add_event_to_target("delete", None, None, None, uid)
+                new = True
             if not new_cal: new_cal = default_calendar
-            self.calendar.gen_new_target(new_cal, email)
-            start = self.get_datetime("Ab")# start == None: wenn Zeit fehlt auf 0:00 oder festen Wert setzen?
-            ende = self.get_datetime("End") # ende == None: wenn Zeit fehlt auf 23:59oder festen Wert setzen?
+            self.gen_vehicle_targetevent(new, new_cal, email)
+    ## generate the vehicle target and event \n
+    # the first of the following parameters not 'None' will perform the action
+    # @ param new - flag if new event should be inserted    
+    # @ param cal - name of calendar, where  event should be inserted    
+    # @ param email - email address, where event should be sent to
+    # @ param file - filename, where event should be written to
+    def gen_vehicle_targetevent(self, new, cal, email, file = None):
+        if self.calendar:
+            self.calendar.gen_new_target(cal, email, file)
+            start = self.get_datetime("Ab")
+            ende = self.get_datetime("End")
             summary = self.get_cal_summary()
-            print "AfpEinsatz.add_vehicle_to_calendar times:", start, ende
+            print "AfpEinsatz.gen_vehicle_targetevent times:", start, ende
             content = self.get_cal_content()
             location = self.get_value("StellOrt")
-            if not uid or orig_cal: 
+            uid = self.get_value("Datei")
+            if not uid or new: 
                 if not uid:
                     uid = self.gen_cal_uid()
                     self.set_value("Datei", uid)
                 self.calendar.add_event_to_target("new", start, ende, summary, uid, content, location)
+                print "AfpEinsatz.gen_vehicle_targetevent new:", start, ende, summary, uid, content, location
             else:
                 self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, location)
+                print "AfpEinsatz.gen_vehicle_targetevent modify:", start, ende, summary, uid, content, location
     ## add calendar changes due to driver modifications to calendar
     def add_driver_to_calendar(self): 
         print "AfpEinsatz.add_driver_to_calendar"
@@ -201,19 +217,41 @@ class AfpEinsatz(AfpSelectionList):
                         Fahrer = AfpFahrer(self.get_globals(), self, row, self.is_debug())
                         email = Fahrer.get_value("Mail","ADRESSE")
                         if Afp_isMailAddress(email):
-                            self.calendar.gen_new_target(None, email)
-                            start = Fahrer.get_datetime()
-                            ende = Fahrer.get_datetime(True)
-                            summary = self.get_cal_summary()
-                            uid = Fahrer.get_value("ExText", row)
-                            if not uid: 
-                                uid = self.gen_driver_uid(row)
-                                self.set_data_values({"ExText": uid},"FAHRER", row)
-                            content = self.get_cal_content()
-                            content += "\n" + Fahrer.get_cal_content()
-                            location = Fahrer.get_value("AbOrt")
-                            if location is None: location = self.get_value("StellOrt")
-                            self.calendar.add_event_to_target("modify", start, ende, summery, uid, content, location)
+                            self.gen_driver_targetevent(row, None, None, None, True)
+    ## generate the driver target and event 
+    # @ param row - row where driver data should be extracted from \n
+    # the first of the following parameters not 'None' will perform the action
+    # @ param cal - name of calendar, where  event should be inserted    
+    # @ param email - email address, where event should be sent to
+    # @ param file - filename, where event should be written to
+    # @param email_intern - special flag to extract email-address internally, 
+    # only used if cal and email == None,
+    # needed to avoid duplicate retrieve of 'Fahrer' data
+    def gen_driver_targetevent(self, row, cal, email, file = None, email_intern = False):
+        if self.calendar:
+            Fahrer = AfpFahrer(self.get_globals(), self, row, self.is_debug())
+            execute = True
+            if cal is None and email is None and email_intern:
+                email = Fahrer.get_value("Mail","ADRESSE")
+                if not Afp_isMailAddress(email): execute = False
+            if execute:
+                self.calendar.gen_new_target(cal, email, file)
+                start = Fahrer.get_datetime()
+                ende = Fahrer.get_datetime(True)
+                summary = self.get_cal_summary()
+                uid = Fahrer.get_value("ExText")
+                content = self.get_cal_content()
+                content += "\n" + Fahrer.get_cal_content()
+                location = Fahrer.get_value("AbOrt")
+                if location is None: location = self.get_value("StellOrt")
+                if not uid: 
+                    uid = self.gen_driver_uid(row)
+                    self.set_data_values({"ExText": uid},"FAHRER", row)
+                    self.calendar.add_event_to_target("new", start, ende, summary, uid, content, location)
+                    print "AfpEinsatz.gen_driver_targetevent new:", uid
+                else:
+                    self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, location)   
+                    print "AfpEinsatz.gen_driver_targetevent modify:", uid
     ## decide whether a new or modified calendar entry is needed                            
     def driver_cal_changed(self, row):
         Fahrer = self.get_selection("Fahrer")
@@ -227,13 +265,26 @@ class AfpEinsatz(AfpSelectionList):
     ## individual store routine (overwritten from SelectionList)    
     def store(self):
         super(AfpEinsatz, self).store()
-        if self.calendar: 
+        if self.calendar and self.globals.get_value("automatic-calendar","Einsatz"): 
             self.update_calendar()  
+            self.perform_calendar_action()
+    ## execute calendar actions
+    # @param typ - typ to influence the calendar target dropping 
+    def perform_calendar_action(self, typ = None):
+        if self.calendar:
             if self.get_selection().has_changed() or self.get_selection("FAHRER").has_changed():
                 self.new = False
                 super(AfpEinsatz, self).store()
-            self.calendar.drop_on_targets()
+            print "AfpEinsatz.perform_calendar_action:", typ
+            self.calendar.drop_on_targets(typ)
             self.calendar.clear_targets()
+    ## retrieve mailsenders from calendar
+    def get_calendar_mailsenders(self):
+        senders = None
+        if self.calendar:
+            senders = self.calendar.get_mailsenders()
+            self.calendar.clear_senders()
+        return senders
     ## check if attached data is of the input typ
     # @param typ - typ to be checked
     def is_typ(self, typ):
@@ -279,7 +330,8 @@ class AfpEinsatz(AfpSelectionList):
         time = self.get_value(name + "Zeit")
         if name == "End": hightime = True
         else: hightime = False
-        if date and time:
+        #if date and time:
+        if date:
             return Afp_toDatetime(date, time, hightime)
         else:
             return None
@@ -313,7 +365,7 @@ class AfpEinsatz(AfpSelectionList):
     ## return content of calendar entry
     def get_cal_content(self):
         if self.get_value("MietNr"):
-            content = "Zielort: " + self.get_string_value("Zielort","Fahrten") + "\n"
+            content = "Zielort: " + self.get_string_value("Zielort.FAHRTEN") + "\n"
             content += "Abfahrtszeit: " + self.get_string_value("Zeit") + " " + self.get_string_value("Datum") + "\n"
             content += "Stellzeit: " + self.get_string_value("StellZeit") + " " + self.get_string_value("StellDatum") + "\n"
             content += "Stellort: " + self.get_string_value("StellOrt") + "\n"
@@ -444,8 +496,8 @@ class AfpFahrer(AfpSelectionList):
         date = None
         time = None
         if end:
-            date = self.get_value(name + "EndDatum")
-            time = self.get_value(name + "Bis")
+            date = self.get_value("EndDatum")
+            time = self.get_value("Bis")
             default = "24:00"
         else:
             time = self.get_value("Von")
@@ -459,9 +511,9 @@ class AfpFahrer(AfpSelectionList):
     ## return content of calendar entry
     def get_cal_content(self):
         content = "Fahrer: " + self.get_name() + "\n"
-        content += "Einsatzbeginn: " + self.get_string_value("Von") + " " + self.get_value("Datum") + "\n"
-        content += "Einsatzende: " + self.get_string_value("Bis") + " " + self.get_value("EndDatum") + "\n"
-        content += "Abfahrtszeit: " + self.get_string_value("AbZeit") + " " + self.get_value("Abfahrt") + "\n"
+        content += "Einsatzbeginn: " + self.get_string_value("Von") + " " + self.get_string_value("Datum") + "\n"
+        content += "Einsatzende: " + self.get_string_value("Bis") + " " + self.get_string_value("EndDatum") + "\n"
+        content += "Abfahrtszeit: " + self.get_string_value("AbZeit") + " " + self.get_string_value("Abfahrt") + "\n"
         content += "Abfahrtsort: " + self.get_string_value("AbOrt") + "\n"
         return content
     ## add appropriate SelectionList for output  
