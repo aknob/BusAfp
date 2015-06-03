@@ -1083,12 +1083,13 @@ class AfpDialog_DiTermin(AfpDialog):
     def Pop_label(self):
         bus = self.data.get_string_value("Bus") 
         globals = self.data.get_globals()
-        label1 = "Einsatz " + bus + " nach ".decode("UTF-8") +  self.data.get_cal_summary()
+        label1 = "Einsatz " + bus + " nach ".decode("UTF-8") +  self.data.get_cal_summary() + "\n"
+        label1 += "vom " +  self.data.get_string_value("AbDatum") + " bis zum "  + self.data.get_string_value("EndDatum") 
         #label1 = ("Einsatz %s nach %s") % self.data.get_string_value("Bus"),  self.data.get_cal_summary()
         #label1 = label1.decode("UTF-8")
         uid = self.data.get_string_value("Datei")
-        if not uid: uid = "kein Termin erzeuigt!"        
-        label2 = "vom " +  self.data.get_string_value("AbDatum") + " bis zum "  + self.data.get_string_value("EndDatum") + ",\nUID: " + uid
+        if not uid: uid = "kein Termin erzeugt!"        
+        label2 = "UID: " + uid
         #label2 = ("vom %s um %s bis zum %s um %s")% self.data.get_string_value("AbDatum"), self.data.get_string_value("AbZeit"),self.data.get_string_value("EndDatum"), self.data.get_string_value("EndZeit")
         #label2 = label2.decode("UTF-8")
         self.label_text_1.SetLabel(label1)
@@ -1146,10 +1147,13 @@ class AfpDialog_DiTermin(AfpDialog):
         index = self.list_Events.GetSelections()[0] 
         if index:
             Fahrer = AfpFahrer(self.globals, self.data, index-1, self.debug)
+            uid = Fahrer.get_value("ExText")
+            if not uid: uid =  "kein Fahrertermin erzeugt!"    
             self.mail = Fahrer.get_value("Mail.ADRESSE")
             self.cal = Fahrer.get_value("Kuerzel")
             name = Fahrer.get_name().replace(" ", "_")
             temp = self.globals.get_value("tempdir")
+            self.label_text_2.SetLabel( "UID: " + uid)
             self.label_cal_name.SetLabel("Kalendername: " + self.cal)
             self.label_mail_address.SetLabel("EMail an: " + self.mail)
             self.text_filename.SetValue(temp + name + ",ics") 
@@ -1159,7 +1163,15 @@ class AfpDialog_DiTermin(AfpDialog):
     ## Eventhandler BUTTON - Delete button pushed
     # @param event - event which initiated this action
     def On_Button_Delete(self, event):
-        print "Event handler `On_Button_Delete' not implemented!"
+        if self.debug: print "Event handler `On_Button_Delete'"
+        selects = self.list_Events.GetSelections()
+        if selects: index = selects[0]
+        else: index = 0
+        if index:
+            self.data.gen_driver_targetevent(index-1, self.cal, None, None, False, True)
+        else:
+            self.data.gen_vehicle_targetevent(None, self.cal, None)
+        self.data.perform_calendar_action("delete_all")
     ## Eventhandler BUTTON - Insert button pushed
     # @param event - event which initiated this action
     def On_Button_Insert(self, event):

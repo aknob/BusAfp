@@ -158,36 +158,39 @@ class AfpEinsatz(AfpSelectionList):
             if not default_calendar: default_calendar = "Default"
             if orig_cal or uid and Einsatz.has_changed("Bus", True):
                 if not orig_cal and uid: orig_cal = default_calendar
-                self.calendar.gen_new_target(orig_cal, email)
-                self.calendar.add_event_to_target("delete", None, None, None, uid)
+                self.gen_vehicle_targetevent(None, orig_cal, email)
                 new = True
             if not new_cal: new_cal = default_calendar
             self.gen_vehicle_targetevent(new, new_cal, email)
     ## generate the vehicle target and event \n
     # the first of the following parameters not 'None' will perform the action
-    # @ param new - flag if new event should be inserted    
+    # @ param new - flag if new event should be inserted \n
+    #                         == None - event should be deleted
     # @ param cal - name of calendar, where  event should be inserted    
     # @ param email - email address, where event should be sent to
     # @ param file - filename, where event should be written to
     def gen_vehicle_targetevent(self, new, cal, email, file = None):
         if self.calendar:
             self.calendar.gen_new_target(cal, email, file)
-            start = self.get_datetime("Ab")
-            ende = self.get_datetime("End")
-            summary = self.get_cal_summary()
-            print "AfpEinsatz.gen_vehicle_targetevent times:", start, ende
-            content = self.get_cal_content()
-            location = self.get_value("StellOrt")
             uid = self.get_value("Datei")
-            if not uid or new: 
-                if not uid:
-                    uid = self.gen_cal_uid()
-                    self.set_value("Datei", uid)
-                self.calendar.add_event_to_target("new", start, ende, summary, uid, content, location)
-                print "AfpEinsatz.gen_vehicle_targetevent new:", start, ende, summary, uid, content, location
+            if new is None:
+                self.calendar.add_event_to_target("delete", None, None, None, uid)
             else:
-                self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, location)
-                print "AfpEinsatz.gen_vehicle_targetevent modify:", start, ende, summary, uid, content, location
+                start = self.get_datetime("Ab")
+                ende = self.get_datetime("End")
+                summary = self.get_cal_summary()
+                print "AfpEinsatz.gen_vehicle_targetevent times:", start, ende
+                content = self.get_cal_content()
+                location = self.get_value("StellOrt")
+                if not uid or new: 
+                    if not uid:
+                        uid = self.gen_cal_uid()
+                        self.set_value("Datei", uid)
+                    self.calendar.add_event_to_target("new", start, ende, summary, uid, content, location)
+                    print "AfpEinsatz.gen_vehicle_targetevent new:", start, ende, summary, uid, content, location
+                else:
+                    self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, location)
+                    print "AfpEinsatz.gen_vehicle_targetevent modify:", start, ende, summary, uid, content, location
     ## add calendar changes due to driver modifications to calendar
     def add_driver_to_calendar(self): 
         print "AfpEinsatz.add_driver_to_calendar"
@@ -198,13 +201,7 @@ class AfpEinsatz(AfpSelectionList):
                 # look if rows have been deleted
                 for i, ind in enumerate(indices):
                     if ind is None:
-                        FNr = FahrSel.manipulation_get_value("FahrerNr", True, i)
-                        # to do: rename column 'ExText' to 'UID'
-                        uid = FahrSel.manipulation_get_value("ExText", True, i)
-                        email = AfpAdresse(self.get_globals(), FNr).get_value("Mail")
-                        if Afp_isMailAddress(email):
-                            self.calendar.gen_new_target(None, email)
-                            self.calendar.add_event_to_target("delete", None, None, None, uid)
+                        self.gen_driver_targetevent(row, None, None, None, True, True)
                 # look if rows have been changed
                 for i in range(FahrSel.get_data_length()):
                     changed = False
@@ -213,11 +210,9 @@ class AfpEinsatz(AfpSelectionList):
                         row = indices.index[i]
                         if self.driver_cal_changed(row):
                             changed = True
-                    if changed:
-                        Fahrer = AfpFahrer(self.get_globals(), self, row, self.is_debug())
-                        email = Fahrer.get_value("Mail","ADRESSE")
-                        if Afp_isMailAddress(email):
-                            self.gen_driver_targetevent(row, None, None, None, True)
+                    if changed:  
+                        self.gen_driver_targetevent(row, None, None, None, True)
+                          
     ## generate the driver target and event 
     # @ param row - row where driver data should be extracted from \n
     # the first of the following parameters not 'None' will perform the action
@@ -227,7 +222,8 @@ class AfpEinsatz(AfpSelectionList):
     # @param email_intern - special flag to extract email-address internally, 
     # only used if cal and email == None,
     # needed to avoid duplicate retrieve of 'Fahrer' data
-    def gen_driver_targetevent(self, row, cal, email, file = None, email_intern = False):
+    # @param delete - flag if event should be deleted
+    def gen_driver_targetevent(self, row, cal, email, file = None, email_intern = False, delete = False):
         if self.calendar:
             Fahrer = AfpFahrer(self.get_globals(), self, row, self.is_debug())
             execute = True
@@ -236,22 +232,27 @@ class AfpEinsatz(AfpSelectionList):
                 if not Afp_isMailAddress(email): execute = False
             if execute:
                 self.calendar.gen_new_target(cal, email, file)
-                start = Fahrer.get_datetime()
-                ende = Fahrer.get_datetime(True)
-                summary = self.get_cal_summary()
+                # to do: rename column 'ExText' to 'UID'
                 uid = Fahrer.get_value("ExText")
-                content = self.get_cal_content()
-                content += "\n" + Fahrer.get_cal_content()
-                location = Fahrer.get_value("AbOrt")
-                if location is None: location = self.get_value("StellOrt")
-                if not uid: 
-                    uid = self.gen_driver_uid(row)
-                    self.set_data_values({"ExText": uid},"FAHRER", row)
-                    self.calendar.add_event_to_target("new", start, ende, summary, uid, content, location)
-                    print "AfpEinsatz.gen_driver_targetevent new:", uid
+                if delete:
+                    if uid:
+                        self.calendar.add_event_to_target("delete", None, None, None, uid)
                 else:
-                    self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, location)   
-                    print "AfpEinsatz.gen_driver_targetevent modify:", uid
+                    start = Fahrer.get_datetime()
+                    ende = Fahrer.get_datetime(True)
+                    summary = self.get_cal_summary()
+                    content = self.get_cal_content()
+                    content += "\n" + Fahrer.get_cal_content()
+                    location = Fahrer.get_value("AbOrt")
+                    if location is None: location = self.get_value("StellOrt")
+                    if not uid: 
+                        uid = self.gen_driver_uid(row)
+                        self.set_data_values({"ExText": uid},"FAHRER", row)
+                        self.calendar.add_event_to_target("new", start, ende, summary, uid, content, location)
+                        print "AfpEinsatz.gen_driver_targetevent new:", uid
+                    else:
+                        self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, location)   
+                        print "AfpEinsatz.gen_driver_targetevent modify:", uid
     ## decide whether a new or modified calendar entry is needed                            
     def driver_cal_changed(self, row):
         Fahrer = self.get_selection("Fahrer")

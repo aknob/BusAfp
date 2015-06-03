@@ -162,8 +162,8 @@ class AfpCalMailConnector (AfpCalConnector):
         if mailsender.is_possible():
             self.mailsender = mailsender
         if self.debug: print "AfpCalMailConnector Konstruktor"
-    # keep mail for later retrieve
-    def keep_mail(self):
+    ## keep mail to be send later
+    def set_keep_mail(self):
         self.send = False
     ## perform check on destination string, return 'None' if check is not passed,  
     # overwrittenfrom AfpCalConnector 
@@ -216,6 +216,7 @@ class AfpCalCalConnector (AfpCalConnector):
     # @param debug - flag for debug information
     def  __init__(self, globals, calname, name, version, debug = False):
         AfpCalConnector.__init__(self, globals, calname, name, version, debug)
+        self.delete_all = False
         self.check_new = False
         self.caldav_modul = None
         self.url = self.globals.get_value("caldav-url")
@@ -226,6 +227,10 @@ class AfpCalCalConnector (AfpCalConnector):
                 self.caldav_modul = AfpPy_Import("caldav")
             print "AfpCalCalConnector Caldav Modul:", self.caldav_modul
             if self.debug: print "AfpCalCalConnector Caldav Modul:", self.caldav_modul
+    ## set flag to remove events marked 'delete' from all possible calendars
+    # @param flag - flag to switch *'delete all' on and off
+    def set_delete_all(self, flag):
+        self.delete_all = flag
     ## perform check on destination string, return 'None' if check is not passed,  
     # overwrittenfrom AfpCalConnector 
     def check_destination(self, calname):
@@ -237,9 +242,15 @@ class AfpCalCalConnector (AfpCalConnector):
     # overwritten from AfpCalConnector  
     def is_available(self):
         return not self.caldav_modul is None
-    ## execution routine,  overwritten from AfpCalConnector \n
-    # events are processed individually
+    ## execution routine,  overwritten from AfpCalConnector \
     def perform_action(self):
+        if self.delete_all:
+            self.delete_from_all_calendars()
+        else:
+            self.perform_single_calendar_action()
+    ## execution routine, or a single calendar \n
+    # events are processed individually
+    def perform_single_calendar_action(self):
         print "AfpCalCalConnector.perform_action available:", self.is_available()
         if self.is_available():
             #calendars = self.caldav_modul.DAVClient(self.url, ssl_verify_cert = False).principal().calendars()
@@ -272,8 +283,18 @@ class AfpCalCalConnector (AfpCalConnector):
                         print "AfpCalCalConnector.perform_action event deleted:", self.destination, "\n", event
             else:
                 print "ERROR: AfpCalCalConnector.perform_action calendar", self. destination, "not found!!"
+    ## delete events with type 'delete' from all possible calendars
+    def delete_from_all_calendars(self):
+        if self.is_available():
+            calendars = self.caldav_modul.davclient.DAVClient(self.url, ssl_verify_cert = False).principal().calendars()
+            for afpvent in self.events:
+                uid = afpvent.get_uid()
+                if uid and afpvent.get_type() == "delete":
+                    for calendar in calendars:
+                        event = calendar.event_by_uid(uid)
+                        if event.instance.vevent.uid.value == uid:
+                            event.delete
                 
-                    
 ## class to handle calendar events 
 class AfpCalEventTarget(object):
     ## initialize AfpCalEventTarget class, the destination inputs (calname, email, filename) are used
@@ -527,8 +548,9 @@ class AfpCalendar (object):
     ## perform event syncronisation (drop events on targets)
     # @param typ - types used, the following possibillities are implemented:
     # - None - use file-creation as fallback
-    # - not None - strict fileusage
-    # - 'keep_mails' - mails are not send, but mailsenders cached for later use
+    # - not None - FileConnector: strict fileusage, don't generate filename if not given
+    # - 'keep_mails' - MailConnector: mails are not send, but mailsenders cached for later use
+    # - 'delete_all' - CalConnector: try to delete event from all possible calendars
     def drop_on_targets(self, typ = None):
         if self.target and self.target.is_valid():
             self.targets.append(self.target)
@@ -544,11 +566,13 @@ class AfpCalendar (object):
                 if target.calendar and self.cal_connector:
                     connector = self.cal_connector
                     destination = target.calendar
+                    if typ == "delete_all":
+                        connector.set_delete_all(True)
                 elif target.email and self.email_connector:
                     connector = self.email_connector
                     destination = target.email  
                     if typ == "keep_mails": 
-                        connector.keep_mail()
+                        connector.set_keep_mail()
                         email_kept = True
                 elif target.filename or type is None:
                     connector = self.file_connector
