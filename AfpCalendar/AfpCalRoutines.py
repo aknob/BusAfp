@@ -162,9 +162,10 @@ class AfpCalMailConnector (AfpCalConnector):
         if mailsender.is_possible():
             self.mailsender = mailsender
         if self.debug: print "AfpCalMailConnector Konstruktor"
-    ## keep mail to be send later
-    def set_keep_mail(self):
-        self.send = False
+    ## send mail directly (default)
+    # @param flag - flag to switch 'keep mail' on and off
+    def set_send_mail(self, flag = True):
+        self.send = flag
     ## perform check on destination string, return 'None' if check is not passed,  
     # overwrittenfrom AfpCalConnector 
     def check_destination(self, destination):
@@ -229,7 +230,7 @@ class AfpCalCalConnector (AfpCalConnector):
             if self.debug: print "AfpCalCalConnector Caldav Modul:", self.caldav_modul
     ## set flag to remove events marked 'delete' from all possible calendars
     # @param flag - flag to switch *'delete all' on and off
-    def set_delete_all(self, flag):
+    def set_delete_all(self, flag = False):
         self.delete_all = flag
     ## perform check on destination string, return 'None' if check is not passed,  
     # overwrittenfrom AfpCalConnector 
@@ -268,8 +269,7 @@ class AfpCalCalConnector (AfpCalConnector):
                     print "AfpCalCalConnector.perform_action:", self.destination, "\n", self.action , self.check_new, "\n", self.content.to_ical()
                     if action == "modify" or action == "delete" or (self.check_new and action == "new"):
                         uid = self.events[self.event_index].get_uid()
-                        eventurl = self.url + self.destination + "/" + uid + ".ics"
-                        event = calendar.event_by_url(eventurl)
+                        event =self.get_event_from_uid(calendar, uid)
                         print "AfpCalCalConnector.perform_action event found:", self.destination, "\n", event
                     if event and (action == "modify" or action == "new"):
                         event.set_data(self.content.to_ical())
@@ -289,11 +289,23 @@ class AfpCalCalConnector (AfpCalConnector):
             calendars = self.caldav_modul.davclient.DAVClient(self.url, ssl_verify_cert = False).principal().calendars()
             for afpvent in self.events:
                 uid = afpvent.get_uid()
+                print "AfpCalCalConnector.delete_from_all_calendars delete event:", uid
                 if uid and afpvent.get_type() == "delete":
                     for calendar in calendars:
-                        event = calendar.event_by_uid(uid)
-                        if event.instance.vevent.uid.value == uid:
-                            event.delete
+                        event = self.get_event_from_uid(calendar, uid)
+                        if event:
+                            event.delete()
+                            print "AfpCalCalConnector.delete_from_all_calendars event deleted from", calendar
+     ## retrieve event with given uid
+    # @param cal - calendar where event should be extracted from
+    # @param uid - uniform identification of event
+    def get_event_from_uid(self, calendar, uid): 
+        eventurl = str(calendar.url)  + uid + ".ics"
+        try:
+            event = calendar.event_by_url(eventurl)
+        except:
+            event = None
+        return event
                 
 ## class to handle calendar events 
 class AfpCalEventTarget(object):
@@ -568,12 +580,16 @@ class AfpCalendar (object):
                     destination = target.calendar
                     if typ == "delete_all":
                         connector.set_delete_all(True)
+                    else:
+                        connector.set_delete_all()
                 elif target.email and self.email_connector:
                     connector = self.email_connector
                     destination = target.email  
                     if typ == "keep_mails": 
-                        connector.set_keep_mail()
+                        connector.set_send_mail(False)
                         email_kept = True
+                    else:
+                        connector.set_send_mail()
                 elif target.filename or type is None:
                     connector = self.file_connector
                     if target.filename is None:
