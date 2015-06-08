@@ -1005,8 +1005,8 @@ class AfpDialog_DiMfEx(AfpDialog):
                 self.choicevalues["Info.FAHRTEX"] = left + "#"
             self.store_data()
             self.Ok = True
-        self.Destroy()
         event.Skip()  
+        self.EndModal(wx.ID_CANCEL)
    
 ## loader routine for dialog DiMfEx 
 # @param data - AfpCharter object to hold the data to be displayed
@@ -1199,9 +1199,9 @@ class AfpDialog_DiMfInfo(AfpDialog):
         self.data.delete_row("FAHRTI", self.index)
         self.store_data()
         self.Ok = True
-        self.Destroy()
         event.Skip()  
-   
+        self.EndModal(wx.ID_CANCEL)
+  
 ## loader routine for dialog DiMfInfo
 # @param data - AfpCharter object to hold the data to be displayed
 # @param index - if given, index of row of information data to be displayed in data.selections["FahrtI"], \n

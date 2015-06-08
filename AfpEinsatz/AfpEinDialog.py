@@ -966,7 +966,7 @@ class AfpDialog_DiFahrer(AfpDialog):
             self.data.delete_row("FAHRER", self.index)
             self.store_data()
             self.Ok = True
-            self.Destroy()
+            self.EndModal(wx.ID_OK)
         event.Skip()
 
     ##  Eventhandler BUTTON,  edit extern textfile \n

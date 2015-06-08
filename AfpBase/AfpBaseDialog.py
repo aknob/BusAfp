@@ -345,7 +345,7 @@ class AfpDialog_TextEditor(wx.Dialog):
         self.text_text.SetEditable(editable)
         if editable: self.text_text.SetBackgroundColour(self.editcolor)
         else: self.text_text.SetBackgroundColour(self.readonlycolor)    
-        if self.choice_Edit.GetCurrentSelection() == 2: self.Destroy()
+        if self.choice_Edit.GetCurrentSelection() == 2: self.EndModal(wx.ID_CANCEL)
         if event: event.Skip()
     ## Eventhandler BUTTON - Ok button pushed
     # @param event - event which initiated this action
@@ -353,7 +353,7 @@ class AfpDialog_TextEditor(wx.Dialog):
         if self.choice_Edit.GetSelection() == 1:
             self.Ok = True
         event.Skip()
-        self.Destroy()
+        self.EndModal(wx.ID_OK)
 
 ## Baseclass Multiline Requester 
 class AfpDialog_MultiLines(wx.Dialog):
@@ -458,19 +458,19 @@ class AfpDialog_MultiLines(wx.Dialog):
     # @param event - event which initiated this action
     def On_Button_Cancel(self,event ):
         event.Skip()
-        self.Destroy()
+        self.EndModal(wx.ID_CANCEL)
     ## Eventhandler BUTTON - Delete button pushed
     # @param event - event which initiated this action
     def On_Button_Delete(self,event ):
         self.result = None
         event.Skip()
-        self.Destroy()
+        self.EndModal(wx.ID_CANCEL)
     ## Eventhandler BUTTON - Ok button pushed
     # @param event - event which initiated this action
     def On_Button_Ok(self,event):
         self.set_values()
         event.Skip()
-        self.Destroy()
+        self.EndModal(wx.ID_OK)
         
 ## Baseclass Calendar Requester  \n
 # if the parameter: "multi=['Name1', "[x1:]'Name2', ...]" is given in constructor, x1 may be the value for the offsets,
@@ -616,7 +616,7 @@ class AfpDialog_Calendar(wx.Dialog):
     # @param event - event which initiated this action    
     def On_Button_Cancel(self, event):
         event.Skip()
-        self.Destroy()
+        self.EndModal(wx.ID_CANCEL)
     ## Eventhandler BUTTON - Ok button pushed
     # @param event - event which initiated this action
     def On_Button_Ok(self, event):
@@ -625,7 +625,7 @@ class AfpDialog_Calendar(wx.Dialog):
             datum = Afp_wxToPyDate(calendar.GetDate())
             self.data.append(Afp_toString(datum))
         event.Skip()
-        self.Destroy()
+        self.EndModal(wx.ID_OK)
         
 ## Baseclass for all  dialogs 
 class AfpDialog(wx.Dialog):
@@ -849,7 +849,7 @@ class AfpDialog(wx.Dialog):
         editable = self.is_editable()
         if not editable: self.re_load()
         self.Set_Editable(editable)
-        if self.choice_Edit.GetCurrentSelection() == 2: self.Destroy()
+        if self.choice_Edit.GetCurrentSelection() == 2: self.EndModal(wx.ID_CANCEL)
         event.Skip()
     ## Eventhandler BUTTON - Ok button pushed
     # @param event - event which initiated this action
@@ -861,7 +861,7 @@ class AfpDialog(wx.Dialog):
         else: 
             if self.debug: print "Event handler `On_Button_Ok' quit!"
         event.Skip()
-        self.Destroy()
+        self.EndModal(wx.ID_OK)
           
 ## Base class for dialog for the commen unrestricted selection of data from a database table \n
 # the following routines must be supplied in the derived class: \n
@@ -1278,7 +1278,7 @@ class AfpDialog_Auswahl(wx.Dialog):
     def On_Ausw_Abbruch(self,event):
         if self.debug: print "Event handler `On_Ausw_Abbruch'"
         event.Skip()
-        self.Destroy()
+        self.EndModal(wx.ID_CANCEL)
     ## event handler for the OK button
     def On_Ausw_Ok(self, event = None):
         if self.debug: print "Event handler `On_Ausw_Ok'"
@@ -1287,7 +1287,7 @@ class AfpDialog_Auswahl(wx.Dialog):
         if self.globals.get_value("enable_size_memory"):
             self.globals.set_value(self.typ + "_Size", self.GetSize(), self.modul)
         if event: event.Skip()
-        self.Destroy()
+        self.EndModal(wx.ID_OK)
       
     # routines to be overwritten for customisation
     # -------------------------------------------------------------------

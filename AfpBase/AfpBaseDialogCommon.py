@@ -513,7 +513,7 @@ class AfpDialog_DiReport(wx.Dialog):
     # @param event - event which initiated this action
     def On_Rep_Abbr(self,event):
         if self.debug: print "Event handler `On_Rep_Abbr'"
-        self.Destroy()
+        self.EndModal(wx.ID_CANCEL)
         event.Skip()
     ## Eventhandler BUTTON - Ok button pushed
     # @param event - event which initiated this action
@@ -530,8 +530,8 @@ class AfpDialog_DiReport(wx.Dialog):
         if self.archivname:
             select = self.data.get_selection("ARCHIV")
             if select: select.store()
-        self.Destroy()
         if event: event.Skip()
+        self.EndModal(wx.ID_OK)
 
 ## loader routine for dialog DiReport \n
 # for multiple output use 'datalist' as input for a list of 'AfpSelectionList's
