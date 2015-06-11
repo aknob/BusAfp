@@ -187,7 +187,6 @@ def Afp_startExtraProgram(filepath, globals, debug = False):
         pymodul.AfpExtra(globals, debug)
     else:
         print "WARNING: extra program not available -",filepath
-        
 ##  starts a programfile with the associated program
 # @param filename - name of file to be opened
 # @param globals - global variables to hold file associations
@@ -208,6 +207,37 @@ def Afp_startFile(filename, globals=None, debug = False, noWait = False):
             if noWait: param = "&"
         #Afp_startProgramFile(program, debug, filename, "--invisible")
     Afp_startProgramFile(program, debug, filename, param)
+##  starts a routine in given modul, returns True if at least one routine has been executed
+# @param globals - global variables to hold file associations
+# @param instring - string to define used pythonmodul, executed routine and input parameter directly 
+# or holds the path of a  file in which each line represents one call \n
+# at the moment the following format is supported:\n
+# - python.modul.name.routinename:parameter1 - the routine 'routinename' in the modul python.modul.name 
+# is called via the interface routinename(globals, parameter1)
+# @param debug - flag for debug messages
+def Afp_startRoutine(globals, instring, debug = False):
+    executed = False
+    if not instring: return False
+    if Afp_isRootpath(instring):
+        routines = Afp_importFileLines(instring)
+    else:
+        routines = [instring]
+    print "Afp_startRoutine Routines:\n", routines
+    for routine in routines:
+        print "Afp_startRoutine:", routine
+        split = routine.split(".")
+        if len(split) > 1:
+            mname = Afp_ArraytoLine(split,".",len(split)-1)
+            modul = Afp_importPyModul(mname, globals)
+            rsplit = split[-1].split(":")
+            rname = rsplit[0]
+            rvalue = Afp_fromString(rsplit[-1])
+            pyBefehl = "modul." + rname + "(globals, rvalue)"
+            print "Afp_startRoutine:", pyBefehl
+            if debug: print "Afp_startRoutine:", pyBefehl
+            exec pyBefehl
+            executed = True
+    return executed
 
 ##   dynamic import of a python module from modulname,
 # a handle to the modul will be returned

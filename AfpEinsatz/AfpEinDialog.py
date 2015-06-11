@@ -596,7 +596,13 @@ def AfpLoad_DiEinsatz(data, direct = False):
     Ok = DiEin.get_Ok()
     DiEin.Destroy()
     return Ok
-
+## loader routines for dialog DiEinsatz with vehicle operation ident number (EinsatzNr) input
+# @param globals - global variables including database connection
+# @param ENr - verhicle operation ident number (EinsatzNr)
+def AfpLoad_DiEinsatz_fromENr(globals, ENr):
+    Einsatz = AfpEinsatz(globals, ENr, None, None, None, globals.debug)
+    return AfpLoad_DiEinsatz(Einsatz)
+    
 ## Dialog for driver mission
 class AfpDialog_DiFahrer(AfpDialog):
     ## constructor

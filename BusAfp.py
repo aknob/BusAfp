@@ -6,6 +6,7 @@
 #    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch) \n
 # \n
 #   History: \n
+#        11 Jun. 2015 - enable direct routine execution via command line option - Andreas.Knoblauch@afptech.de \n
 #        23 May 2015 - enable variable setting via command line option - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
@@ -34,7 +35,7 @@ import wx
 import sys
 import os.path
 import AfpBase
-from AfpBase import AfpDatabase, AfpBaseDialog, AfpBaseScreen ,AfpGlobal
+from AfpBase import AfpDatabase, AfpBaseRoutines, AfpBaseDialog, AfpBaseScreen ,AfpGlobal
 from AfpBase.AfpDatabase import AfpSQL
 
 ## main class to invoke BusAfp Software
@@ -106,17 +107,24 @@ class BusAfp(wx.App):
             return True
         else:
             return False
+   ## invoke direct execution of a routine    
+    # @param routine - string to define used pythonmodul, executed routine and input parameter
+    def direct_execution(self, routine):
+        return AfpBase.AfpBaseRoutines.Afp_startRoutine(self.globals, routine, self.globals.is_debug())                    
+            
 # end of class BusAfp
 
 # main program
 debug = False
 execute = True
+direct = False
 confpath = ""
 module = "Adresse"
 dbhost= None
 dbuser = None
 dbword = None
 config = None
+routine = None
 lgh = len(sys.argv)
 ev_indices = []
 startpath = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -133,6 +141,11 @@ for i in range(1,lgh):
     if sys.argv[i] == "-o" or sys.argv[i] == "--option": 
         ev_indices.append(i+1)
         if i < lgh-1 and sys.argv[i+1][0] != "-": config = sys.argv[i+1] 
+    if sys.argv[i] == "-x" or sys.argv[i] == "--execute": 
+        ev_indices.append(i+1)
+        if i < lgh-1 and sys.argv[i+1][0] != "-": 
+            routine = sys.argv[i+1] 
+            direct = True
     if sys.argv[i] == "-m" or sys.argv[i] == "--module": 
         ev_indices.append(i+1)
         if i < lgh-1 and sys.argv[i+1][0] != "-": module = sys.argv[i+1]
@@ -142,11 +155,16 @@ if execute:
     if lgh > 1 and not "-" in sys.argv[lgh-1] and not lgh-1 in ev_indices: confpath = sys.argv[lgh-1]
     BusAfp = BusAfp(0)
     BusAfp.initialize(debug, startpath, confpath, dbhost, dbuser, dbword, config)
-    loaded = BusAfp.load_module(module)
-    if loaded:
-        BusAfp.MainLoop()
+    if direct:
+        executed = BusAfp.direct_execution(routine)
+        if executed: print "Routine or file", routine, "directly executed!"
+        else: print "ERROR: Routine or file", routine, "not found!"
     else:
-        print "ERROR: BusAfp Modul '" + module + "' not available!"
+        loaded = BusAfp.load_module(module)
+        if loaded:
+            BusAfp.MainLoop()
+        else:
+            print "ERROR: BusAfp Modul '" + module + "' not available!"
 else:
     print "usage: BusAfp [option] [file]"
     print "Options and arguments:"
@@ -160,7 +178,11 @@ else:
     print "-u,--user      user for mysql authentification follows"
     print "               Default: user \"server\" will be used"
     print "-o,--option    manuel setting of different configuration settings follows"
-    print "               Usage: variablename[:Modul]=value[, ...]"
+    print "               Usage: [modulename.]variablename=value[, ...]"
+    print "-x,--execute   pythonmodul and name of routine to be executed"
+    print "               or path of a file in which each line represents one call follows"
+    print "               Usage: python.module.routinename:parameter1[,param2 ...] directly or in each line of the file"
+    print "               Remark: routine to be called must take 'globals' as first parameter"
     print "-v,--verbose   display comments on all actions (debug-information)"
     print "file           configuration read from python script file"
    

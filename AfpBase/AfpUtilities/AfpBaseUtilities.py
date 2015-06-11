@@ -313,6 +313,16 @@ def Afp_importFileData(fname):
          return data
     else:
         return fname
+## import lines of extern file and return it
+# @param fname - name of file
+def Afp_importFileLines(fname):
+    lines = []
+    if Afp_existsFile(fname):
+         fin = open(fname , 'r') 
+         for line in fin:
+             lines.append(line)
+         fin.close()
+    return lines
   
 ## deep copy of an array (list)
 # @param array - arrayu to be copie
