@@ -115,7 +115,7 @@ class AfpCalConnector (object):
             print "AfpCalConnector.generate_ics_content:", added, calendar
             if added:
                 self.content  = calendar
-     ## write calendar into a ics-file
+    ## write calendar into a ics-file
     # @param filepath - path to destination ics-file
     def write_to_ics_file(self, filepath):
         print "AfpCalConnector.write_to_ics_file:", self.content, filepath
@@ -203,7 +203,7 @@ class AfpCalMailConnector (AfpCalConnector):
     def perform_action(self):
         self.prepare_action()
         if self.send: self.mailsender.send_mail()
-    # retrieve mailsender, used for manuel mail-sending dialog
+    ## retrieve mailsender, used for manuel mail-sending dialog
     def get_mailsender(self):
         return self.mailsender
 
@@ -296,7 +296,7 @@ class AfpCalCalConnector (AfpCalConnector):
                         if event:
                             event.delete()
                             print "AfpCalCalConnector.delete_from_all_calendars event deleted from", calendar
-     ## retrieve event with given uid
+    ## retrieve event with given uid
     # @param cal - calendar where event should be extracted from
     # @param uid - uniform identification of event
     def get_event_from_uid(self, calendar, uid): 

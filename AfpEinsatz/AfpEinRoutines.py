@@ -356,7 +356,7 @@ class AfpEinsatz(AfpSelectionList):
                         endtime = starttime + Afp_fromString(Afp_toString(hours) + ":00")
                     print "AfpEinsatz.gen_arrivaltime:", starttime, typ, km, kmph, hours, endtime
         return endtime
-     ## return summary of calnedar entry
+    ## return summary for a calendar entry
     def get_cal_summary(self):
         if self.get_value("MietNr"):
             summary = self.get_string_value("Zielort.FAHRTEN") + " " + self.get_string_value("Art.FAHRTEN") + " " + self.get_string_value("Name.FahrtAdresse")
