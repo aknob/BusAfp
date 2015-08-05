@@ -149,6 +149,7 @@ class AfpDialog_DiChEin(AfpDialog):
         self.distance = None
         self.choicevalues = {}
         self.change_data = False
+        self.changed_label = False
         self.zahl_data = None
         AfpDialog.__init__(self,None, -1, "")
         self.lock_data = True
@@ -287,6 +288,8 @@ class AfpDialog_DiChEin(AfpDialog):
         data = {}
         if self.new: 
             data["Art"] =  self.choice_Art.GetStringSelection()
+        if self.changed_label:
+            data["Ausstattung"] = self.label_T_Ausstatt.GetLabel()
         for entry in self.changed_text:
             name, wert = self.Get_TextValue(entry)
             data[name] = wert
@@ -705,7 +708,22 @@ class AfpDialog_DiChEin(AfpDialog):
     ## Eventhandler BUTTON - change bus configuration desired- not yet implemented! 
     # @param event - event which initiated this action   
     def On_Fahrt_Ausstatt(self,event):
-        print "Event handler `On_Fahrt_Ausstatt' not implemented!"
+        if self.debug: print "Event handler `On_Fahrt_Ausstatt'"
+        liste =  ["Klima-Anlage","DvD-Spieler", "WC","Anhänger".decode("UTF-8")]
+        result = AfpReq_MultiLine("Bitte Ausstattung der Fahrzeuges auswählen,".decode("UTF-8"), 
+                                            "folgende Ausstattunsmerkmale stehen zur Verfügung:".decode("UTF-8"), 
+                                            "Check", liste, "Ausstattung")
+        if result:
+            aus = ""
+            for i in range(len(result)):
+                if result[i]:
+                    aus += liste[i].split("-")[0] + ", "
+            aus = aus.strip()
+            if aus: aus = aus[:-1]
+            self.label_T_Ausstatt.SetLabel(aus)
+            self.changed_label = True
+            self.choice_Edit.SetSelection(1)
+            self.Set_Editable(True)
         event.Skip()
 
     ##  Eventhandler BUTTON  change charter information \n

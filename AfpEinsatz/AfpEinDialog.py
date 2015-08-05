@@ -995,7 +995,7 @@ def AfpLoad_DiFahrer(data, index , KundenNr = None, info = None):
     DiFahr.Destroy()
     return Ok
 
-## dialog for archiv editing
+## dialog for editing of calendar entries and generating .ics files
 class AfpDialog_DiTermin(AfpDialog):
     ## initialise dialog
     def __init__(self, *args, **kw):   
@@ -1076,7 +1076,7 @@ class AfpDialog_DiTermin(AfpDialog):
         self.sizer.AddSpacer(10)    
         
     ## attach data and labels to dialog
-    # @param data - SelectionList tzo be used for this dialog
+    # @param data - SelectionList to be used for this dialog
     def attach_data(self, data):
         self.cal = None
         self.mail = None
@@ -1110,10 +1110,11 @@ class AfpDialog_DiTermin(AfpDialog):
         self.label_cal_name.SetLabel("Kalendername: " + bus)
         self.label_cal_url.SetLabel("Kalenderadresse:\n" + url)
         host = self.globals.get_value("smtp-host")
-        if not host: 
-            host = "nicht aktiv!"
-            self.enable_mail(False)
         self.mail = self.globals.get_value("mail-sender")
+        if not host or not self.mail: 
+            host = "nicht aktiv!"
+            self.mail = ""
+            self.enable_mail(False)
         self.label_mail_server.SetLabel("Mailserver: " + host)
         self.label_mail_address.SetLabel("EMail an: " + self.mail)
         temp = self.globals.get_value("tempdir")

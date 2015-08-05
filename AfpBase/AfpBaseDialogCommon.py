@@ -361,7 +361,7 @@ class AfpDialog_DiReport(wx.Dialog):
         if fresult:
             self.execute_Ausgabe(fresult)
             self.add_to_archiv()
-            if self.mail:
+            if self.check_EMail.IsChecked()  and self.mail:
                 self.send_mail(fresult)
     ## send document per mail
     def send_mail(self, fresult):

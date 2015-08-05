@@ -295,6 +295,9 @@ class AfpDialog_DiAdEin(AfpDialog):
             if data: self.data.set_data_values(data)
             self.Ok = True
         if self.Ok:
+            if self.data.get_value("Kennung") is None:
+                print "AfpDialog_DiAdEin.store_database set default 'Kennung' -> passiv"
+                self.data.set_value("Kennung",0)
             self.data.store()
             self.new = False               
         self.changed_text = []

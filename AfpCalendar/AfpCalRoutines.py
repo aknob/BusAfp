@@ -607,7 +607,7 @@ class AfpCalendar (object):
     ## get mailsenders
     def get_mailsenders(self):
         return self.mailsenders
-    ## read ics-file and print componrnt names
+    ## read ics-file and print component names
     # @param filepath - path to source ics-file   
     def read_ics_components(self, filepath):
         file = open(filepath,'rb')

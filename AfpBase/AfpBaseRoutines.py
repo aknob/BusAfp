@@ -916,7 +916,11 @@ class AfpSelectionList(object):
     ## routine to retrieve payment data from SelectionList \n
     # may be overwritten, default implementation: return "Preis", "Zahlung" and "ZahlDat" column from main selection
     def get_payment_values(self):
-        return self.get_value("Preis"),self.get_value("Zahlung"),self.get_value("ZahlDat")
+        preis = self.get_value("Preis")
+        zahlung = self.get_value("Zahlung")
+        if preis is None: preis = 0.0
+        if zahlung is None: zahlung = 0.0
+        return preis, zahlung, self.get_value("ZahlDat")
     ## routine to set payment data in SelectionList \n
     # may be overwritten, default implementation: "Zahlung" and "ZahlDat" columns of main selection are set
     # @param payment - amount that already has been payed

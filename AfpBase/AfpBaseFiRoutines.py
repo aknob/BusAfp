@@ -147,7 +147,7 @@ class AfpZahlung(object):
         sellist = None
         if not self.check_selection(tablename, nr):
             if tablename == "FAHRTEN":
-                modul = self.get_modul("AfpChRoutines")
+                modul = self.get_modul("AfpCharter.AfpChRoutines")
                 if modul:
                     sellist = modul.AfpCharter(self.globals, nr, None, self.debug)
             if tablename == "RECHNG":
@@ -213,7 +213,7 @@ class AfpZahlung(object):
         data = self.get_data()
         name = data.get_string_value("Vorname.ADRESSE") + " " + data.get_string_value("Name.ADRESSE") 
         return name  
-    ## return the addres identification number of involved person for this payment
+    ## return the address identification number of involved person for this payment
     def get_KundenNr(self):
         KNr = self.get_data().get_value("KundenNr")
         return KNr
