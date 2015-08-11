@@ -222,7 +222,6 @@ def Afp_startRoutine(globals, instring, debug = False):
         routines = Afp_importFileLines(instring)
     else:
         routines = [instring]
-    print "Afp_startRoutine Routines:\n", routines
     for routine in routines:
         print "Afp_startRoutine:", routine
         split = routine.split(".")
@@ -233,7 +232,6 @@ def Afp_startRoutine(globals, instring, debug = False):
             rname = rsplit[0]
             rvalue = Afp_fromString(rsplit[-1])
             pyBefehl = "modul." + rname + "(globals, rvalue)"
-            print "Afp_startRoutine:", pyBefehl
             if debug: print "Afp_startRoutine:", pyBefehl
             exec pyBefehl
             executed = True

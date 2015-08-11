@@ -132,6 +132,9 @@ class AfpEinsatz(AfpSelectionList):
                     data["AbZeit"] = dattime.time()
             self.set_data_values(data, "EINSATZ")
         self.new = True
+    ## gen direct access afpp-url
+    def gen_direct_access(self):
+        return "afpp://AfpEinsatz.AfpEinDialog.AfpLoad_DiEinsatz_fromENr:" + self.get_string_value("EinsatzNr")
     ## calendar not available
     def no_calendar(self):
         return self.calendar is None
@@ -181,16 +184,17 @@ class AfpEinsatz(AfpSelectionList):
                 summary = self.get_cal_summary()
                 print "AfpEinsatz.gen_vehicle_targetevent times:", start, ende
                 content = self.get_cal_content()
+                attach = self.gen_direct_access()
                 location = self.get_value("StellOrt")
                 if not uid or new: 
                     if not uid:
                         uid = self.gen_cal_uid()
                         self.set_value("Datei", uid)
-                    self.calendar.add_event_to_target("new", start, ende, summary, uid, content, location)
-                    print "AfpEinsatz.gen_vehicle_targetevent new:", start, ende, summary, uid, content, location
+                    self.calendar.add_event_to_target("new", start, ende, summary, uid, content, attach, location)
+                    print "AfpEinsatz.gen_vehicle_targetevent new:", start, ende, summary, uid, content, attach, location
                 else:
-                    self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, location)
-                    print "AfpEinsatz.gen_vehicle_targetevent modify:", start, ende, summary, uid, content, location
+                    self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, attach, location)
+                    print "AfpEinsatz.gen_vehicle_targetevent modify:", start, ende, summary, uid, content, attach, location
     ## add calendar changes due to driver modifications to calendar
     def add_driver_to_calendar(self): 
         print "AfpEinsatz.add_driver_to_calendar"
@@ -243,15 +247,16 @@ class AfpEinsatz(AfpSelectionList):
                     summary = self.get_cal_summary()
                     content = self.get_cal_content()
                     content += "\n" + Fahrer.get_cal_content()
+                    attach = self.gen_direct_access()
                     location = Fahrer.get_value("AbOrt")
                     if location is None: location = self.get_value("StellOrt")
                     if not uid: 
                         uid = self.gen_driver_uid(row)
                         self.set_data_values({"ExText": uid},"FAHRER", row)
-                        self.calendar.add_event_to_target("new", start, ende, summary, uid, content, location)
+                        self.calendar.add_event_to_target("new", start, ende, summary, uid, content, attach, location)
                         print "AfpEinsatz.gen_driver_targetevent new:", uid
                     else:
-                        self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, location)   
+                        self.calendar.add_event_to_target("modify", start, ende, summary, uid, content, attach, location)   
                         print "AfpEinsatz.gen_driver_targetevent modify:", uid
     ## decide whether a new or modified calendar entry is needed                            
     def driver_cal_changed(self, row):

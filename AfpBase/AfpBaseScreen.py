@@ -281,7 +281,7 @@ class AfpScreen(wx.Frame):
                 filename = self.globals.get_value("antiquedir") + file
                 if not Afp_existsFile(filename): 
                     #if self.debug: 
-                    print "WARNING in AfpScreen: External file", filename, "does not exists!"
+                    print "WARNING in AfpScreen: External file", filename, "does not exist!"
                     filename = ""
             if filename:
                 #print "AfpScreen LoadFile", self.extmap[entry], filename

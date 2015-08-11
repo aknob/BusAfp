@@ -6,6 +6,7 @@
 #    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch) \n
 # \n
 #   History: \n
+#        26 Aug. 2015 - change direct execution parameter to normal input, to be used via os - Andreas.Knoblauch@afptech.de \n
 #        11 Jun. 2015 - enable direct routine execution via command line option - Andreas.Knoblauch@afptech.de \n
 #        23 May 2015 - enable variable setting via command line option - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
@@ -141,24 +142,33 @@ for i in range(1,lgh):
     if sys.argv[i] == "-o" or sys.argv[i] == "--option": 
         ev_indices.append(i+1)
         if i < lgh-1 and sys.argv[i+1][0] != "-": config = sys.argv[i+1] 
-    if sys.argv[i] == "-x" or sys.argv[i] == "--execute": 
+    if sys.argv[i] == "-c" or sys.argv[i] == "--config": 
         ev_indices.append(i+1)
-        if i < lgh-1 and sys.argv[i+1][0] != "-": 
-            routine = sys.argv[i+1] 
-            direct = True
+        if i < lgh-1 and sys.argv[i+1][0] != "-": confpath = sys.argv[i+1] 
     if sys.argv[i] == "-m" or sys.argv[i] == "--module": 
         ev_indices.append(i+1)
         if i < lgh-1 and sys.argv[i+1][0] != "-": module = sys.argv[i+1]
     if sys.argv[i] == "-v" or sys.argv[i] == "--verbose": debug = True
     if sys.argv[i] == "-h" or sys.argv[i] == "--help": execute = False
 if execute:
-    if lgh > 1 and not "-" in sys.argv[lgh-1] and not lgh-1 in ev_indices: confpath = sys.argv[lgh-1]
     BusAfp = BusAfp(0)
     BusAfp.initialize(debug, startpath, confpath, dbhost, dbuser, dbword, config)
-    if direct:
+    if lgh > 1 and sys.argv[lgh-1][0] != "-"  and not lgh-1 in ev_indices:
+        routine = sys.argv[lgh-1] 
+        protocol = False
+        if routine[:7] == "afpp://": 
+            protocol = True
+            fout = open("/tmp/BusAfp.log", 'w')
+            fout.write(("direct execution started with parameter: %s \n") % routine)
+            routine = routine[7:]
         executed = BusAfp.direct_execution(routine)
-        if executed: print "Routine or file", routine, "directly executed!"
-        else: print "ERROR: Routine or file", routine, "not found!"
+        if executed: 
+            if protocol: fout.write(("Routine or file '%s' directly executed!") % routine)
+            else:  print "Routine or file '", routine, "' directly executed!"
+        else: 
+            if protocol: fout.write(("ERROR: Routine or file '%s' not found!") % routine)
+            else:  print "ERROR: Routine or file '", routine, "' not found!"
+        if protocol: fout.close()
     else:
         loaded = BusAfp.load_module(module)
         if loaded:
@@ -166,11 +176,12 @@ if execute:
         else:
             print "ERROR: BusAfp Modul '" + module + "' not available!"
 else:
-    print "usage: BusAfp [option] [file]"
+    print "usage: BusAfp [option] [routine, file]"
     print "Options and arguments:"
     print "-h,--help      display this text"
     print "-m,--module    module to be started follows"
     print "               Default: module \"Adresse\" will be invoked"
+    print "-c,--config    configuration for AfpBase follows in a python script file"
     print "-p,--password  plain text password for mysql authentification follows"
     print "               Default: password has to be entered during program start"
     print "-s,--server    database servername or IP-address follows"
@@ -179,10 +190,13 @@ else:
     print "               Default: user \"server\" will be used"
     print "-o,--option    manuel setting of different configuration settings follows"
     print "               Usage: [modulename.]variablename=value[, ...]"
-    print "-x,--execute   pythonmodul and name of routine to be executed"
-    print "               or path of a file in which each line represents one call follows"
-    print "               Usage: python.module.routinename:parameter1[,param2 ...] directly or in each line of the file"
-    print "               Remark: routine to be called must take 'globals' as first parameter"
     print "-v,--verbose   display comments on all actions (debug-information)"
-    print "file           configuration read from python script file"
+    print "routine, file  pythonmodul and name of routine to be executed"
+    print "               or path of a file in which each line represents one call"
+    print "               Usage: python.module.routinename:parameter1[,param2 ...]"
+    print "               Example: AfpEinsatz.AfpEinDialog.AfpLoad_DiEinsatz_fromENr:231"
+    print "               Remark: if protocol identifier is needed, 'afpp://' may be used"
+    print "               Remark: routine to be called must take 'globals' as first parameter"
+    
+
    

@@ -361,6 +361,7 @@ class AfpCalEvent(object):
         self.location = None
         self.organizer = None
         self.attendees = []
+        self.attachments = []
         self.ical_event = None
         if self.debug: print "AfpCalEvent Konstruktor"
     ## set begin and end to event
@@ -396,6 +397,14 @@ class AfpCalEvent(object):
     # @param mail - mail address of attendee
     def add_attendee(self, name, mail):
         self.attendee.append([mail, name])
+    ## add attattachment to list
+    # @param url - url of attachment \n
+    # possible values are par example:
+    # - http://webadress
+    # - file://path_to_file
+    # - afpp://direct_afp_execution_address
+    def add_attachment(self, url):
+        self.attachments.append(url)
     ## set organistion values
     # @param name - name of organizer
     # @param mail - mail address of organizer
@@ -417,11 +426,12 @@ class AfpCalEvent(object):
     # @param attendees - if given, attendees of event, given as [[mail, name], ...]   
     # @param organizer - if given, organizer of event, given as [mail, name]   
     # @param location - if given, location for event
-    def set_event(self, start, end, summary, uid = None, description = None, attendees = None, organizer = None, location = None):
+    def set_event(self, start, end, summary, uid = None, description = None, attendees = None, attachments = None, organizer = None, location = None):
         self.set_times(start, end)
         self.set_text(summary, description)
         self.set_uid(uid)
         if attendees: self.attendees = attendees
+        if attachments: self.attachments = attachments
         if organizer: self.organizer = organizer
         if location: self.location = location
     ## return modification type of this event
@@ -456,7 +466,11 @@ class AfpCalEvent(object):
                         attendee = vCalAddress("MAILTO:"+ attend[1])
                         attendee.params['cn'] = vText(attend[0])
                         attendee.params['ROLE'] = vText('REQ-PARTICIPANT')
-                        event.add('attendee', attendee, encode=0)
+                        event.add('attendee', attendee, encode=0)                
+                if self.attachments:
+                    for attach in self.attachments:
+                        print "AfpCalEvent.generate_ical_event attach:", attach
+                        event.add("attach", attach)
             self.ical_event = event
     ## get ical event data
     def get_event(self):
@@ -541,7 +555,7 @@ class AfpCalendar (object):
     # @param uid - if given unique ID to be used
     # @param description - if given, description of event    
     # @param location - if given, location for event
-    def add_event_to_target(self, typ, start, end, summary, uid = None, description = None, location = None):
+    def add_event_to_target(self, typ, start, end, summary, uid = None, description = None, attachment = None, location = None):
         if self.target:
             event = AfpCalEvent(self.globals, self.debug, typ)
             if typ == "delete":
@@ -550,7 +564,9 @@ class AfpCalendar (object):
                 orgamail = self.globals.get_value("mail-sender")
                 if orgamail is None: orgamail = ""
                 organizer =  [self.name, orgamail]
-                event.set_event(start, end, summary, uid, description, None, organizer, location)
+                attach = None
+                if attachment: attach = [attachment]
+                event.set_event(start, end, summary, uid, description, None,  attach, organizer, location)
             if event.is_ready():
                 self.target.add_event(event)
             elif self.debug:

@@ -311,7 +311,7 @@ class AfpChScreen(AfpScreen):
                     ident = selection.get_values("EinsatzNr")
                     #print "Liste:", liste
                     #print ident
-                    Zielort = Charter.get_string_value("Datum") + " " + Charter.get_string_value("Nach") + " " +Charter.get_string_value("Zielort") 
+                    Zielort = Charter.get_string_value("Abfahrt") + " " + Charter.get_string_value("Nach") + " " +Charter.get_string_value("Zielort") 
                     ENr, Ok = AfpReq_Selection("Bitte Einsatz für Fahrt am ".decode("UTF-8") , Zielort + " auswählen.".decode("UTF-8"), liste, "Einsatzauswahl", ident)
                     ENr = ENr[0]
                 else:
@@ -397,9 +397,12 @@ class AfpChScreen(AfpScreen):
                 if file:
                     filename = Afp_addRootpath(self.globals.get_value("archivdir"), file)
                     if not Afp_existsFile(filename):
+                        print "WARNING in AfpChScreen: External file", filename, "does not exist, look in 'antiquedir'." 
                         filename = Afp_addRootpath(self.globals.get_value("antiquedir"), file)
                     if Afp_existsFile(filename):
                         Afp_startFile(filename, self.globals, self.debug, True)
+                    else:
+                        print "WARNING in AfpChScreen: External file", filename, "does not exist!" 
         event.Skip()
       
     ## Eventhandler MENU - copy charter entry \n
