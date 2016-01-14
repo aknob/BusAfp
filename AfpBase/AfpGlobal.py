@@ -17,7 +17,7 @@
 #  AfpTechnologies (afptech.de)
 #
 #    BusAfp is a software to manage coach and travel acivities
-#    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch)
+#    Copyright© 1989 - 2015  afptech.de (Andreas Knoblauch)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@ def Afp_iniGlobalVars(settings, modul = None):
             settings["antiquedir"] = settings["archivdir"]
         if not "extradir" in settings:
             settings["extradir"] =  settings["afpdir"] + "Extra" + settings["path-delimiter"]
-         # set default file handles (not needed for windows)
+        # set default file handles (not needed for windows)
         if not "office" in settings:
             settings["office"] = "libreoffice"
         if not ".odt" in settings:

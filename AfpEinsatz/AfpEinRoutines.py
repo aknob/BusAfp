@@ -134,7 +134,9 @@ class AfpEinsatz(AfpSelectionList):
         self.new = True
     ## gen direct access afpp-url
     def gen_direct_access(self):
-        return "afpp://AfpEinsatz.AfpEinDialog.AfpLoad_DiEinsatz_fromENr:" + self.get_string_value("EinsatzNr")
+        prefix = self.globals.get_value("protocol-prefix")
+        if prefix is None: prefix = "afpp"
+        return  prefix + "//AfpEinsatz.AfpEinDialog.AfpLoad_DiEinsatz_fromENr:" + self.get_string_value("EinsatzNr")
     ## calendar not available
     def no_calendar(self):
         return self.calendar is None
