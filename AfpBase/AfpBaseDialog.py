@@ -125,8 +125,8 @@ def AfpReq_Date(text1, text2, text = "", header = "", only_past = False):
 # date input has to have readeble format, output will be set to intern date format for selection. \n
 # the returned format array will be filled as follows:
 # - [0] - format name: string, int, float, date, time
-# - [1] - parameter fo format: string, float - length
-# - [2] - parameter 2 for format: float - number of decimals
+# - [1] - parameter of format: string, float -> length
+# - [2] - parameter 2 of format: float - > number of decimals
 # - a leading "!" will be removed and a "special" in format[0] will prepend the name
 # @param text1, text2 - two lines of text to be displayed (used for historical reasons)
 # @param text - text to be modified, if supplied

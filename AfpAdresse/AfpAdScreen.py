@@ -59,10 +59,8 @@ class AfpAdScreen(AfpScreen):
         self.sb_master = "ADRESSE"
         self.sb_filter = ""
         self.archiv_rows = 10
-        self.archiv_min_rows = 10
         self.archiv_colnames = [["Datum","Art","Ablage","Fach","Bem."],["AnmeldNr","Datum","Zielort","Preis","Zahlung"],["Zustand","Datum","Zielort","Art","Preis"],["RechNr","Datum","Text","Preis","Zahlung"],["RechNr","Datum","Text","Preis","Zahlung"],["Merkmal","Text","-","-","-"],["Name","Vorname","Strasse","Ort","Telefon"]]
         self.archiv_colname = self.archiv_colnames[0]
-        self.archiv_id = []
         # self properties
         self.SetTitle("BusAfp Adresse")
         self.SetSize((800, 600))
@@ -150,7 +148,7 @@ class AfpAdScreen(AfpScreen):
         
         # GRID
         self.grid_archiv = wx.grid.Grid(panel, -1, pos=(23,256) , size=(653, 264), name="Archiv")
-        self.grid_archiv.CreateGrid(10, 5)
+        self.grid_archiv.CreateGrid(self.archiv_rows, 5)
         self.grid_archiv.SetRowLabelSize(3)
         self.grid_archiv.SetColLabelSize(18)
         self.grid_archiv.EnableEditing(0)

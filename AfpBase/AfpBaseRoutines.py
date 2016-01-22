@@ -44,7 +44,7 @@ from AfpUtilities.AfpBaseUtilities import *
 # definition routines
 ## get all possible module with own graphical interfaces (screens)
 def Afp_graphicModulNames():
-    return ["Adresse","Charter"]
+    return ["Adresse","Charter","Tourist"]
 ## get all possible internal moduls
 def Afp_internalModulNames():
     return ["Finance","Einsatz","Calendar"]

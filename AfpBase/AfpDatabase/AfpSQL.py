@@ -414,7 +414,7 @@ class AfpSQLTableSelection(object):
             last_index = self.get_data_length() - 1
             self.set_value(feldname, value, last_index)
     ## load data into TableSelection according to given select clause
-    # @param select - select clause to identify desierd data
+    # @param select - select clause to identify desired data
     # @param order - if given desired order of output rows
     def load_data(self, select, order = None):
         self.select = select
