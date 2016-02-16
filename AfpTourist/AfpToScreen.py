@@ -44,13 +44,12 @@ from AfpBase.AfpBaseRoutines import Afp_archivName, Afp_startFile
 from AfpBase.AfpBaseDialog import AfpReq_Info, AfpReq_Selection, AfpReq_Question
 from AfpBase.AfpBaseDialogCommon import AfpLoad_DiReport
 from AfpBase.AfpBaseScreen import AfpScreen
-from AfpBase.AfpBaseAdRoutines import AfpAdresse_getListOfTable
 from AfpBase.AfpBaseAdDialog import AfpLoad_AdAusw, AfpLoad_DiAdEin_fromSb
 from AfpBase.AfpBaseFiDialog import AfpLoad_DiFiZahl
 
 import AfpTourist
 from AfpTourist import AfpToRoutines, AfpToDialog
-from AfpTourist.AfpToRoutines import AfpTourist, AfpTour
+from AfpTourist.AfpToRoutines import AfpTourist, AfpTour, AfpTourist_getAnmeldListOfAdresse
 from AfpTourist.AfpToDialog import AfpTour_copy, AfpLoad_ToAusw
 
 ## Class AfpToScreen shows 'Tourist' screen and handles interactions
@@ -63,6 +62,7 @@ class AfpToScreen(AfpScreen):
         self.einsatz = None # to invoke import of 'Einsatz' modules in 'init_database'
         self.custs_rows = 8
         self.sb_master = "REISEN"
+        self.sb_date_filter = ""
         self.sb_re_filter = ""
         self.sb_an_filter = ""
         if debug: self.debug = debug
@@ -102,6 +102,10 @@ class AfpToScreen(AfpScreen):
         self.combo_Sortierung = wx.ComboBox(panel, -1, value="Kennung", pos=(689,16), size=(80,20), choices=["Kennung","Zielort","Abfahrt","Anmeldung"], style=wx.CB_DROPDOWN, name="Sortierung")
         self.Bind(wx.EVT_COMBOBOX, self.On_Tourist_Index, self.combo_Sortierung)
         self.indexmap = {"Kennung":"Kennung","Zielort":"Zielort","Abfahrt":"Abfahrt","Anmeldung":"RechNr"}
+        self.combo_Jahr = wx.ComboBox(panel, -1, value="Aktuell", pos=(435,16), size=(69,20), style=wx.CB_DROPDOWN, name="Jahr")
+        self.Bind(wx.EVT_COMBOBOX, self.On_Jahr_Filter, self.combo_Jahr)
+        self.Bind(wx.EVT_TEXT_ENTER, self.On_Jahr_Filter, self.combo_Jahr)
+
       
         # LABEL
         self.label_Reise = wx.StaticText(panel, -1, label="Reise:", pos=(32,51), size=(95,18), name="LReise")
@@ -178,8 +182,6 @@ class AfpToScreen(AfpScreen):
         self.textmap["Preis"] = "Preis.ANMELD"
         self.text_Zahlung = wx.TextCtrl(panel, -1, value="", pos=(600,291), size=(71,20), style=wx.TE_READONLY, name="Zahlung")
         self.textmap["Zahlung"] = "Zahlung.ANMELD"
-        self.text_Jahr = wx.TextCtrl(panel, -1, value="", pos=(435,15), size=(69,27), style=0, name="Jahr")
-        #self.textmap["Jahr"] = "SchaltJahr$"
         
         #ListBox
         self.list_service= wx.ListBox(panel, -1, pos=(512,163) , size=(160, 100), name="service")
@@ -189,7 +191,7 @@ class AfpToScreen(AfpScreen):
         # GRID
        # self.grid_custs = wx.grid.Grid(panel, -1, pos=(23,256) , size=(653, 264), name="Customers")
         self.grid_custs = wx.grid.Grid(panel, -1, pos=(23,315) , size=(653, 204), name="Customers")
-        self.grid_custs.CreateGrid(self.custs_rows, 6)
+        self.grid_custs.CreateGrid(self.custs_rows, 7)
         self.grid_custs.SetRowLabelSize(3)
         self.grid_custs.SetColLabelSize(18)
         self.grid_custs.EnableEditing(0)
@@ -201,24 +203,27 @@ class AfpToScreen(AfpScreen):
         self.grid_custs.SetColSize(0, 130)
         self.grid_custs.SetColLabelValue(1, "Name")
         self.grid_custs.SetColSize(1, 130)
-        self.grid_custs.SetColLabelValue(2, "Datum")
-        self.grid_custs.SetColSize(2, 110)
-        self.grid_custs.SetColLabelValue(3, "RechNr")
-        self.grid_custs.SetColSize(3, 100)
+        self.grid_custs.SetColLabelValue(2, "RechNr")
+        self.grid_custs.SetColSize(2, 75)
+        self.grid_custs.SetColLabelValue(3, "Ab")
+        self.grid_custs.SetColSize(3, 35)
         self.grid_custs.SetColLabelValue(4, "Zahlung")
         self.grid_custs.SetColSize(4, 90)
         self.grid_custs.SetColLabelValue(5, "Preis")
         self.grid_custs.SetColSize(5, 90)
+        self.grid_custs.SetColLabelValue(6, "Info")
+        self.grid_custs.SetColSize(6, 110)
         for row in range(0,self.custs_rows):
-            for col in range(0,6):
+            for col in range(0,7):
                 self.grid_custs.SetReadOnly(row, col)
         self.gridmap.append("Customers")
         self.grid_minrows["Customers"] = self.grid_custs.GetNumberRows()
+        self.setup_date_filter()
       
         if self.debug: print "AfpToScreen Konstruktor"
-    ## compose charter specific menu parts
+    ## compose tourist specific menu parts
     def create_specific_menu(self):
-        # setup charter menu
+        # setup tourist menu
         tmp_menu = wx.Menu() 
         mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Anmeldung", "")
         self.Bind(wx.EVT_MENU, self.On_Anmeldung, mmenu)
@@ -238,7 +243,7 @@ class AfpToScreen(AfpScreen):
         mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Einsatz", "")
         self.Bind(wx.EVT_MENU, self.On_Tour_EinF, mmenu)
         tmp_menu.AppendItem(mmenu)
-        self.menubar.Append(tmp_menu, "Charter")
+        self.menubar.Append(tmp_menu, "Tourist")
         # setup address menu
         tmp_menu = wx.Menu() 
         mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Suche", "")
@@ -248,6 +253,15 @@ class AfpToScreen(AfpScreen):
         self.Bind(wx.EVT_MENU, self.On_Adresse_aendern, mmenu)
         tmp_menu.AppendItem(mmenu)
         self.menubar.Append(tmp_menu, "Adresse")
+        return
+    ## setup date combobox
+    def setup_date_filter(self):
+        today = Afp_getToday()
+        year = today.year
+        self.combo_Jahr.Append("Aktuell")
+        for i in range(1,5):
+            self.combo_Jahr.Append(Afp_toString(year - i))
+        self.combo_Jahr.Append("Alle")
         return
     ## populate text widgets
     # overwritten from AfpBaseScreen to handle dependant tourist display
@@ -260,7 +274,78 @@ class AfpToScreen(AfpScreen):
             else:
                 value = self.sb.get_string_value(self.textmap[entry])
             TextBox.SetValue(value)
+ 
+     ## Eventhandler COMBOBOX - set date filter
+    def On_Jahr_Filter(self,event = None): 
+        Jahr= Afp_fromString(self.combo_Jahr.GetValue())
+        if self.debug: print "Event handler `On_Jahr_Filter'", Jahr
+        print "Combo-String:", Jahr
+        if Jahr == "Alle":
+            self.sb_date_filter = ""
+            start = None
+        elif Afp_isNumeric(Jahr) and Jahr > 1900:
+            start = Afp_genDate(int(Jahr), 1, 1)
+            end = Afp_genDate(int(Jahr), 12, 31)
+            self.sb_date_filter = "Abfahrt >= \"" + Afp_toInternDateString(start) + "\" AND Abfahrt <= \"" + Afp_toInternDateString(end) + "\"" 
+        else:
+            self.combo_Jahr.SetValue("Aktuell")
+            period = self.globals.get_value("minimum-date-period","Tourist")
+            today = self.globals.today()
+            if not period: period = 6
+            if today.month <= period:
+                start = Afp_addMonthToDate(today, period, "-", 1)
+            else:    
+                start = Afp_genDate(today.year, 1, 1)
+            self.sb_date_filter = "Abfahrt >= \"" + Afp_toInternDateString(start) + "\"" 
+        print "Startdate:", start, self.sb_date_filter
+        self.On_Tourist_Filter()
+        if event: event.Skip()
+        
+    ## Eventhandler COMBOBOX - filter
+    def On_Tourist_Filter(self,event=None):
+        value = self.combo_Filter.GetValue()
+        if self.debug: print "AfpToScreen Event handler `On_Tourist_Filter'", value      
+        s_key = self.sb.get_value()
+        value = self.filtermap[value]
+        filter = value.split("-")
+        re_filter = "Art LIKE \"" + filter[0] + "\""
+        if self.sb_date_filter:
+            re_filter += " AND " + self.sb_date_filter
+        an_filter = "Zustand LIKE \"" + filter[1] + "\""
+        if re_filter != self.sb_re_filter:
+            self.sb_re_filter = re_filter
+            self.sb.select_where(self.sb_re_filter)        
+        if an_filter != self.sb_an_filter:
+            if not filter[1]:
+                self.sb.select_where("", None, "ANMELD")
+                self.sb_an_filter = "" 
+            else:
+                self.sb_an_filter = an_filter
+                self.sb.select_where(self.sb_an_filter, None, "ANMELD")        
+        self.sb.select_key(s_key)
+        print "AfpToScreen.On_Tourist_Filter filters REISEN:", self.sb_re_filter,"ANMLED:", self.sb_an_filter
+        self.CurrentData()
+        if event: event.Skip()
       
+    ## Eventhandler COMBOBOX - sort index
+    def On_Tourist_Index(self,event = None):
+        value = self.combo_Sortierung.GetValue()
+        if self.debug: print "Event handler `On_Tourist_Index'",value
+        index = self.indexmap[value]
+        if index == "RechNr": master = "ANMELD"
+        else: master = "REISEN"
+        if self.sb_master != master:
+            self.sb_master = master
+            print "AfpToScreen.On_Tourist_Index master:", master
+            self.sb.CurrentFileName(self.sb_master) 
+        print "AfpToScreen.On_Tourist_Index index:", index
+        self.sb.set_index(index)
+        self.sb.CurrentIndexName(index)
+        self.On_Jahr_Filter()
+        self.CurrentData()
+        if event: event.Skip()
+
+ 
     ## Eventhandler BUTTON - change address
     def On_Adresse_aendern(self,event):
         if self.debug: print "Event handler `On_Adresse_aendern'"
@@ -382,47 +467,6 @@ class AfpToScreen(AfpScreen):
             self.Reload()
         #self.sb.unset_debug()
         event.Skip()
-
-    ## Eventhandler COMBOBOX - filter
-    def On_Tourist_Filter(self,event):
-        value = self.combo_Filter.GetValue()
-        if self.debug: print "AfpToScreen Event handler `On_Tourist_Filter'", value      
-        s_key = self.sb.get_value()
-        value = self.filtermap[value]
-        filter = value.split("-")
-        re_filter = "Art LIKE \"" + filter[0] + "\""
-        an_filter = "Zustand LIKE \"" + filter[1] + "\""
-        if re_filter != self.sb_re_filter:
-            self.sb_re_filter = re_filter
-            self.sb.select_where(self.sb_re_filter)        
-        if an_filter != self.sb_an_filter:
-            if not filter[1]:
-                self.sb.select_where("", None, "ANMELD")
-                self.sb_an_filter = "" 
-            else:
-                self.sb_an_filter = an_filter
-                self.sb.select_where(self.sb_an_filter, None, "ANMELD")        
-        self.sb.select_key(s_key)
-        print "AfpToScreen.On_Tourist_Filter filters:", self.sb_re_filter, self.sb_an_filter
-        self.CurrentData()
-        event.Skip()
-      
-    ## Eventhandler COMBOBOX - sort index
-    def On_Tourist_Index(self,event):
-        value = self.combo_Sortierung.GetValue()
-        if self.debug: print "Event handler `On_Tourist_Index'",value
-        index = self.indexmap[value]
-        if index == "RechNr": master = "ANMELD"
-        else: master = "REISEN"
-        if self.sb_master != master:
-            self.sb_master = master
-            print "AfpToScreen.On_Tourist_Index master:", master
-            self.sb.CurrentFileName(self.sb_master) 
-        print "AfpToScreen.On_Tourist_Index index:", index
-        self.sb.set_index(index)
-        self.sb.CurrentIndexName(index)
-        self.CurrentData()
-        event.Skip()
       
     ## Eventhandler ListBox - double click ListBox 'Archiv'
     def On_DClick_Archiv(self, event):
@@ -450,14 +494,14 @@ class AfpToScreen(AfpScreen):
         print "AfpToScreen Event handler `On_MCharter_copy' not needed!"
         event.Skip()  
    
-    ## Eventhandler MENU - charte seach via address 
+    ## Eventhandler MENU - tourist seach via address 
     def On_MAddress_search(self, event):
         if self.debug: print "AfpToScreen Event handler `On_MAddress_search'"
         name = self.sb.get_string_value("Name.ADRESSE")
-        text = "Bitte Adresse auswählen für die Mietfahrten gesucht werden."
+        text = "Bitte Adresse auswählen für die Anmeldungen gesucht werden."
         KNr = AfpLoad_AdAusw(self.globals,"ADRESSE","NamSort",name, None, text)
         if KNr:
-            rows, name = AfpAdresse_getListOfTable(self.globals, KNr, "FAHRTEN","Abfahrt,Art,Zielort,Preis,Zustand,FahrtNr")
+            rows, name = AfpTourist_getAnmeldListOfAdresse(self.globals, KNr)
             if rows:
                 liste = []
                 idents = []
@@ -465,26 +509,39 @@ class AfpToScreen(AfpScreen):
                     entry = Afp_ArraytoLine(row, " ", 5)
                     liste.append(entry)
                     idents.append(row[5])
-                text = "Bitte Mietfahrt von " + name + " auswählen:".decode("UTF-8")
-                FNr, ok = AfpReq_Selection(text, "", liste, "Mietfahrt Auswahl", idents)
+                text = "Bitte Anmeldung von " + name + " auswählen:".decode("UTF-8")
+                if len(rows) > 1:
+                    ANr, ok = AfpReq_Selection(text, "", liste, "Anmeldung Auswahl", idents)
+                else:
+                    ANr = idents[0]
+                    ok = True
+                print "AfpToScreen.On_MAddress_search:", ANr, ok
                 if ok:
-                    self.load_direct(FNr)
+                    self.load_direct(0, ANr)
                     self.Reload()
         event.Skip()
 
-  ## Eventhandler MENU - touristk menu - not yet implemented!
+  ## Eventhandler MENU - tourist menu - not yet implemented!
     def On_MTouristik(self, event):
         print "Event handler `On_MTouristik' not implemented!"
         event.Skip()
 
-    ## set database to show indicated charter
+    ## set database to show indicated tour
     # @param FNr - number of tour (FahrtNummer)
-    def load_direct(self, FNr):
-        value = self.combo_Sortierung.GetValue()
-        index = self.indexmap[value]     
+    # @param ANr - if given, will overwrite FNr, number of tourist entry (AnmeldNummer)
+    def load_direct(self, FNr, ANr = None):
+        index = self.combo_Sortierung.GetValue()  
+        if ANr:
+            self.sb.CurrentIndexName("AnmeldNr","ANMELD")
+            self.sb.select_key(ANr,"AnmeldNr","ANMELD")
+            FNr = self.sb.get_value("FahrtNr.ANMELD")
+            self.combo_Sortierung.SetValue("Anmeldung")
+        else:
+            if index == "Anmeldung":
+                self.combo_Sortierung.SetValue("Kennung")
         self.sb.select_key(FNr,"FahrtNr","REISEN")
-        self.sb.set_index(index, "REISEN", "FahrtNr")
-        self.sb.CurrentIndexName(index)
+        print "AfpToScreen.load_direct:", ANr, FNr
+        self.On_Tourist_Index()
         self.set_current_record()
      
     # routines to be overwritten
@@ -526,17 +583,14 @@ class AfpToScreen(AfpScreen):
     def set_initial_record(self, origin = None):
         FNr = 0
         #self.sb.set_debug()     
-        self.sb_re_filter = "Art LIKE \"Eigen\""
-        self.sb_an_filter = "Zustand LIKE \"Anmeldung\""
         self.sb.CurrentIndexName("KundenNr","ADRESSE")
-        self.sb.CurrentIndexName("FahrtNr","ANMELD")
-        self.sb.select_where(self.sb_an_filter)        
-        self.sb.CurrentIndexName("FahrtNr","REISEN")  
-        self.sb.select_where(self.sb_re_filter)        
+        self.sb.CurrentIndexName("FahrtNr","ANMELD")   
+        self.sb.CurrentIndexName("FahrtNr","REISEN")        
         if origin:
             #FNr = self.sb.get_value("Reise.ADRESSE")
             FNr = self.globals.get_value("FahrtNr", origin)
         if FNr is None: FNr = 0
+        # only for testing: in real life stardate  date + 14 should be selected
         if FNr == 0: FNr = 2179
         print "AfpToScreen.set_initial_record:", FNr, origin
         if FNr:
@@ -545,6 +599,8 @@ class AfpToScreen(AfpScreen):
             #self.sb.CurrentIndexName("Abfahrt","REISEN")
         else:
             self.sb.select_last() # for tests
+        self.On_Tourist_Index()
+        self.sb.select_current()
         return
     ## check if slave exists
     def slave_exists(self):
@@ -604,13 +660,16 @@ class AfpToScreen(AfpScreen):
             select = ( "FahrtNr = %d")% FahrtNr
             if self.sb_an_filter: select = "(" + select +") and (" + self.sb_an_filter + ")"
             tmps = []
-            tmps = self.mysql.select_strings("Anmeldung,RechNr,Zahlung,Preis,AnmeldNr,KundenNr",select,"ANMELD")
+            tmps = self.mysql.select_strings("RechNr,Zahlung,Preis,Info,AnmeldNr,Ab,KundenNr",select,"ANMELD")
             for tmp in tmps:
                 select =  "KundenNr = " + tmp[-1]
                 name = self.mysql.select_strings("Vorname,Name", select,"ADRESSE")
-                if not name: name = [["","-- Name not found! --"]]
-                #print "AfpToScreen.get_grid_rows append:", name, tmp
-                rows.append([name[0][0], name[0][1]] + tmp[0:-1])
+                if not name: name = [["",""]]
+                select =  "OrtsNr = " + tmp[-2]
+                ort = self.mysql.select_strings("Kennung", select,"TORT")
+                if not ort: ort = [["--"]]
+                #print "AfpToScreen.get_grid_rows append:", name, ort, tmp
+                rows.append([name[0][0], name[0][1], tmp[0], ort[0][0]] + tmp[1:-2])
         return rows
 
 # end of class AfpToScreen

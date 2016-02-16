@@ -516,7 +516,7 @@ class AfpSbIndex(object):
         while anz > 0:          
             limit =  (" LIMIT 0,%d") % anz
             Befehl = "SELECT * FROM " + self.db + "." + self.datei +" WHERE "+ where_clause + index_clause + limit
-            if self.debug: print "AfpSbIndex.select_plus_step:",Befehl, offset
+            if self.debug: print "AfpSbIndex.select_plus_step:",Befehl, offset, self.where
             rows = self.cached_select(Befehl)
             #self.db_cursor.execute (Befehl)     
             #rows = self.db_cursor.fetchall () 
@@ -524,14 +524,14 @@ class AfpSbIndex(object):
             ref = 0
             dup_next = 0 
             #print "AfpSbIndex.select_plus_step: 1",Afp_getNow(), dup
-            if len(rows) > 1:
+            if rows and len(rows) > 1:
                 dup, ref = AfpSb_countDuplicates(rows,self.is_numeric(),self.index_ind)        
             offstep = offset + step 
             #print "AfpSbIndex.select_plus_step: 2",Afp_getNow(), dup, offset
             if in_step < 0:
                 rows = self.reverse_dup_bloc(rows,self.index_ind, offstep)
             # dup has to be checked for one step in advance
-            if offstep > dup and offstep < len(rows):
+            if rows and offstep > dup and offstep < len(rows):
                 dup_next, reff = AfpSb_countDuplicates(rows,self.is_numeric(),self.index_ind,offstep) 
                 dup_next += 1
             #print "AfpSbIndex.select_plus_step 3:",Afp_getNow(), dup, dup_next, anz, dup+dup_next == anz-1
@@ -552,7 +552,7 @@ class AfpSbIndex(object):
         offset += step      
         #print rows
         #print 'Ende rows', dup, anz, offset
-        if len(rows) > offset:
+        if rows and len(rows) > offset:
             self.felder = list(rows[offset])   
             self.modified = False        
             self.indexwert = self.get_indexwert()

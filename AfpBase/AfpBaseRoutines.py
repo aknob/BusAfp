@@ -423,6 +423,8 @@ def Afp_selectGetValue(mysql, table, column, index, value):
 def Afp_getOrderlistOfTable(mysql, datei, keep = None, indirect = None, special = None):
     fields, types = mysql.get_info(datei, "fields",  [0, 1])
     indices, columns = mysql.get_info(datei, "index", [2, 4])
+    print "Afp_getOrderlistOfTable input:", datei, keep, indirect, special
+    print "Afp_getOrderlistOfTable:", fields, types, indices, columns
     liste = {}
     name = ""
     for entry in indices:

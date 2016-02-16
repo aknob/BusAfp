@@ -42,7 +42,7 @@ import wx.calendar
 import AfpUtilities.AfpBaseUtilities
 from AfpUtilities.AfpBaseUtilities import Afp_isTime, Afp_isDate, Afp_genDate, Afp_isNumeric
 import AfpUtilities.AfpStringUtilities
-from AfpUtilities.AfpStringUtilities import Afp_addRootpath, Afp_isString, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum
+from AfpUtilities.AfpStringUtilities import Afp_addRootpath, Afp_isString, Afp_toString, Afp_toInternDateString, Afp_fromString, Afp_ChDatum, Afp_split
 
 # routines needded for communication with wx
 #

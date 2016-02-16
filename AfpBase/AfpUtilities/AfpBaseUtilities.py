@@ -125,12 +125,36 @@ def Afp_getNow(settz = False):
 # @param date - initial date
 # @param ndays - number of days to be added
 # @param sign - sign to be used, default: add days, "-": subtract days
-def Afp_addDaysToDate(date, ndays, sign = "+"):
-    if sign == "-":
+def Afp_addDaysToDate(date, ndays, sign = None):
+    minus = False
+    if sign:
+        if  "-" in sign: minus = True
+    if minus:
         newdate = date -  datetime.timedelta(days=ndays)
     else:
         newdate = date +  datetime.timedelta(days=ndays)
     return newdate
+## add number of month to given date
+# @param date - initial date
+# @param nmonth - number of month to be added
+# @param sign - sign to be used, default: add month, "-": subtract month
+# @param day - day of month to be used instead of proper addition
+def Afp_addMonthToDate(date, nmonth, sign = None, day=None):
+    plus = 1
+    if sign:
+        if  "-" in sign: plus = -1
+    month = date.month + plus*nmonth
+    addyear = 0
+    while month > 12 or month < 1:
+        addyear += 1
+        month -= plus*12
+    date = date.replace(month=month)
+    if addyear:
+        year = date.year + plus*addyear
+        date = date.replace(year=year)
+    if day:
+        date = date.replace(day=day)
+    return date
 ## return difference of two dates
 # @param start - startdate
 # @param ende - enddate

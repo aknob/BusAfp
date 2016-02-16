@@ -32,16 +32,25 @@ from AfpBase import *
 from AfpBase.AfpDatabase import AfpSQL
 from AfpBase.AfpDatabase.AfpSQL import AfpSQLTableSelection
 from AfpBase.AfpBaseRoutines import *
+from AfpBase.AfpBaseAdRoutines import AfpAdresse_getListOfTable
 
-## available 'Zustand' values are set here \n
-# This is the definition routine for all available 'Zustand' values
-# @param storno - storno possibillity attached to list 
-def AfpTourist_getZustandList(storno = False):
-    #return ["","KVA","Angebot","Auftrag","Rechnung","Mahnung"]
-    if storno:
-        return ["Storno","KVA","Angebot","Auftrag","Rechnung","Mahnung"]
-    else:
-        return ["KVA","Angebot","Auftrag","Rechnung","Mahnung"]
+## extract all available tourist entries for given address indenifier
+# @param globals - global values to be used
+# @param knr - address identifier to be used
+def AfpTourist_getAnmeldListOfAdresse(globals, knr):
+    rows = []
+    raw_rows, name = AfpAdresse_getListOfTable(globals, knr, "ANMELD","Anmeldung,Info,Preis,AnmeldNr")
+    #print "AfpTourist_getAnmeldListOfAdresse raw_row:", raw_rows, name, knr
+    if raw_rows:
+        for entry in raw_rows:
+            ANr = entry[-1]
+            Anmeld = AfpTourist(globals, ANr)
+            row = Anmeld.get_value_rows("REISEN","Abfahrt,Zielort")[0]
+            row += entry
+            #print "AfpTourist_getAnmeldListOfAdresse row:", row
+            rows.append(row)
+    print "AfpTourist_getAnmeldListOfAdresse rows:", rows, name
+    return rows, name        
     
 ##  get the list of indecies of tourist table,
 # @param mysql - database where values are retrieved from
@@ -59,7 +68,11 @@ def AfpTourist_getOrderlistOfTable(mysql, index, datei = "REISEN"):
             keep.append("Kennung")
         keep.append("Zielort")
         indirect = ["Zielort","Abfahrt"]
-    liste = Afp_getOrderlistOfTable(mysql, datei, keep, indirect)
+    #liste = Afp_getOrderlistOfTable(mysql, datei, keep, indirect)
+    if index == "Kennung":
+        liste = {'Abfahrt':'date', 'Kennung':'string','RechNr':'float'}
+    else:
+        liste = {'Abfahrt':'date', 'Zielort':'string','RechNr':'float'}
     return liste
 
 ## baseclass for tourist handling         

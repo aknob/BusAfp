@@ -33,7 +33,7 @@ import wx
 import wx.grid
 
 import AfpUtilities.AfpBaseUtilities
-from AfpUtilities.AfpBaseUtilities import Afp_existsFile, Afp_copyFile, Afp_readFileNames
+from AfpUtilities.AfpBaseUtilities import Afp_existsFile, Afp_copyFile, Afp_readFileNames, Afp_genHomeDir, Afp_addPath
 import AfpUtilities.AfpStringUtilities
 from AfpUtilities.AfpStringUtilities import Afp_addRootpath, Afp_ArraytoLine, Afp_toString, Afp_ArraytoString
 
@@ -117,6 +117,22 @@ def Afp_editExternText(input_text, globals=None):
                 with open(file,"r") as inputfile:
                     input_text = inputfile.read().decode('iso8859_15')
     return AfpReq_EditText(input_text,"Texteingabe")
+
+## allow editing of configuration files \n
+# write changed text to actuel configuration file
+# @param modul - modul where configuration is changed
+def Afp_editConfiguration(modul):
+    home = Afp_genHomeDir()
+    configuration = Afp_addPath(home, "Afp" + modul + ".cfg")
+    input_text = ""
+    if Afp_existsFile(configuration):
+        with open(configuration,"r") as inputfile:
+            input_text = inputfile.read().decode('iso8859_15')
+    text, ok =AfpReq_EditText(input_text, "BusAfp '" + modul + "' Modul Configuration","Geladene Datei: " + configuration,"Aktivieren der Einstellungen durch entfernen des '#' Zeichens am Anfang der Zeile!", "Zum Bearbeiten der Konfigurationsdatei bitte 'Ändern' auswählen.".decode('UTF-8'), False, (800, 500))
+    if ok:
+        with open(configuration,"w") as outputfile:
+            outputfile.write(text)
+    return ok
 
 ## invoke a simple dialog to compose an e-mail \n
 # return mail-sender and flag if mail could and should be sent
