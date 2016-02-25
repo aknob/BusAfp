@@ -50,8 +50,19 @@ def AfpTourist_getAnmeldListOfAdresse(globals, knr):
             #print "AfpTourist_getAnmeldListOfAdresse row:", row
             rows.append(row)
     print "AfpTourist_getAnmeldListOfAdresse rows:", rows, name
-    return rows, name        
-    
+    return rows, name  
+
+## read all route names from table
+# @param mysql - sql object to access datatable
+def AfpTourist_getRouteNames(mysql):
+    rows = msql.select("Name,TourNr","","TNAME")
+    namen = []
+    idents = []
+    for row in rows:
+        namen.append(row[0])
+        idents.append(row[1])
+    return namen, idents
+        
 ##  get the list of indecies of tourist table,
 # @param mysql - database where values are retrieved from
 # @param index  -  name sort criterium initially selected
@@ -300,7 +311,7 @@ class AfpTour(AfpSelectionList):
             Selection = sb.gen_selection("REISEN", "FahrtNr", debug)
             self.selections["REISEN"] = Selection
         else:
-            if AnmeldNr:
+            if FahrtNr:
                 self.mainvalue = Afp_toString(FahrtNr)
             else:
                 self.new = True

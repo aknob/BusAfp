@@ -459,8 +459,11 @@ class AfpSbIndex(object):
                 if self.debug: print "AfpSbIndex.select_first_last:",Befehl
                 self.db_cursor.execute (Befehl)
                 rows = self.db_cursor.fetchall ()
-                rows = self.reverse_dup_bloc(rows, self.index_ind)
-                dup, ref = AfpSb_countDuplicates(rows, self.is_numeric(), self.index_ind)
+                if rows:
+                    rows = self.reverse_dup_bloc(rows, self.index_ind)
+                    dup, ref = AfpSb_countDuplicates(rows, self.is_numeric(), self.index_ind)
+                else:
+                    dup = 0
                 # print rows
                 # print "Ende rows", anz, dup
                 if dup == anz-1:

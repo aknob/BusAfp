@@ -50,7 +50,7 @@ from AfpBase.AfpBaseFiDialog import AfpLoad_DiFiZahl
 import AfpTourist
 from AfpTourist import AfpToRoutines, AfpToDialog
 from AfpTourist.AfpToRoutines import AfpTourist, AfpTour, AfpTourist_getAnmeldListOfAdresse
-from AfpTourist.AfpToDialog import AfpTour_copy, AfpLoad_ToAusw
+from AfpTourist.AfpToDialog import AfpTour_copy, AfpLoad_ToAusw, AfpLoad_TourEin_fromSb
 
 ## Class AfpToScreen shows 'Tourist' screen and handles interactions
 class AfpToScreen(AfpScreen):
@@ -102,7 +102,7 @@ class AfpToScreen(AfpScreen):
         self.combo_Sortierung = wx.ComboBox(panel, -1, value="Kennung", pos=(689,16), size=(80,20), choices=["Kennung","Zielort","Abfahrt","Anmeldung"], style=wx.CB_DROPDOWN, name="Sortierung")
         self.Bind(wx.EVT_COMBOBOX, self.On_Tourist_Index, self.combo_Sortierung)
         self.indexmap = {"Kennung":"Kennung","Zielort":"Zielort","Abfahrt":"Abfahrt","Anmeldung":"RechNr"}
-        self.combo_Jahr = wx.ComboBox(panel, -1, value="Aktuell", pos=(435,16), size=(69,20), style=wx.CB_DROPDOWN, name="Jahr")
+        self.combo_Jahr = wx.ComboBox(panel, -1, value="Aktuell", pos=(420,16), size=(84,20), style=wx.CB_DROPDOWN, name="Jahr")
         self.Bind(wx.EVT_COMBOBOX, self.On_Jahr_Filter, self.combo_Jahr)
         self.Bind(wx.EVT_TEXT_ENTER, self.On_Jahr_Filter, self.combo_Jahr)
 
@@ -158,8 +158,8 @@ class AfpToScreen(AfpScreen):
         self.textmap["Personen"] = "Personen.REISEN"
         self.text_Anmeldungen = wx.TextCtrl(panel, -1, value="", pos=(168,98), size=(25,20), style=wx.TE_READONLY, name="Anmeldungen")
         self.textmap["Anmeldungen"] = "Anmeldungen.REISEN"
-        self.text_Bem= wx.TextCtrl(panel, -1, value="", pos=(135,123), size=(370,30), style=0, name="Bem")
-        self.textmap["Bem"] = "Bem.REISEN"
+        self.text_Bem= wx.TextCtrl(panel, -1, value="", pos=(135,123), size=(370,35), style=wx.TE_MULTILINE|wx.TE_LINEWRAP, name="ReiseBem")
+        self.textmap["ReiseBem"] = "Bem.REISEN"
         self.text_Verst = wx.TextCtrl(panel, -1, value="", pos=(377,51), size=(126,20), style=wx.TE_READONLY, name="Verst")
         self.textmap["Verst"] = "AgentName.REISEN"
         self.text_IntText = wx.TextCtrl(panel, -1, value="", pos=(509,50), size=(164,101), style=0, name="IntText")
@@ -279,7 +279,14 @@ class AfpToScreen(AfpScreen):
     def On_Jahr_Filter(self,event = None): 
         Jahr= Afp_fromString(self.combo_Jahr.GetValue())
         if self.debug: print "Event handler `On_Jahr_Filter'", Jahr
-        print "Combo-String:", Jahr
+        print "AfpToScreen.On_Jahr_Filter Combo-String:", Jahr
+        self.set_sb_date_filter(Jahr)
+        self.On_Tourist_Filter()
+        if event: event.Skip()
+        
+    ## set date filter phrase for given input
+    # @param Jahr - string or number from which filter has to be build
+    def set_sb_date_filter(self, Jahr):
         if Jahr == "Alle":
             self.sb_date_filter = ""
             start = None
@@ -288,18 +295,29 @@ class AfpToScreen(AfpScreen):
             end = Afp_genDate(int(Jahr), 12, 31)
             self.sb_date_filter = "Abfahrt >= \"" + Afp_toInternDateString(start) + "\" AND Abfahrt <= \"" + Afp_toInternDateString(end) + "\"" 
         else:
-            self.combo_Jahr.SetValue("Aktuell")
-            period = self.globals.get_value("minimum-date-period","Tourist")
+            combo = "Aktuell"
             today = self.globals.today()
-            if not period: period = 6
+            split = Jahr.split()  
+            if len(split) > 1:
+                peri = Afp_fromString(split[1])
+                if Afp_isNumeric(peri):
+                    if peri < 0:
+                        period = -12*peri + today.month - 1
+                    elif peri < 100:
+                        period = 12*(today.year - 100*int(today.year/100) - peri) + today.month - 1
+                    elif peri < today.year - 1900:
+                        period = 12*(today.year - peri) + today-month - 1
+                    if period: combo += " " + Afp_toString(peri)
+            else:
+                period = self.globals.get_value("minimum-date-period","Tourist")
+            if not period or period < 0: period = 6
+            self.combo_Jahr.SetValue(combo)
             if today.month <= period:
                 start = Afp_addMonthToDate(today, period, "-", 1)
             else:    
                 start = Afp_genDate(today.year, 1, 1)
             self.sb_date_filter = "Abfahrt >= \"" + Afp_toInternDateString(start) + "\"" 
-        print "Startdate:", start, self.sb_date_filter
-        self.On_Tourist_Filter()
-        if event: event.Skip()
+        print "AfpToScreen.set_sb_date Startdate:", start, self.sb_date_filter
         
     ## Eventhandler COMBOBOX - filter
     def On_Tourist_Filter(self,event=None):
@@ -345,7 +363,6 @@ class AfpToScreen(AfpScreen):
         self.CurrentData()
         if event: event.Skip()
 
- 
     ## Eventhandler BUTTON - change address
     def On_Adresse_aendern(self,event):
         if self.debug: print "Event handler `On_Adresse_aendern'"
@@ -461,7 +478,8 @@ class AfpToScreen(AfpScreen):
         #self.sb.set_debug()      
         if self.debug: print "AfpToScreen Event handler `On_Tour_modify'"
         print "AfpToScreen Event handler `On_Tour_modify' not implemented!"
-        changed = AfpLoad_DiToEin_fromSb(self.globals, self.sb)
+        #changed = AfpLoad_TourEin(None, self.globals)
+        changed = AfpLoad_TourEin_fromSb(self.globals, self.sb)
         #print"On_Tour_modify", changed
         if changed: 
             self.Reload()
@@ -596,16 +614,48 @@ class AfpToScreen(AfpScreen):
         if FNr:
             self.sb.select_key(FNr, "FahrtNr","REISEN")
             self.sb.set_index("Abfahrt","REISEN","FahrtNr")            
-            #self.sb.CurrentIndexName("Abfahrt","REISEN")
+            self.sb.CurrentIndexName("Kennung","REISEN")
         else:
             self.sb.select_last() # for tests
         self.On_Tourist_Index()
         self.sb.select_current()
         return
+    ## - not used yet - set next valid record, if eof is reached. \n
+    # If dateefilter is set to 'actuel', filter settings are changed to include last records, \n
+    # if datefilter is set to a year, the next year is choosen, where records exist
+    def set_valid_record(self):
+        print "AfpToScreen.set_valid_record not used yet!!"
+        if self.sb_master == "REISEN":
+            Jahr= self.combo_Jahr.GetValue()
+            dat = None
+            if Afp_isNumeric(Jahr):
+                dat = Afp_fromString("1.7." + Jahr)
+            self.sb.set_debug()
+            abfahrt = self.get_current_record("Abfahrt", dat)
+            if abfahrt:
+                Jahr = abfahrt.year
+                self.combo_Jahr.SetValue(Afp_toString(Jahr))
+                self.combo_Sortierung.SetValue("Abfahrt")
+                self.set_sb_date_filter(Jahr)
+                self.On_Tourist_Filter()
+            print "AfpToScreen.set_valid_record Last record:", abfahrt, Jahr
+            self.sb.unset_debug()
+    ## - not used yet - get last record of given index 
+    # @param index - name of column where record is searched
+    def get_current_record(self, colname, dat = None):
+        print "AfpToScreen.get_current_record not used yet!!"
+        self.sb.CurrentIndexName(colname)
+        self.sb.select_where(self.sb_re_filter.split("AND")[0]) 
+        if dat: self.sb.select_key(dat)
+        if self.sb.eof():
+            self.sb.select_last() 
+        value = self.sb.get_value(colname)
+        return value
     ## check if slave exists
     def slave_exists(self):
         FNr =  self.sb.get_value("FahrtNr.REISEN")     
         fnr =  self.sb.get_value("FahrtNr.ANMELD") 
+        if self.sb.eof(): fnr = FNr + 1
         return FNr == fnr
     ## check if string points to slave data
     def is_slave(self, string):
@@ -614,9 +664,11 @@ class AfpToScreen(AfpScreen):
         if len(split) > 1:
             if split[1] == "ANMELD" or split[1] == "Anmeld" or split[1] == "ADRESSE" or split[1] == "Adresse":
                 Ok = True
+        if self.sb.eof(): Ok = True
         return Ok
     ## supply list of graphic object where keydown events should not be traced.
     def get_no_keydown(self):
+        #return ["Jahr"]
         return []
     ## get names of database tables to be opened for this screen
     # (overwritten from AfpScreen)
@@ -656,7 +708,7 @@ class AfpToScreen(AfpScreen):
         rows = []
         FahrtNr =  self.sb.get_value("FahrtNr")     
         select = ( "FahrtNr = %d")% FahrtNr
-        if typ == "Customers":
+        if typ == "Customers" and self.sb.neof():
             select = ( "FahrtNr = %d")% FahrtNr
             if self.sb_an_filter: select = "(" + select +") and (" + self.sb_an_filter + ")"
             tmps = []
