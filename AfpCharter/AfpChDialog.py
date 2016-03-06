@@ -851,7 +851,7 @@ class AfpDialog_DiMfEx(AfpDialog):
         self.choice_Umst = wx.Choice(panel, -1, pos=(274,55), size=(156,24), choices=["mit Umsatzsteuer", "Umsatzsteuer-frei"], style=0, name="Umst")
         self.choice_Umst.SetSelection(0)
         self.Bind(wx.EVT_CHOICE, self.On_CUmst, self.choice_Umst)
-        self.button_Loeschen = wx.Button(panel, -1, label="&Löschen", pos=(150,100), size=(100,30), name="Loeschen")
+        self.button_Loeschen = wx.Button(panel, -1, label="&Löschen".decode("UTF-8"), pos=(150,100), size=(100,30), name="Loeschen")
         self.Bind(wx.EVT_BUTTON, self.On_Loeschen, self.button_Loeschen)     
         self.setWx(panel, [20, 100, 100, 30], [330, 100, 100, 30])
    

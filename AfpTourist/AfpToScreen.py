@@ -49,8 +49,8 @@ from AfpBase.AfpBaseFiDialog import AfpLoad_DiFiZahl
 
 import AfpTourist
 from AfpTourist import AfpToRoutines, AfpToDialog
-from AfpTourist.AfpToRoutines import AfpTourist, AfpTour, AfpTourist_getAnmeldListOfAdresse
-from AfpTourist.AfpToDialog import AfpTour_copy, AfpLoad_ToAusw, AfpLoad_TourEin_fromSb
+from AfpTourist.AfpToRoutines import *
+from AfpTourist.AfpToDialog import AfpTour_copy, AfpLoad_ToAusw, AfpLoad_TourEdit_fromSb
 
 ## Class AfpToScreen shows 'Tourist' screen and handles interactions
 class AfpToScreen(AfpScreen):
@@ -91,7 +91,7 @@ class AfpToScreen(AfpScreen):
         self.button_Dokumente = wx.Button(panel, -1, label="&Dokumente", pos=(692,350), size=(77,50), name="BDokumente")
         self.Bind(wx.EVT_BUTTON, self.On_Listen_Ausgabe, self.button_Dokumente)
         self.button_Einsatz = wx.Button(panel, -1, label="Ein&satz", pos=(692,410), size=(77,50), name="BEinsatz")
-        self.Bind(wx.EVT_BUTTON, self.On_Tour_EinF, self.button_Einsatz)               
+        self.Bind(wx.EVT_BUTTON, self.On_VehicleOperation, self.button_Einsatz)               
         self.button_Ende = wx.Button(panel, -1, label="Be&enden", pos=(692,470), size=(77,50), name="BEnde")
         self.Bind(wx.EVT_BUTTON, self.On_Ende, self.button_Ende)
       
@@ -241,7 +241,7 @@ class AfpToScreen(AfpScreen):
         self.Bind(wx.EVT_MENU, self.On_Listen_Ausgabe, mmenu)
         tmp_menu.AppendItem(mmenu)
         mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Einsatz", "")
-        self.Bind(wx.EVT_MENU, self.On_Tour_EinF, mmenu)
+        self.Bind(wx.EVT_MENU, self.On_VehicleOperation, mmenu)
         tmp_menu.AppendItem(mmenu)
         self.menubar.Append(tmp_menu, "Tourist")
         # setup address menu
@@ -298,6 +298,7 @@ class AfpToScreen(AfpScreen):
             combo = "Aktuell"
             today = self.globals.today()
             split = Jahr.split()  
+            period = None
             if len(split) > 1:
                 peri = Afp_fromString(split[1])
                 if Afp_isNumeric(peri):
@@ -421,32 +422,25 @@ class AfpToScreen(AfpScreen):
             self.Reload()
             event.Skip()
 
-    ## Eventhandler BUTTON, MENU - charter operation
-    def On_Tour_EinF(self,event):
-        if self.debug: print "Event handler `On_Tour_EinF'"
-        print "Event handler `On_Tour_EinF' not implemented!"
+    ## Eventhandler BUTTON, MENU - tour operation
+    def On_VehicleOperation(self,event):
+        if self.debug: print "Event handler `On_VehicleOperation'"
         Tour = self.get_data()
-        zustand = Tour.get_string_value("Zustand")
-        if self.einsatz:
-            selection = Charter.get_selection("EINSATZ")
+        Art = Tour.get_string_value("Art")
+        needed = AfpTourist_checkVehicle(self.globals.get_mysql(), Tour.get_string_value("Route"))
+        print "AfpToScreen.On_VehicleOperation Art:", Art, needed
+        if Art == "Eigen" and needed and self.einsatz:
+            selection = Tour.get_selection("EINSATZ")
             ENr = None
-            #print "AfpToScreen.On_Tour_EinF Einsatz:", self.einsatz
-            #print "AfpToScreen.On_Tour_EinF:", selection.get_data_length(), selection, Charter.selections
+            #print "AfpToScreen.On_VehicleOperation Einsatz:", self.einsatz
+            #print "AfpToScreen.On_VehicleOperation:", selection.get_data_length(), selection, Tour.selections
             New = False
             if selection.get_data_length() == 0:
-                New = AfpReq_Question("Kein Einsatz für diese Mietfahrt vorhanden,".decode("UTF-8"),"neuen Einsatz erstellen?","Einsatz?")
+                New = AfpReq_Question("Kein Einsatz für diese Reise vorhanden,".decode("UTF-8"),"neuen Einsatz erstellen?","Einsatz?")
                 if New:
-                    transfer = Charter.get_value("Art") == "Transfer"
-                    print "AfpToScreen.On_Tour_EinF Art:", transfer
-                    if transfer: typ = "start"
-                    else: typ = None
-                    Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, typ)  
+                    Einsatz = self.einsatz[1].AfpEinsatz(Tour.get_globals(), None, None, Tour.get_value("FahrtNr"), None, None)  
                     Einsatz.store()                    
-                    print "AfpToScreen.On_Tour_EinF Einsatz:", Einsatz
-                    if transfer:
-                        Einsatz2 = self.einsatz[1].AfpEinsatz(Charter.get_globals(), None, Charter.get_value("FahrtNr"), None, "end") 
-                        Einsatz2.store()
-                        print "AfpToScreen.On_Tour_EinF Einsatz2:", Einsatz2
+                    print "AfpToScreen.On_VehicleOperation neuer Einsatz:", Einsatz
                     selection.reload_data()
             if selection.get_data_length() > 0: 
                 if selection.get_data_length() > 1:
@@ -454,18 +448,21 @@ class AfpToScreen(AfpScreen):
                     ident = selection.get_values("EinsatzNr")
                     #print "Liste:", liste
                     #print ident
-                    Zielort = Charter.get_string_value("Abfahrt") + " " + Charter.get_string_value("Nach") + " " +Charter.get_string_value("Zielort") 
-                    ENr, Ok = AfpReq_Selection("Bitte Einsatz für Fahrt am ".decode("UTF-8") , Zielort + " auswählen.".decode("UTF-8"), liste, "Einsatzauswahl", ident)
+                    Zielort = Tour.get_string_value("Abfahrt") + " nach " +Tour.get_string_value("Zielort") 
+                    ENr, Ok = AfpReq_Selection("Bitte Einsatz für Reise am ".decode("UTF-8") , Zielort + " auswählen.".decode("UTF-8"), liste, "Einsatzauswahl", ident)
                     ENr = ENr[0]
                 else:
                     ENr = selection.get_value("EinsatzNr")
                     Ok = True
                 if Ok: 
-                    print "AfpToScreen.On_Tour_EinF EinsatzNr:", ENr
-                    Einsatz = self.einsatz[1].AfpEinsatz(Charter.get_globals(), ENr)
+                    print "AfpToScreen.On_VehicleOperation EinsatzNr:", ENr
+                    Einsatz = self.einsatz[1].AfpEinsatz(Tour.get_globals(), ENr)
                     Ok = self.einsatz[0].AfpLoad_DiEinsatz(Einsatz, New)
         else:
-            AfpReq_Info("'" + zustand + "' für eine Mietfahrt,".decode("UTF-8") , "es ist kein Einsatz möglich!".decode("UTF-8"))
+            if Art == "Eigen":
+                AfpReq_Info("Für eine  eigene Reise mit dieser Route".decode("UTF-8") , "ist kein Einsatz nötig!".decode("UTF-8"))
+            else:
+                AfpReq_Info("Für eine '".decode("UTF-8") + Art  + "'-Reise" , "ist kein Einsatz möglich!".decode("UTF-8"))
         event.Skip()
 
     ## Eventhandler BUTTON, MENU - modify touristic entry \n
@@ -477,9 +474,8 @@ class AfpToScreen(AfpScreen):
     def On_Tour_modify(self,event):
         #self.sb.set_debug()      
         if self.debug: print "AfpToScreen Event handler `On_Tour_modify'"
-        print "AfpToScreen Event handler `On_Tour_modify' not implemented!"
-        #changed = AfpLoad_TourEin(None, self.globals)
-        changed = AfpLoad_TourEin_fromSb(self.globals, self.sb)
+        print "AfpToScreen Event handler `On_Tour_modify'"
+        changed = AfpLoad_TourEdit_fromSb(self.globals, self.sb)
         #print"On_Tour_modify", changed
         if changed: 
             self.Reload()
@@ -570,7 +566,8 @@ class AfpToScreen(AfpScreen):
     ## generate AfpTourist object from the present screen, overwritten from AfpScreen
     # @param complete - flag if all TableSelections should be generated
     def get_data(self, complete = False):
-        return  AfpTourist(self.globals, None, self.sb, self.sb.debug, complete)
+        #return  AfpTourist(self.globals, None, self.sb, self.sb.debug, complete)
+        return  AfpTour(self.globals, None, self.sb, self.sb.debug, complete)
     ## set current record to be displayed 
     # (overwritten from AfpScreen) 
     def set_current_record(self):

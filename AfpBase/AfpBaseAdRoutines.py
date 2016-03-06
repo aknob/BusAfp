@@ -223,6 +223,11 @@ class AfpAdresse(AfpSelectionList):
             print "AfpAdresse.hostile_takeover:", auswahl,"->", KdNr
             #victim.view()  
             victim.store()
-
+    ## retrieve individual account from database
+    # @param typ: defines which kind of account is selected \n
+    # currently supported types are "Kreditor" and "Debitor"
+    def get_account(self, typ = "Debitor"):
+        account = Afp_getIndividualAccount(self.globals.get_mysql(), self.get_value("KundenNr"), typ)
+        return account
 
       

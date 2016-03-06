@@ -52,7 +52,7 @@ class BusAfp(wx.App):
     def initialize(self, debug, startpath, confpath, dbhost, dbuser, dbword, config): 
         name = 'BusAfp'
         version = "6.0.0 alpha"       
-        copyright = '(C) 1989 - 2015 AfpTech.de'
+        copyright = '(C) 1989 - 2016 AfpTech.de'
         website = 'http://www.busafp.de'
         description = """BusAfp ist eine Verwaltungsprogramm für den Buseinsatz 
         für Mietfahrten, sowie der Organisation von eigenen Reisen.

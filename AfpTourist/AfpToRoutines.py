@@ -34,6 +34,11 @@ from AfpBase.AfpDatabase.AfpSQL import AfpSQLTableSelection
 from AfpBase.AfpBaseRoutines import *
 from AfpBase.AfpBaseAdRoutines import AfpAdresse_getListOfTable
 
+## returns all possible entries for kind of tours
+def AfpTourist_possibleTourKinds():
+    #return ["Indi","Eigen","Fremd"]
+    return ["Eigen","Fremd"]
+    
 ## extract all available tourist entries for given address indenifier
 # @param globals - global values to be used
 # @param knr - address identifier to be used
@@ -55,13 +60,31 @@ def AfpTourist_getAnmeldListOfAdresse(globals, knr):
 ## read all route names from table
 # @param mysql - sql object to access datatable
 def AfpTourist_getRouteNames(mysql):
-    rows = msql.select("Name,TourNr","","TNAME")
+    rows = mysql.select("Name,TourNr","","TNAME")
     namen = []
     idents = []
     for row in rows:
         namen.append(row[0])
         idents.append(row[1])
     return namen, idents
+    
+## check if vehicle is needed for this route
+# @param mysql - sql object to access datatable
+# @param route - identifier of route
+def AfpTourist_checkVehicle(mysql, route):
+    bus = None
+    if route:
+        select = "TourNr = " + Afp_toString(route)
+        rows = mysql.select("OhneBus",select,"TNAME")
+        if rows:
+            #print "AfpTourist_checkVehicle", rows
+            if Afp_fromString(rows[0][0]): 
+                # OhneBus == 1
+                bus = False
+            else:
+                # OhneBus = 0
+                bus = True
+    return bus
         
 ##  get the list of indecies of tourist table,
 # @param mysql - database where values are retrieved from
@@ -297,7 +320,7 @@ class AfpTour(AfpSelectionList):
     # @param debug - flag for debug information
     # @param complete - flag if data from all tables should be retrieved durin initialisation \n
     # \n
-    # either AnmeldNr or sb (superbase) has to be given for initialisation,otherwise a new, clean object is created
+    # either AnmeldNr or sb (superbase) has to be given for initialisation, otherwise a new, clean object is created
     def  __init__(self, globals, FahrtNr = None, sb = None, debug = None, complete = False):
         AfpSelectionList.__init__(self, globals, "Tour", debug)
         if debug: self.debug = debug
@@ -321,15 +344,11 @@ class AfpTour(AfpSelectionList):
             self.create_selection(self.mainselection)   
         #  self.selects[name of selection]  [tablename,, select criteria, optional: unique fieldname]
         self.selects["ANMELD"] = [ "ANMELD","FahrtNr = FahrtNr.REISEN"] 
-        self.selects["PREISE"] = [ "PREISE","Kennung = PreisNr.ANMELD"] 
-        self.selects["ANMELDER"] = [ "ANMELDER","AnmeldNr = AnmeldNr.ANMELD"] 
-        self.selects["ANMELDEX"] = [ "ANMELDEX","AnmeldNr = AnmeldNr.ANMELD"] 
-        self.selects["ARCHIV"] = [ "ARCHIV","AnmeldNr = AnmeldNr.ANMELD"] 
-        self.selects["AUSGABE"] = [ "AUSGABE","Typ = Zustand.ANMELD"] 
-        #self.selects["RECHNG"] = [ "RECHNG","RechNr = RechNr.ANMELD","RechNr"] 
+        self.selects["PREISE"] = [ "PREISE","FahrtNr = FahrtNr.REISEN"] 
         self.selects["ERTRAG"] = [ "ERTRAG","FahrtNr = FahrtNr.REISEN"] 
         self.selects["EINSATZ"] = [ "EINSATZ","ReiseNr = FahrtNr.REISEN"] 
         self.selects["TNAME"] = [ "TNAME","TourNr = Route.REISEN"] 
+        self.selects["Agent"] = [ "ADRESSE","KundenNr = AgentNr.REISEN"] 
         if complete: self.create_selections()
         if self.debug: print "AfpTour Konstruktor, FahrtNr:", self.mainvalue
     ## destuctor
@@ -337,70 +356,49 @@ class AfpTour(AfpSelectionList):
         if self.debug: print "AfpTour Destruktor"
         #AfpSelectionList.__del__(self) 
     ## clear current SelectionList to behave as a newly created List 
-    # @param KundenNr - KundenNr of newly seelected adress, == None if adress is kept
-    # @param keep_flag -  flags which data should be kept while creation this copy
-    # - [0] == True: address should be kept (should coincident with KundenNr == None)
-    # - [1] == True: contact should be kept 
-    # - [2] == True: Fahrtinfo should be kept 
-    # - [3] == True: Fahrtextra should be kept 
-    # - [4] == True: the rest of the data should be kept 
-    def set_new(self, KundenNr, keep_flag = None):
+    # @param copy -  flag if a copy should be created or flags which data should be kept during creation of a copy
+    # - True: a complete copy is created
+    # - [0] == True: agent should be kept 
+    # - [1] == True: transfer route should be kept 
+    # - [2] == True: prices should be kept 
+    # - the rest of the data is kept if copy == [flag, flag, flag]
+    def set_new(self, KundenNr, copy = None):
         self.new = True
         data = {}
         keep = []
-        if KundenNr:
-            data["KundenNr"] = KundenNr
+        if copy == True:
+            keep_flag = [True, True, True]
         else:
-            data["KundenNr"] = self.get_value("KundenNr")
-            keep.append("ADRESSE")
+            keep_flag = copy
         if keep_flag:
-            if keep_flag[1]: # contact kept
-                data["Kontakt"] = self.get_value("Kontakt")
-                data["Name"] = self.get_value("Name")
-                keep.append("Kontakt")
-            if keep_flag[2] and "FAHRTI" in self.selections: # Fahrtinfo kept
-                keep.append("FAHRTI")
-                self.selections["FAHRTI"].new = True
-            if keep_flag[3] and "FAHRTEX" in self.selections: # Fahrtextra kept
-                keep.append("FAHRTEX")
-                self.selections["FAHRTEX"].new = True
-                data["Extra"] = self.get_value("Extra") 
-                data["Preis"] = self.get_value("Preis") 
-                data["PersPreis"] = self.get_value("PersPreis") 
-            elif keep_flag[4] and not "FAHRTEX" in self.selections: # Fahrtextra kept
-                data["Preis"] = self.get_value("Preis") 
-                data["PersPreis"] = self.get_value("PersPreis") 
-            if keep_flag[4]: # data kept
-                data["Abfahrt"] = self.get_value("Abfahrt") 
-                data["Fahrtende"] = self.get_value("Fahrtende") 
-                data["Abfahrtsort"] = self.get_value("Abfahrtsort") 
-                data["Zielort"] = self.get_value("Zielort") 
-                data["Personen"] = self.get_value("Personen") 
-                data["Km"] = self.get_value("Km") 
-                data["Kostenst"] = self.get_value("Kostenst") 
-                data["Vorgang"] = self.get_value("Vorgang") 
-                data["Ausstattung"] = self.get_value("Ausstattung") 
-                data["Von"] = self.get_value("Von") 
-                data["Nach"] = self.get_value("Nach") 
-        data["Zustand"] = AfpTourist_getZustandList()[0]
-        data["Art"] = self.get_value("Art")
-        if data["Art"] is None:  data["Art"] = AfpTourist_getArtList()[0]
-        if not "Von" in data: data["Von"] = "von"
-        if not "Nach" in data: data["Nach"] = "nach"
-        data["Datum"] = self.globals.today()
-        print "AfpTourist.set_new data:", data
-        print "AfpTourist.set_new keep:", keep
+            if keep_flag[0]: # agent kept
+                data["AgentNr"] = self.get_value("AgentNr")
+                data["Kreditor"] = self.get_value("Kreditor")
+                data["AgentName"] = self.get_value("AgentName")
+                data["Art"] = self.get_value("Art")
+                keep.append("Agent")
+            if keep_flag[1 ]: # transfer route kept
+                data["Route"] = self.get_value("Route")
+                keep.append("TNAME")
+            if keep_flag[2] and "PREISE" in self.selections: # prices kept
+                keep.append("PREISE")
+                self.selections["PREISE"].new = True
+            data["Kostenst"] = self.get_value("Kostenst") 
+            data["Abfahrt"] = self.get_value("Abfahrt") 
+            data["Fahrtende"] = self.get_value("Fahrtende") 
+            data["Zielort"] = self.get_value("Zielort") 
+            data["Personen"] = self.get_value("Personen") 
+            data["ErloesKt"] = self.get_value("ErloesKt")
+        print "AfpTour.set_new data:", data
+        print "AfpTour.set_new keep:", keep
         self.clear_selections(keep)
-        self.set_data_values(data,"FAHRTEN")
+        self.set_data_values(data,"REISEN")
         if keep_flag:
-            if keep_flag[2] or keep_flag[3]:
+            if keep_flag[2]:
                 self.spread_mainvalue()
-        if KundenNr:
-            self.create_selection("ADRESSE", False)
-    ## one line to hold all relevant values of charter, to be displayed 
+   ## one line to hold all relevant values of this tour, to be displayed 
     def line(self):
-        zeile =  self.get_string_value("SortNr").rjust(8) + "  "  + self.get_string_value("Datum") + " " +  self.get_string_value("Zustand") + " " + self.get_string_value("Art") + " " + self.get_string_value("Zielort")  
-        zeile += " " + self.get_string_value("Preis").rjust(10) + " " +self.get_string_value("Zahlung").rjust(10) 
+        zeile =  self.get_string_value("Kennung").rjust(8) + "  "  + self.get_string_value("Art") + " " +  self.get_string_value("AgentName") + " " + self.get_string_value("Abfahrt") + " " + self.get_string_value("Zielort")  
         return zeile
     ## internal routine to set the appropriate agency name
     def set_agent_name(self):
@@ -410,6 +408,6 @@ class AfpTour(AfpSelectionList):
     ## return specific identification string to be used in dialogs \n
     # - overwritten from AfpSelectionList
     def get_identification_string(self):
-        return "Mietfahrt am "  +  self.get_string_value("Abfahrt") + " nach " + self.get_string_value("Zielort")
+        return "Reise am "  +  self.get_string_value("Abfahrt") + " nach " + self.get_string_value("Zielort")
 
 

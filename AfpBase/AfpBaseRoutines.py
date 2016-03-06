@@ -382,7 +382,7 @@ def Afp_getIndividualAccount(mysql, KNr, typ = "Debitor"):
     if typ == "Debitor" or typ == "Kreditor":
         # extract name of Adress
         name = None
-        rows = mysql.select("Name","KundenNr = " +KundenNr,"ADRESSE")
+        rows = mysql.select("Name","KundenNr = " + KundenNr,"ADRESSE")
         if rows:
             name = rows[0][0]
         # second step, try sample account with max, first three letters of name
@@ -855,7 +855,7 @@ class AfpSelectionList(object):
     ## set multiple  values of indicated TableSelection 
     # @param changed_data - dictionary with changed_data[column] = value
     # @param name - name of TableSelection where data should be written to
-    # @param row - index of row in TableSelöection where data should be written to \n
+    # @param row - index of row in TableSelection where data should be written to \n
     #                        if row < 0: add row with given data
     def set_data_values(self, changed_data, name = None, row = 0):
         selection = self.get_selection(name)

@@ -781,7 +781,7 @@ class AfpDialog(wx.Dialog):
       for entry in self.choicemap:
             Choice= self.FindWindowByName(entry)
             value = self.data.get_string_value(self.choicemap[entry])
-            #print "Pop_choice:", self.choicemap[entry], "=", value
+            print "Pop_choice:", self.choicemap[entry], "=", value
             Choice.SetStringSelection(value)
     ## population routine for lists \n
     # covention: listmap holds the name to generate the routinename to be called: \n
