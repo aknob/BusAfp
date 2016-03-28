@@ -162,7 +162,7 @@ class AfpToScreen(AfpScreen):
         self.textmap["ReiseBem"] = "Bem.REISEN"
         self.text_Verst = wx.TextCtrl(panel, -1, value="", pos=(377,51), size=(126,20), style=wx.TE_READONLY, name="Verst")
         self.textmap["Verst"] = "AgentName.REISEN"
-        self.text_IntText = wx.TextCtrl(panel, -1, value="", pos=(509,50), size=(164,101), style=0, name="IntText")
+        self.text_IntText = wx.TextCtrl(panel, -1, value="", pos=(509,50), size=(164,101), style=wx.TE_MULTILINE, name="IntText")
         self.extmap["IntText"] = "IntText.REISEN"
 
         # Tourist

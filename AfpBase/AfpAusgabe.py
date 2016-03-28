@@ -286,7 +286,7 @@ class AfpAusgabe(object):
         exec pyBefehl
         if self.debug: print "AfpAusgabe.evaluate_condition:", pyBefehl, condition
         return condition
-    ## evaluate formulas in ()-prarantheses \n
+    ## evaluate formulas in ()-prantheses \n
     # all python evaluations are allowed, 
     # as the formula is evaluated via the 'exec' command
     # @param form - formula to be evaluated

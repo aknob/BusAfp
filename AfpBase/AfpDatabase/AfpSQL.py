@@ -8,6 +8,7 @@
 # - AfpSQLTableSelection
 #
 #   History: \n
+#        28 Mar. 2016 - AfpSQLTableSelection: add afterburner - Andreas.Knoblauch@afptech.de \n
 #        14 Apr. 2015 - AfpSQLTableSelection: keep original values in modification - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
@@ -17,7 +18,7 @@
 #  AfpTechnologies (afptech.de)
 #
 #    BusAfp is a software to manage coach and travel acivities
-#    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch)
+#    Copyright (C) 1989 - 2016  afptech.de (Andreas Knoblauch)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -335,7 +336,7 @@ class AfpSQLTableSelection(object):
     def  __init__(self, mysql, tablename, debug = False, unique_feldname = None, feldnamen = None):
         #self.dbg = True # hardecode switch for storage logging
         self.dbg = False # hardecode switch for storage logging
-        if tablename == "FAHRTI": 
+        if debug: # or tablename == "REISEN" or tablename == "PREISE": 
             print "AfpSQLTableSelection Konstruktor dbg On", tablename
             self.dbg = True # hardecode switch for storage logging
         self.mysql = mysql      
@@ -350,6 +351,7 @@ class AfpSQLTableSelection(object):
         self.last_manipulation = None
         self.manipulation = []
         self.data = []
+        self.afterburner = None
         if self.debug: print "AfpSQLTableSelection Konstruktor", self.tablename
         if self.feldnamen is None:
             self.feldnamen = []
@@ -413,6 +415,15 @@ class AfpSQLTableSelection(object):
             value = int(split[2])
             last_index = self.get_data_length() - 1
             self.set_value(feldname, value, last_index)
+    ## resets select criterium from last row
+    def reset_select(self):
+        if self.select:
+            split = self.select.split(" ")
+            feldname = split[0]
+            last_index = self.get_data_length() - 1
+            value = self.get_values(feldname, last_index)[0][0]
+            self.select = feldname + " = " + Afp_toString(value)
+            #print "AfpSQLTableSelection.reset_select:", self.select
     ## load data into TableSelection according to given select clause
     # @param select - select clause to identify desired data
     # @param order - if given desired order of output rows
@@ -686,14 +697,14 @@ class AfpSQLTableSelection(object):
     def spread_value(self, feldname, value):
         lgh = self.get_data_length()
         for row in range(0,lgh):
-            self.set_value(feldname, value,row)
+            self.set_value(feldname, value, row)
     ## set indicated column to a given value
     # @param feldname - indicated column name
     # @param value -  value to be filled in indicated column
     # @param row -  index of row where value has to be inserted \n
     # if row points behind last datarow, a new datarow is attached and the value is inserted there
     def set_value(self, feldname, value, row = 0):
-        if self.dbg: print "AfpSQLTableSelection.set_value:", feldname, value, type(value), self.feldnamen
+        if self.dbg: print "AfpSQLTableSelection.set_value:", feldname, value, type(value)#, self.feldnamen
         if row >= self.get_data_length():
             row = self.add_data_row()
         if feldname in self.feldnamen:
@@ -730,6 +741,41 @@ class AfpSQLTableSelection(object):
     ## unlocj database table and rollback
     def unlock_data(self):
         self.mysql.unlock()
+    ## add formula to afterburner, to be executed after storage
+    # @param form - formula to be evaluated after storage
+    def add_afterburner(self, form):
+        if form: 
+            if self.afterburner is None:
+                self.afterburner = [form]
+            else:
+                self.afterburner.append(form)
+     ## execute formulas of afterburner
+    def execute_afterburner(self):
+        if self.afterburner:
+            for form in self.afterburner:
+                split = form.split("=")
+                vars, signs = Afp_splitFormula(split[1])
+                #print "execute_afterburner:", form, vars, signs
+                vals = []
+                for var in vars:
+                    vals.append(var)
+                for row in range(self.get_data_length()):
+                    for i in range(len(vars)):
+                        if not Afp_hasNumericValue(vars[i]):
+                            vals[i] = Afp_toString(self.get_values(vars[i], row)[0][0])
+                    #print "execute_afterburner vals:", vals, signs
+                    formula = ""
+                    for i in range(len(vals)-1):
+                        formula += vals[i] + signs[i]
+                    formula += vals[-1]
+                    if len(signs) == len(vals):
+                        formula += signs[-1]
+                    pyBefehl = "value = " + formula
+                    exec pyBefehl
+                    self.set_value(split[0].strip(), value, row),
+                    if self.dbg: print "AfpSQLTableSelection.execute_afterburner:", pyBefehl, "       Row:", row, split[0], "=", value
+                    #print "execute_afterburner:", pyBefehl, "\nRow:", row, split[0], "=", value,  type(value) 
+            self.afterburner = None
     ## write attached data to database
     def store(self):
         # writes data hold directly in this SelectionTable
@@ -741,7 +787,7 @@ class AfpSQLTableSelection(object):
                     if self.dbg: print "AfpSQLTableSelection.store unique new value:", self.last_inserted_id, self.get_values(None, row)[0]
                     self.mysql.write_insert( self.tablename, self.feldnamen, self.get_values(None, row))
                     self.last_inserted_id = self.mysql.get_last_inserted_id() 
-                    if self.dbg: print "AfpSQLTableSelection.store uniquelast_inserted_id:",  self.last_inserted_id
+                    if self.dbg: print "AfpSQLTableSelection.store unique last_inserted_id:",  self.last_inserted_id
                     self.set_last_inserted_id(self.unique_feldname, row)
                 else:
                     select = self.unique_feldname + " = " + Afp_toString(unique_value)
@@ -767,10 +813,17 @@ class AfpSQLTableSelection(object):
             if new or self.new:
                 if self.dbg: print "AfpSQLTableSelection.store insert:", self.get_values()
                 self.mysql.write_insert( self.tablename, self.feldnamen, self.get_values())
+                self.reset_select()
+                self.reload_data()
             else:
-                if self.dbg: print "AfpSQLTableSelection.store no_unique:", self.get_values()            
+                if self.dbg: print "AfpSQLTableSelection.store no_unique:", self.select_clause, self.get_values()            
                 self.mysql.write_no_unique(self.select_clause, self.feldnamen, self.get_values())
         self.new = False
         self.last_manipulation = self.manipulation
         self.manipulation = []
+        if self.afterburner: 
+            self.execute_afterburner()
+            if self.dbg: print "AfpSQLTableSelection.store afterburner:", self.manipulation
+    
+    # end of AfpSQL
       

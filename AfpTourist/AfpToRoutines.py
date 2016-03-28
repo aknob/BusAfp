@@ -60,7 +60,7 @@ def AfpTourist_getAnmeldListOfAdresse(globals, knr):
 ## read all route names from table
 # @param mysql - sql object to access datatable
 def AfpTourist_getRouteNames(mysql):
-    rows = mysql.select("Name,TourNr","","TNAME")
+    rows = mysql.select("Name,TourNr","","TNAME","Name")
     namen = []
     idents = []
     for row in rows:
@@ -358,45 +358,50 @@ class AfpTour(AfpSelectionList):
     ## clear current SelectionList to behave as a newly created List 
     # @param copy -  flag if a copy should be created or flags which data should be kept during creation of a copy
     # - True: a complete copy is created
-    # - [0] == True: agent should be kept 
-    # - [1] == True: transfer route should be kept 
+    # - [0] == True: dates should be kept 
+    # - [1] == True: agent or transfer route should be kept 
     # - [2] == True: prices should be kept 
-    # - the rest of the data is kept if copy == [flag, flag, flag]
-    def set_new(self, KundenNr, copy = None):
+    # - [3] == True: internal text should be kept 
+    # - the rest of the data is kept if copy != [flag, flag, flag]
+    def set_new(self, copy = None):
         self.new = True
         data = {}
         keep = []
         if copy == True:
-            keep_flag = [True, True, True]
+            keep_flag = [False, True, True, False]
         else:
             keep_flag = copy
         if keep_flag:
-            if keep_flag[0]: # agent kept
+            if keep_flag[0]: # dates kept
+                data["Abfahrt"] = self.get_value("Abfahrt") 
+                data["Fahrtende"] = self.get_value("Fahrtende") 
+                data["ErloesKt"] = self.get_value("ErloesKt")
+            if keep_flag[1]: # agent, transfer route kept
                 data["AgentNr"] = self.get_value("AgentNr")
                 data["Kreditor"] = self.get_value("Kreditor")
+                data["Debitor"] = self.get_value("Debitor")
                 data["AgentName"] = self.get_value("AgentName")
-                data["Art"] = self.get_value("Art")
-                keep.append("Agent")
-            if keep_flag[1 ]: # transfer route kept
                 data["Route"] = self.get_value("Route")
                 keep.append("TNAME")
             if keep_flag[2] and "PREISE" in self.selections: # prices kept
                 keep.append("PREISE")
                 self.selections["PREISE"].new = True
+                self.selections["PREISE"].spread_value("FahrtNr", None)
+                self.selections["PREISE"].spread_value("Kennung", None)
+            if keep_flag[3]: # internal text kept
+                data["IntText"] = self.get_value("IntText")
+            data["Art"] = self.get_value("Art")
             data["Kostenst"] = self.get_value("Kostenst") 
-            data["Abfahrt"] = self.get_value("Abfahrt") 
-            data["Fahrtende"] = self.get_value("Fahrtende") 
             data["Zielort"] = self.get_value("Zielort") 
             data["Personen"] = self.get_value("Personen") 
-            data["ErloesKt"] = self.get_value("ErloesKt")
+            data["Bem"] = self.get_value("Bem")
+        data["RechNr"] = 0
+        data["Anmeldungen"] = 0
         print "AfpTour.set_new data:", data
         print "AfpTour.set_new keep:", keep
         self.clear_selections(keep)
         self.set_data_values(data,"REISEN")
-        if keep_flag:
-            if keep_flag[2]:
-                self.spread_mainvalue()
-   ## one line to hold all relevant values of this tour, to be displayed 
+    ## one line to hold all relevant values of this tour, to be displayed 
     def line(self):
         zeile =  self.get_string_value("Kennung").rjust(8) + "  "  + self.get_string_value("Art") + " " +  self.get_string_value("AgentName") + " " + self.get_string_value("Abfahrt") + " " + self.get_string_value("Zielort")  
         return zeile

@@ -494,7 +494,7 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
         if self.debug: print "Event handler `On_Ad_Verbindung'"
         name = self.data.get_value("Name")
         text = "Bitte Adresse auswählen die mit der aktuellen in verbunden werden soll."
-        auswahl = AfpLoad_DiAusw(self.data.get_mysql(), "ADRESSE", "NamSort", text, name[0])
+        auswahl = AfpLoad_AdAusw(self.data.get_mysql(), "ADRESSE", "NamSort", text, name[0])
         if not auswahl is None:
             KNr = int(auswahl)
             rows = self.data.get_mysql().select("*","KundenNr = " + Afp_toString(KNr), "ADRESSE") 

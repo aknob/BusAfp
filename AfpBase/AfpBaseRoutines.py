@@ -8,6 +8,7 @@
 # - AfpSelectionList
 #
 #   History: \n
+#        28 Mar. 2016 - AfpSelectionList: add afterburner to be used in second save step - Andreas.Knoblauch@afptech.de \n
 #        04 Feb. 2015 - add data export to dbf - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
@@ -18,7 +19,7 @@
 #  AfpTechnologies (afptech.de)
 #
 #    BusAfp is a software to manage coach and travel acivities
-#    Copyright (C) 1989 - 2015  afptech.de (Andreas Knoblauch)
+#    Copyright (C) 1989 - 2016  afptech.de (Andreas Knoblauch)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -632,6 +633,12 @@ class AfpSelectionList(object):
         for select in self.selects:
             if not select in self.selections:
                 self.create_selection(select)
+    ## add formula to afterburner of TableSelection
+    # @param selname - name of TableSelection
+    # @param formula - formula to be evaluated after storage
+    def add_afterburner(self, selname, formula):
+        selection = self.get_selection(selname)
+        selection.add_afterburner(formula)
     ## attach new data to selection
     # @param selname - name of TableSelection
     def reload_selection(self, selname):
@@ -881,16 +888,17 @@ class AfpSelectionList(object):
         #print "AfpTableSelectionList.store() selections:", self.selections
         if self.mainselection:
             select = self.selections[self.mainselection]
+            print "AfpTableSelectionList.store mainselection:", self.mainselection
             select.store()
             if self.new:
                 self.mainvalue = select.get_string_value(self.mainindex)
                 # spread mainvalue into selections
                 # self.spread_value()
                 self.spread_mainvalue()
-                print "AfpTableSelectionList.store: new mainvalue spreaded to other selections", self.mainvalue
+                print "AfpTableSelectionList.store new mainvalue spreaded to other selections:", self.mainvalue
         #print "AfpTableSelectionList.store() selections 2:", self.selections
         for sel in self.selections: 
-            print "AfpTableSelectionList.store:", sel, self.new, self.selections[sel].new, self.selections[sel].has_changed(), self.selections[sel].select,"\n", self.selections[sel].data
+            print "AfpTableSelectionList.store:", sel,"ListNew:", self.new,"New:", self.selections[sel].new,"hasChanged:", self.selections[sel].has_changed(),"Select:", self.selections[sel].select,"\n", self.selections[sel].data
             if not (sel == self.mainselection) and self.selections[sel].has_changed():
                 if self.selects[sel] == []:
                     self.spezial_save(sel)
@@ -900,6 +908,7 @@ class AfpSelectionList(object):
                 self.resample_value(sel)
         # second try to catch all spreaded values
         for sel in self.selections:
+            print "AfpTableSelectionList.store second try:",sel,"hasChanged:", self.selections[sel].has_changed() 
             if self.selections[sel].has_changed():
                 if self.selects[sel] == []:
                     self.spezial_save(sel)
