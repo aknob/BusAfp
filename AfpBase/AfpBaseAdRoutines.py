@@ -136,9 +136,9 @@ class AfpAdresse(AfpSelectionList):
     def __del__(self):    
         if self.debug: print "AfpAdresse Destruktor"
     ## special selection (overwritten from AfpSelectionList) \n
-    # to handle the selcetion 'Bez' (Beziehung) which attach different address entries via a single connected list in the datafield 'Bez'
+    # to handle the selection 'Bez' (Beziehung) which attach different address entries via a single connected list in the datafield 'Bez'
     # @param selname - name of selection (in our case 'Bez' is implemented)
-    # @param new - flag if a new empty list has t be created
+    # @param new - flag if a new empty list has to be created
     def spezial_selection(self, selname, new = False):
         AdSelection = None
         if selname == "Bez":

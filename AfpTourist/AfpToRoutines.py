@@ -67,6 +67,21 @@ def AfpTourist_getRouteNames(mysql):
         namen.append(row[0])
         idents.append(row[1])
     return namen, idents
+## read all route names from table
+# @param mysql - sql object to access datatable
+# @param route - identification number of route where locations should be extracted
+def AfpTourist_getLocations(mysql, route):
+    knr = 100*route
+    select = "KennNr >= " + Afp_toString(knr) + " AND KennNr < "  + Afp_toString(knr + 100)
+    rows = mysql.select("KennNr",select,"TROUTE")
+    namen = []
+    kennungen = []
+    for row in rows:
+        select = "OrtsNr = " + Afp_toString(row[0])
+        orte = mysql.select("Ort,Kennung",select,"TORT")
+        namen.append(orte[0][0])
+        idents.append(orte[0][1])
+    return namen, kennungen
     
 ## check if vehicle is needed for this route
 # @param mysql - sql object to access datatable
@@ -145,10 +160,12 @@ class AfpTourist(AfpSelectionList):
         self.selects["ADRESSE"] = [ "ADRESSE","KundenNr = KundenNr.ANMELD"] 
         self.selects["REISEN"] = [ "REISEN","FahrtNr = FahrtNr.ANMELD"] 
         self.selects["PREISE"] = [ "PREISE","Kennung = PreisNr.ANMELD"] 
+        self.selects["TORT"] = [ "TORT","OrtsNr = Ab.ANMELD"] 
         self.selects["ANMELDER"] = [ "ANMELDER","AnmeldNr = AnmeldNr.ANMELD"] 
         self.selects["ANMELDEX"] = [ "ANMELDEX","AnmeldNr = AnmeldNr.ANMELD"] 
         self.selects["ARCHIV"] = [ "ARCHIV","AnmeldNr = AnmeldNr.ANMELD"] 
         self.selects["AUSGABE"] = [ "AUSGABE","Typ = Zustand.ANMELD"] 
+        self.selects["RechNr"] = [ "ANMELD","RechNr = RechNr.ANMELD"] 
         #self.selects["RECHNG"] = [ "RECHNG","RechNr = RechNr.ANMELD","RechNr"] 
         #self.selects["ERTRAG"] = [ "ERTRAG","FahrtNr = FahrtNr.ANMELD"] 
         #self.selects["EINSATZ"] = [ "EINSATZ","ReiseNr = FahrtNr.ANMELD"] 
@@ -328,7 +345,6 @@ class AfpTour(AfpSelectionList):
         self.new = False
         self.mainindex = "FahrtNr"
         self.mainvalue = ""
-        self.spezial_bez = []
         if sb:
             self.mainvalue = sb.get_string_value("FahrtNr.REISEN")
             Selection = sb.gen_selection("REISEN", "FahrtNr", debug)
@@ -348,6 +364,7 @@ class AfpTour(AfpSelectionList):
         self.selects["ERTRAG"] = [ "ERTRAG","FahrtNr = FahrtNr.REISEN"] 
         self.selects["EINSATZ"] = [ "EINSATZ","ReiseNr = FahrtNr.REISEN"] 
         self.selects["TNAME"] = [ "TNAME","TourNr = Route.REISEN"] 
+        self.selects["Orte"] = [] 
         self.selects["Agent"] = [ "ADRESSE","KundenNr = AgentNr.REISEN"] 
         if complete: self.create_selections()
         if self.debug: print "AfpTour Konstruktor, FahrtNr:", self.mainvalue
@@ -355,6 +372,60 @@ class AfpTour(AfpSelectionList):
     def __del__(self):    
         if self.debug: print "AfpTour Destruktor"
         #AfpSelectionList.__del__(self) 
+    ## special selection (overwritten from AfpSelectionList) \n
+    # to handle the selection 'Orte'  which holds all attached location data of all departure points
+    # @param selname - name of selection (in our case 'Orte' is implemented)
+    # @param new - flag if a new empty list has to be created
+    def spezial_selection(self, selname, new = False):
+        LocSelection = None
+        if selname == "Orte":
+            #print  self.selections["ADRESSE"].get_feldnamen()
+            feldnamen = self.selections["ADRESSE"].get_feldnamen()
+            if new:
+                 LocSelection = AfpSQLTableSelection(self.mysql, "ADRESSE", self.debug, None, feldnamen) 
+                 LocSelection.new_data()
+            else: 
+                AdSelection = AfpSQLTableSelection(self.mysql, "ADRESSE", self.debug, None, feldnamen) 
+                KNr = self.selections["ADRESSE"].get_value("Bez")
+                if not KNr: KNr = 0
+                data = []
+                self.spezial_bez = []
+                if KNr != 0:
+                    Index = feldnamen.index("Bez")
+                    KundenNr = int(self.mainvalue)
+                    while KNr !=  KundenNr and KNr != 0 :
+                        if KNr < 0: KNr = - KNr
+                        row = self.mysql.select("*","KundenNr = " + Afp_toString(KNr), "ADRESSE")
+                        self.spezial_bez.append(KNr)
+                        KNr = int(row[0][Index])
+                        data.append(row[0])
+                    AdSelection.set_data(data)
+        return AdSelection
+    ## special save (overwritten from AfpSelectionList) \n
+    # store the special selection 'Bez'
+    # @param selname - name of selection (in oru case 'Bez' is implemented)
+    def spezial_save(self, selname):
+        if selname == "Bez": 
+            selection = self.selections[selname]
+            lgh = selection.get_data_length()
+            if lgh > 0:
+                KNr = int(self.mainvalue)
+                bez_lgh = len(self.spezial_bez)
+                for i in range(lgh):
+                    KundenNr = KNr
+                    index = -1
+                    if KundenNr in self.spezial_bez: 
+                        index = self.spezial_bez.index(KundenNr)
+                        self.spezial_bez[index] = None
+                    KNr = int(selection.get_values("KundenNr", i))
+                    self.mysql.write_update("ADRESSE", ["Bez"], [KNr], "KundenNr = " + Afp_toString(KundenNr), True)
+                if KNr in self.spezial_bez: 
+                    index = self.spezial_bez.index(KNr)
+                    self.spezial_bez[index] = None
+                self.mysql.write_update("ADRESSE", ["Bez"], [self.mainvalue], "KundenNr = " + Afp_toString(KNr))
+            for KNr in self.spezial_bez:
+                if KNr: self.mysql.write_update("ADRESSE", ["Bez"], ["0"], "KundenNr = " + Afp_toString(KNr))
+
     ## clear current SelectionList to behave as a newly created List 
     # @param copy -  flag if a copy should be created or flags which data should be kept during creation of a copy
     # - True: a complete copy is created
@@ -415,4 +486,151 @@ class AfpTour(AfpSelectionList):
     def get_identification_string(self):
         return "Reise am "  +  self.get_string_value("Abfahrt") + " nach " + self.get_string_value("Zielort")
 
+## baseclass for departure route handling  \n
+# not yet implemented completely, actually only used to retrieve route data!
+class AfpToRoute(AfpSelectionList):
+    ## initialize AfpToRoute class
+    # @param globals - global values including the mysql connection - this input is mandatory
+    # @param RouteNr - if given and sb == None, data will be retrieved this database entry
+    # @param sb - if given data will  be retrieved from the actuel AfpSuperbase data
+    # @param debug - flag for debug information
+    # @param complete - flag if data from all tables should be retrieved durin initialisation \n
+    # \n
+    # either RouteNr or sb (superbase) has to be given for initialisation, otherwise a new, clean object is created
+    def  __init__(self, globals, RouteNr = None, sb = None, debug = None, complete = False):
+        AfpSelectionList.__init__(self, globals, "Route", debug)
+        if debug: self.debug = debug
+        else: self.debug = globals.is_debug()
+        self.new = False
+        self.mainindex = "TourNr"
+        self.mainvalue = ""
+        self.kennnr = None
+        self.feldnamen_route = None
+        self.feldnamen_orte = None
+        self.spezial_orte = []
+        if sb:
+            self.mainvalue = sb.get_string_value("TourNr.TNAME")
+            Selection = sb.gen_selection("TNAME", "TourNr", debug)
+            self.selections["TNAME"] = Selection
+        else:
+            if RouteNr:
+                self.mainvalue = Afp_toString(RouteNr)
+            else:
+                self.new = True
+        if self.mainvalue:
+            self.kennnr = 1000*Afp_fromString(self.mainvalue)
+        self.mainselection = "TNAME"
+        self.set_main_selects_entry()
+        if not self.mainselection in self.selections:
+            self.create_selection(self.mainselection)   
+        #  self.selects[name of selection]  [tablename,, select criteria, optional: unique fieldname]
+        self.selects["Route"] = [] 
+        self.selects["Orte"] = [] 
+        if complete: self.create_selections()
+        if self.debug: print "AfpToRoute Konstruktor, TourNr:", self.mainvalue
+    ## destuctor
+    def __del__(self):    
+        if self.debug: print "AfpToRoute Destruktor"
+        #AfpSelectionList.__del__(self) 
+    ## special selection (overwritten from AfpSelectionList) \n
+    # to handle the selection 'Orte'  which holds all attached location data of all departure points
+    # @param selname - name of selection (in our case 'Orte' is implemented)
+    # @param new - flag if a new empty list has to be created
+    def spezial_selection(self, selname, new = False):
+        LocSelection = None
+        #print "AfpToRoute.sepzial_selection:", selname, new
+        if selname == "Route":
+            if new:
+                 LocSelection = AfpSQLTableSelection(self.mysql, "TROUTE", self.debug) 
+                 LocSelection.new_data()
+            else: 
+                LocSelection = AfpSQLTableSelection(self.mysql, "TROUTE", self.debug) 
+                select = "KennNr >= " + Afp_toString(self.kennnr) + " AND KennNr < " + Afp_toString(self.kennnr + 1000)
+                LocSelection.load_data(select)
+            self.feldnamen_route = LocSelection.get_feldnamen()
+        elif selname == "Orte":
+            if new:
+                 LocSelection = AfpSQLTableSelection(self.mysql, "TORT", self.debug) 
+                 LocSelection.new_data()
+            else: 
+                LocSelection = AfpSQLTableSelection(self.mysql, "TORT", self.debug) 
+                data = []
+                kenns = self.get_selection("Route").get_values("KennNr")
+                for ken in kenns:
+                    ort = ken[0] - int(ken[0]/1000)*1000
+                    row = self.mysql.select("*","OrtsNr = " + Afp_toString(ort), "TORT")
+                    if row: 
+                        #print  "AfpToRoute.sepzial_selection row:", ort, row
+                        data.append(row[0])
+                        self.spezial_orte.append(ort)
+                    LocSelection.set_data(data)
+            self.feldnamen_orte = LocSelection.get_feldnamen()
+        return LocSelection
+    ## special save (overwritten from AfpSelectionList) \n
+    # store the special selection 'Bez'
+    # @param selname - name of selection (in our case 'Route' is implemented)
+    def spezial_save(self, selname):
+        if selname == "Route": 
+            route = self.get_selection("Route")
+            orte = self.get_selection("Orte")
+            #look if locations have been changed on this route
+            if orte.has_changed():
+                # check
+                print "AfpToRoute.spezial_save: Orte has changed!"
+                
+    ## get all locations referred by route
+    # @param ken - if given only location having this 'Kennung' are selected (used for rest-point 'RA')
+    # @param rev - if given the selection above is reversed (only locations without this 'Kennung' are selected)
+    def get_all_locations(self, ken = None, rev = None):
+        rows = self.get_selection("Orte").get_values("OrtsNr,Ort,Kennung")
+        orte = {}
+        #print "AfpToRoute.get_all_locations:", rows
+        for row in rows:
+            if ken is None or (row[2] == ken and not rev) or (rev and row[2] != ken):
+                orte[row[0]] = row[1]
+        return orte
+    ## get all locations referred by route
+    # @param skip - if given locations having this 'Kennung' are not selected (used for rest-point 'RA')
+    def get_location_list(self, skip = None):
+        ortsdict = self.get_all_locations(skip, True)
+        return ortsdict.values()
+    ## get location data
+    # @param ortsnr - identifier of departure point
+    # @param index - if ortsnr == None and given, index in location list
+    def get_location_data(self, ortsnr, index = None):
+        row = None
+        if ortsnr and ortsnr in self.spezial_orte:
+            index = self.spezial_orte.index(ortsnr)
+        if not index is None:
+            row_route = self.get_selection("Route").get_values(None, index)[0]
+            row_ort = self.get_selection("Orte").get_values(None, index)[0]
+            row =  row_ort + row_route
+        else:
+            row = self.mysql.select("*","OrtsNr = " + Afp_toString(ortsnr), "TORT")[0]
+        return row
+    ## set location data
+    # @param changed_data - dictionary holding data to be stored
+    # @param ortsnr - if given, identifier of departure point
+    # @param index - if ortsnr == None and given, index in location list \n
+    #  if ortsnr and index is None a new row is added
+    def set_location_data(self, changed_data, ortsnr = None, index = None):
+        route = self.get_selection("Route")
+        orte = self.get_selection("Orte")
+        if ortsnr:
+            index = self.spezial_orte.index(ortsnr)
+        elif index is None:
+            add = True
+            index = orte.get_data_length() + 1
+        for data in changed_data:
+            if data in self.feldnamen_route:
+                route.set_value(data, changed_data[data], index)
+                if add: 
+                    index = route.get_data_length() -1
+                    add = False
+            elif data in self.feldnamen_orte:
+                orte.set_value(data, changed_data[data], index)
+                if add: 
+                    index = orte.get_data_length() -1
+                    add = Flase
+                
 

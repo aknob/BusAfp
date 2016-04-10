@@ -751,7 +751,9 @@ class AfpDialog(wx.Dialog):
         self.Pop_choice()
         self.Pop_lists()
     ## population routine for textboxes \n
-    # covention: textmap holds the entryname to retrieve value from self.data
+    # covention: textmap holds the entryname to retrieve the string value from self.data \n
+    # covention: vtextmap holds the entryname to retrieve the date or float value from self.data \n
+    # differences see Get_TextValue
     def Pop_text(self):
         for entry in self.textmap:
             TextBox = self.FindWindowByName(entry)

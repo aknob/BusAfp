@@ -50,7 +50,7 @@ from AfpBase.AfpBaseFiDialog import AfpLoad_DiFiZahl
 import AfpTourist
 from AfpTourist import AfpToRoutines, AfpToDialog
 from AfpTourist.AfpToRoutines import *
-from AfpTourist.AfpToDialog import AfpTour_copy, AfpLoad_ToAusw, AfpLoad_TourEdit_fromSb
+from AfpTourist.AfpToDialog import AfpTour_copy, AfpLoad_ToAusw, AfpLoad_TourEdit_fromSb, AfpLoad_TouristEdit_fromSb
 
 ## Class AfpToScreen shows 'Tourist' screen and handles interactions
 class AfpToScreen(AfpScreen):
@@ -468,6 +468,13 @@ class AfpToScreen(AfpScreen):
     ## Eventhandler BUTTON, MENU - modify touristic entry \n
     def On_Anmeldung(self,event):   
         print "AfpToScreen Event handler `On_Anmeldung' not implemented"
+        #self.sb.set_debug()      
+        if self.debug: print "AfpToScreen Event handler `On_Anmeldung'"
+        changed = AfpLoad_TouristEdit_fromSb(self.globals, self.sb)
+        #print"On_Tour_modify", changed
+        if changed: 
+            self.Reload()
+        #self.sb.unset_debug()
         event.Skip()  
         
     ## Eventhandler BUTTON , MENU - modify tour
