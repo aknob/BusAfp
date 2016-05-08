@@ -156,23 +156,23 @@ class AfpDialog_AdAttAusw(AfpDialog_Auswahl):
         return Felder
 
 ## loader routine for adress selection dialog
-def AfpLoad_AdAusw(globals, Datei, index, value = "", where = None, attribut = None, ask = False):
+def AfpLoad_AdAusw(globals, Datei, index, value = "", where = None, attribut_text = None, ask = False):
     result = None
     Ok = True
     if ask:
         sort_list = AfpAdresse_getOrderlistOfTable(globals.get_mysql(), index, Datei)
-        value, index, Ok = Afp_autoEingabe(value, index, sort_list, "Adressen")
+        value, index, Ok = Afp_autoEingabe(value, index, sort_list, "Adressen","Bitte Namen eingeben:")
     if Ok:
         if Datei == "ADRESATT":
             DiAusw = AfpDialog_AdAttAusw()
         else:
             DiAusw = AfpDialog_AdAusw()
         #print "AfpLoad_AdAusw:", Datei, Index, value, where
-        if attribut:
-            if len(attribut) > 4 and attribut[:5] == "Bitte":
-                text = attribut
+        if attribut_text:
+            if len(attribut_text) > 4 and attribut_text[:5] == "Bitte":
+                text = attribut_text
             else:
-                text = "Bitte " + attribut + "-Adresse auswählen:".decode("UTF-8")
+                text = "Bitte " + attribut_text + "-Adresse auswählen:".decode("UTF-8")
         else:
             text = "Bitte Adresse auswählen:".decode("UTF-8")
         DiAusw.initialize(globals, index, value, where, text)        

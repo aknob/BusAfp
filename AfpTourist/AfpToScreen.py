@@ -467,11 +467,10 @@ class AfpToScreen(AfpScreen):
 
     ## Eventhandler BUTTON, MENU - modify touristic entry \n
     def On_Anmeldung(self,event):   
-        print "AfpToScreen Event handler `On_Anmeldung' not implemented"
         #self.sb.set_debug()      
         if self.debug: print "AfpToScreen Event handler `On_Anmeldung'"
         changed = AfpLoad_TouristEdit_fromSb(self.globals, self.sb)
-        #print"On_Tour_modify", changed
+        #print"On_Anmeldung", changed
         if changed: 
             self.Reload()
         #self.sb.unset_debug()

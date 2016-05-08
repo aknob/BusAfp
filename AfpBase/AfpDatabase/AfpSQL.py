@@ -65,9 +65,11 @@ class AfpSQL(object):
         if self.debug: print "AfpSQL Destruktor"
     ## switch debug on
     def set_debug(self):
+        print "AfpSQL.set_debug()"
         self.debug = True
     ## turn debug off
     def unset_debug(self):
+        print "AfpSQL.unset_debug()"
         self.debug = False
     ## create connection to mysql database 
     # @param sql_host, sql_user, sql_word, sql_db - host, user, password for connection, name of database
@@ -241,12 +243,12 @@ class AfpSQL(object):
     def lock(self, datei, select):
         Befehl = "SELECT * FROM "  + self.dbname + "." + datei + " WHERE "  + select + " LOCK IN SHARE MODE;"
         self.db_cursor.execute(Befehl)
-        if self.debug: print Befehl
+        if self.debug: print "AfpSQL.lock:",Befehl
     ## remove the lock from the table, rollback to database status befor the lock was set
     def unlock(self):
         Befehl = "ROLLBACK;"
         self.db_cursor.execute(Befehl)
-        if self.debug: print Befehl
+        if self.debug: print "AfpSQL.unlock:", Befehl
     ## return the las inserted database id
     def get_last_inserted_id(self):
         return self.db_lastrowid
@@ -285,7 +287,7 @@ class AfpSQL(object):
             if self.debug: print Befehl
             res = self.db_cursor.execute (Befehl)     
             self.db_cursor.execute("COMMIT;")
-            if self.debug: print  "Deleted Rows:",res
+            if self.debug: print "AfpSQL.write_delete Deleted Rows:",res
     ## update data in database, \n
     # for tables with a primary key
     # @param datei - name of table
@@ -302,7 +304,7 @@ class AfpSQL(object):
         else:
             print "AfpSQL.write_update: length data does not match number of fields (", flen, ",", len(data), ")" 
         if not Befehl is None:
-            if self.debug: print Befehl
+            if self.debug: print "AfpSQL.write_update:", Befehl, "DATA:", data
             self.db_cursor.execute (Befehl, data)
             if not no_commit: self.db_cursor.execute("COMMIT;")      
     ## insert data in database, 
@@ -317,7 +319,7 @@ class AfpSQL(object):
             if len(datarow) == flen:
                 value_clause =  (" ( %(items)s ) VALUES ( %(values)s );") %  {"items" : ",".join(felder), "values" : ",".join( ["%s"]*flen ) }
                 Befehl = "INSERT INTO "  +  datei + value_clause 
-                if self.debug: print Befehl, datarow
+                if self.debug: print "AfpSQL.insert:", Befehl, datarow
                 self.db_cursor.execute (Befehl, datarow)
                 self.db_lastrowid = self.db_cursor.lastrowid
             else:
@@ -336,7 +338,8 @@ class AfpSQLTableSelection(object):
     def  __init__(self, mysql, tablename, debug = False, unique_feldname = None, feldnamen = None):
         #self.dbg = True # hardecode switch for storage logging
         self.dbg = False # hardecode switch for storage logging
-        if debug: # or tablename == "REISEN" or tablename == "PREISE": 
+        #if debug or tablename == "PREISE" or tablename == "TROUTE" or tablename == "TORT": 
+        if debug: 
             print "AfpSQLTableSelection Konstruktor dbg On", tablename
             self.dbg = True # hardecode switch for storage logging
         self.mysql = mysql      
@@ -428,7 +431,8 @@ class AfpSQLTableSelection(object):
     # @param select - select clause to identify desired data
     # @param order - if given desired order of output rows
     def load_data(self, select, order = None):
-        self.select = select
+        self.select = select  
+        if self.dbg: print "AfpSQLTableSelection.load_data:", self.select, self.tablename, order
         self.data = map(list, self.mysql.select("*",self.select, self.tablename, order))
         self.select_clause = self.mysql.get_select_clause()
         self.manipulation = []  

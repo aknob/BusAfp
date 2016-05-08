@@ -349,13 +349,26 @@ def Afp_importFileLines(fname):
     return lines
   
 ## deep copy of an array (list)
-# @param array - arrayu to be copie
+# @param array - arrayu to be copied
 def Afp_copyArray(array):
     new_array = []
     for entry in array:
         new_array.append(entry)
     return new_array
-  
+## swap keys and values of a dictionary (does only work for 1:1 relations)
+# @param dict - dictionary to be swapped
+def Afp_swapDict(dict):
+    new_dict = {}
+    for entry in dict:
+        new_dict[dict[entry]] = entry
+    return new_dict
+## sort two lists simultan
+# @param master - list which triggers the sorting
+# @param slave - list which is sorted simultan to master list
+def Afp_sortSimultan(master, slave):
+    if len(master) == len(slave):
+        master, slave = (list(x) for x in zip(*sorted(zip(master, slave))))  
+    return master, slave
 # path and file handling 
 ## add filername to path
 # @param path - path

@@ -328,7 +328,7 @@ class AfpScreen(wx.Frame):
     ## reload current data to screen
     def Reload(self):
         self.sb.select_current()
-        self.Populate()
+        self.CurrentData()
          
     ## set current screen data
     # @param plus - indicator to step forwards, backwards or stay

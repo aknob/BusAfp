@@ -610,7 +610,6 @@ class AfpDialog_DiChEin(AfpDialog):
     def On_Adresse_aendern(self,event):
         if self.debug: print "Event handler `On_Adresse_aendern'"
         KNr = self.data.get_value("KundenNr.ADRESSE")
-        print "On_Adresse_aendern",KNr
         changed = AfpLoad_DiAdEin_fromKNr(self.data.get_globals(), KNr)
         if changed: self.Populate()
         event.Skip()

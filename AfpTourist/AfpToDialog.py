@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 ## @package AfpTourist.AfpToDialog
-# AfpTosDialog module provides the dialogs and appropriate loader routines needed for touristihandling
+# AfpToDialog module provides the dialogs and appropriate loader routines needed for touristhandling
 #
 #   History: \n
 #        15 Jan. 2016 - inital code generated - Andreas.Knoblauch@afptech.de \n
@@ -44,24 +44,57 @@ import AfpTourist
 from AfpTourist import AfpToRoutines
 from AfpTourist.AfpToRoutines import *
 
-## select a 'fahrtinfo'  or select a new enty is desired \n
-# return index in AfpSQLTableSelection or 'None' in case nothing is selected
-# @param fahrtinfo_selection - AfpSQLTableSelection holding the fahrtinfo data
-# @param allow_new - add line to allow the selection that a new entry is desired
-def AfpToInfo_selectEntry(fahrtinfo_selection, allow_new = False):
-    index = None
-    rows = fahrtinfo_selection.get_values()
-    liste = []
-    if allow_new: liste.append(" --- Neue Fahrtinformation eingeben --- ")
-    for row in rows:
-        zeile = AfpToInfo_genLine(row[5], row[2], row[3], row[1])
-        liste.append(zeile)
-    value,ok = AfpReq_Selection("Bitte Fahrtinformation auswählen!".decode("UTF-8"),"",liste,"Fahrtinformation")
-    if ok:
-        index = liste.index(value)
-        if allow_new: index -= 1
-    return index
-
+## select a location as departure point and modify route \n
+# return the row of location data selected
+# @param typ - typ of list to start with
+# @param allow_new - add line to allow the selection that a new location entries are possible
+def AfpTo_selectLocation(afproute, typ = None, allow_new = True):
+    row = None
+    add_to_route = False
+    if typ is None:
+        typ = ""
+        list,idents = afproute.get_sorted_location_list('routeNoRaste', allow_new)
+        name = "Route: " + afproute.get_value("Name")
+        value, Ok = AfpReq_Selection(name, "Bitte Zustiegsort auswählen!".decode("UTF-8"), list, "Zustieg auswählen".decode("UTF-8"), idents)
+        if Ok and value == -10: typ = "routeOnlyRaste"
+        if Ok and value == -12: typ = "allNoRoute"
+    if typ == "routeOnlyRaste":
+        list, idents = afproute.get_sorted_location_list('routeOnlyRaste')
+        value, Ok = AfpReq_Selection("Bitte Raststätte auswählen".decode("UTF-8"), "auf der der Zustieg erfolgt.", list, "Zustieg auf Raststätte".decode("UTF-8"), idents)
+    elif typ == "allNoRoute" or typ == "all":
+        list, idents = afproute.get_sorted_location_list(typ, allow_new)
+        value, Ok = AfpReq_Selection("Bitte Ort auswählen".decode("UTF-8"), "an dem der Zustieg erfolgt.", list, "Zustiegsort".decode("UTF-8"), idents)
+        if Ok and value == -11:
+            print "value = -11", allow_new
+            ort, ken = AfpTo_editLocation()
+            if ort and ken: 
+                for i, entry in enumerate(list):
+                    check = entry.split("[")[0].strip()
+                    if check == ort: value = idents[i]
+                if value < 0:
+                    row = [-1, ort, ken]
+        if typ == "allNoRoute" and Ok and (value > 0 or (value == -11 and row)):
+            ok2 = AfpReq_Question("Ausgewählten Ort in die Route aufnehmen?".decode("UTF-8"),"","Route")
+            if ok2: add_to_route = True
+    print "AfpDialog_TouristEdit.On_CBOrt Ok:", value, Ok
+    if Ok and value > 0: # location in route selected
+        row = afproute.get_location_data(value)
+        if add_to_route: 
+            afproute.add_location_to_route(value)
+    if Ok and value == -11 and row: # new location created
+        if add_to_route:
+            afproute.add_new_route_location(row[0], row[1])
+        else:
+            afproute.add_new_location(row[0], row[1])
+    return row
+    
+## edit a location entry
+# @param ort - name of location
+# @param ken - short name of location
+def AfpTo_editLocation(ort = "", ken = ""):
+    res = AfpReq_MultiLine("Bitte Zustiegsort und Kennung (2 Buchstaben) eingeben.", "Kennung 'RA' für Raststätte.".decode("UTF-8"), "Text", [["Ort:", ort], ["Kennung:", ken]],"Eingabe Zustiegsort")
+    if len(res) > 1: return res[0].strip(), res[1].strip()
+    else: return None, None
 ## create a copy of the actuel tour with selection of parts to be copied
 # @param data - tour data to be copied
 def AfpTour_copy(data):
@@ -144,10 +177,14 @@ class AfpDialog_TourEdit(AfpDialog):
         self.lock_data = True
         self.agent = None
         self.active = None
+        self.routes = None
+        self.routenr = None
+        self.route = None
         self.SetSize((592,290))
         self.SetTitle("Eigene Reise")
         self.Bind(wx.EVT_ACTIVATE, self.On_Activate)
-    
+        
+    ## set up dialog widgets - overwritten from AfpDialog
     def InitWx(self):
         panel = wx.Panel(self, -1)
         self.label_T_Zielort = wx.StaticText(panel, -1, label="&Zielort:", pos=(16,14), size=(50,18), name="T_Zielort")
@@ -191,6 +228,7 @@ class AfpDialog_TourEdit(AfpDialog):
         self.label_T_Route = wx.StaticText(panel, -1, label="Rou&te:", pos=(16,160), size=(50,18), name="T_Route")
         self.choice_Route = wx.Choice(panel, -1,  pos=(78,150), size=(198,30),  choices="",  name="CRoute")      
         self.choicemap["CRoute"] = "Name.TNAME"
+        self.Bind(wx.EVT_CHOICE, self.On_CRoute, self.choice_Route)  
         self.label_T_Agent = wx.StaticText(panel, -1, label="Agent:", pos=(16,190), size=(50,18), name="T_Agent")
         self.label_AgentName = wx.StaticText(panel, -1, label="", pos=(78,190), size=(198,30), name="AgentName")
         self.labelmap["AgentName"] = "AgentName.REISEN"
@@ -208,31 +246,51 @@ class AfpDialog_TourEdit(AfpDialog):
     def store_data(self):
         self.Ok = False
         data = {}
-        print "AfpDialog_TourEdit.store_data changed_text:",self.changed_text
         for entry in self.changed_text:
             name, wert = self.Get_TextValue(entry)
             data[name] = wert
         if not self.agent is None:
             data = self.add_agent_data(data)
-        print "store_data data:",self.new,self.change_data, data
+        if self.route:  
+            if self.route < 0:
+                self.add_new_route()
+            data["Route"] = self.route
+        #print "AfpDialog_TourEdit.store_data data:",self.new,self.change_data, data
         if data or self.change_data:
             if self.new:
                 data = self.complete_data(data)
                 self.data.add_afterburner("PREISE", "Kennung = 100*FahrtNr + PreisNr")
             self.data.set_data_values(data, "REISEN")
+            #self.data.mysql.set_debug()
             self.data.store()
+            #self.data.mysql.unset_debug()
             self.Ok = True
         self.changed_text = []   
         self.change_data = False  
-      
+     
+    ## complete data if plain dialog has been started
+    # @param data - SelectionList where data has to be completed
     def complete_data(self, data):
         if self.choice_Art.GetStringSelection() == "Eigen":
             if not "Art" in data: data["Art"] = "Eigen"
+            if not "Kennung" in data: 
+                data["Kennung"] = ""
+                if data["Art"] == "Eigen":
+                    Kst = self.data.get_value("Kostenst")
+                    if "Kostenst" in data: Kst = data["Kostenst"]
+                    if Kst: data["Kennung"] = Afp_toString(Kst)
             if "Abfahrt" in data: 
                 month = Afp_toString(data["Abfahrt"].month)
                 if len(month) == 1: month = "0" + month
                 data["ErloesKt"] = "ERL" + month
         return data
+        
+    ## create a new route entry
+    def add_new_route(self):
+        rname = self.routes[self.routenr.index(self.route)]
+        select = self.data.get_selection("TNAME")
+        select.new_data(False, True) 
+        select.set_value("Name", rname)
  
     ## add additonal agent data, if agent has been changed
     # @param data - data where additional data is added
@@ -338,7 +396,7 @@ class AfpDialog_TourEdit(AfpDialog):
         if self.debug: print "Event handler `On_Agent'"
         name = self.data.get_value("AgentName")
         if not name: name = "a"
-        text = "Bitte Veranstalter von Reise auswählen:"
+        text = "Bitte den Veranstalter der Reise auswählen:"
         #self.data.globals.mysql.set_debug()
         KNr = AfpLoad_AdAusw(self.data.get_globals(),"ADRESATT","AttName",name, "Attribut = \"Reiseveranstalter\"", text)
         #self.data.globals.mysql.unset_debug()
@@ -431,6 +489,34 @@ class AfpDialog_TourEdit(AfpDialog):
         self.set_kind()
         event.Skip()
         
+    ## Eventhandler CHOICE - handle route selection
+    # @param event - event which initiated this action   
+    def On_CRoute(self,event):
+        if self.debug: print "Event handler `On_CRoute'"
+        sel = self.choice_Route.GetCurrentSelection() 
+        #print "AfpDialog_TourEdit.On_CRoute sel:", sel
+        if sel:
+            self.route = self.routenr[sel-1]
+        else:
+            rname = ""
+            rname, Ok = AfpReq_Text("Neue Transferroute wird erstellt,", "bitte Bezeichnung der neuen Route eingeben.", rname, "Neue Route")
+            if Ok and rname:
+                lastnr = self.routenr[-1]
+                if lastnr > 0: lastnr = 0
+                self.choice_Route.Append(rname)
+                self.routes.append(rname)
+                self.route = lastnr-1
+                #print"AfpDialog_TourEdit.On_CRoute:", self.route
+                self.routenr.append(self.route)
+                self.choice_Route.SetSelection(len(self.routes))
+            else:
+                # reset
+                if self.route: route = self.route
+                else: route = self.data.get_value("Route")
+                ind = self.routenr.index(route) + 1
+                self.choice_Route.SetSelection(ind)
+        event.Skip()
+        
     ## event handler when window is activated
     # @param event - event which initiated this action   
     def On_Activate(self,event):
@@ -438,10 +524,10 @@ class AfpDialog_TourEdit(AfpDialog):
         if self.active is None:
             if self.debug: print "Event handler `On_Activate'"
             self.active = True
-            routes = AfpTourist_getRouteNames(self.data.globals.get_mysql())
+            self.routes, self.routenr = AfpTourist_getRouteNames(self.data.globals.get_mysql())
             #print "AfpDialog_TourEdit.On_Activate:", routes
-            self.choice_Route.Append(" --- Keine Transferroute --- ")
-            for route in routes[0]:
+            self.choice_Route.Append(" --- Neue Transferroute --- ")
+            for route in self.routes:
                 self.choice_Route.Append(Afp_toString(route))
             self.Pop_choice()
             self.set_kind()
@@ -472,7 +558,7 @@ def AfpLoad_TourEdit_fromFNr(globals, fahrtnr):
     Tour = AfpTour(globals, fahrtnr)
     return AfpLoad_TourEdit(Tour)
  
- 
+ ## allows the display and manipulation of a tour price entry
 class AfpDialog_TourPrices(AfpDialog):
     def __init__(self, *args, **kw):
         AfpDialog.__init__(self,None, -1, "")
@@ -481,6 +567,7 @@ class AfpDialog_TourPrices(AfpDialog):
         self.SetSize((484,163))
         self.SetTitle("Preis ändern".decode("UTF-8"))
 
+    ## set up dialog widgets - overwritten from AfpDialog
     def InitWx(self):
         panel = wx.Panel(self, -1)
         self.label_T_Fuer = wx.StaticText(panel, -1, label="für".decode("UTF-8"), pos=(20,10), size=(24,18), name="T_Fuer")
@@ -542,7 +629,7 @@ class AfpDialog_TourPrices(AfpDialog):
             data["Typ"] = self.typ
         if not self.noPrv is None:
             data["NoPrv"] = self.noPrv
-        if data:
+        if data and (len(data) > 2 or not self.new):
             if self.new: data = self.complete_data(data)
             #print "AfpDialog_TourPrices.store_data data:", data
             self.data.set_data_values(data, "PREISE", self.index)
@@ -647,31 +734,39 @@ class AfpDialog_TouristEdit(AfpDialog):
         self.change_data = False
         AfpDialog.__init__(self,None, -1, "")
         self.lock_data = True
-        self.agent = None
         self.active = None
+        self.agent = None
+        self.preisnr = None
+        self.orte = None
+        self.ortsnr = None
+        self.ort = None
         self.route = None
+        self.zustand = None
+        self.sameRechNr = None
         self.SetSize((500,410))
         self.SetTitle("Anmeldung")
         self.Bind(wx.EVT_ACTIVATE, self.On_Activate)
     
+    ## set up dialog widgets - overwritten from AfpDialog
     def InitWx(self):
         panel = wx.Panel(self, -1)
         self.label_Zustand = wx.StaticText(panel, -1,  pos=(12,68), size=(140,18), name="Zustand")
-        self.labelmap["Zustand"] = "Zustand.Anmeld"
+        self.labelmap["Zustand"] = "Zustand.ANMELD"
         self.label_RechNr = wx.StaticText(panel, -1,  pos=(160,68), size=(130,18), name="RechNr")
-        self.labelmap["RechNr"] = "RechNr.Anmeld"
+        self.labelmap["RechNr"] = "RechNr.ANMELD"
         self.label_Datum = wx.StaticText(panel, -1,  pos=(300,68), size=(80,18), name="Datum")
-        self.labelmap["Datum"] = "Anmeldung.Anmeld"
+        self.labelmap["Datum"] = "Anmeldung.ANMELD"
         self.label_TFuer = wx.StaticText(panel, -1, label="für".decode("UTF-8"), pos=(12,90), size=(20,16), name="TFuer")
         self.label_Zielort = wx.StaticText(panel, -1, pos=(32,90), size=(180,34), name="Zielort")
-        self.labelmap["Zielort"] = "Zielort.Reisen"
-        self.label_Buero = wx.StaticText(panel, -1, pos=(224,90), size=(156,34), name="Buero")
+        self.labelmap["Zielort"] = "Zielort.REISEN"
+        self.label_Buero = wx.StaticText(panel, -1, pos=(224,90), size=(156,34), style=wx.ST_NO_AUTORESIZE, name="Buero")
+        self.labelmap["Buero"] = "Name.Agent"
         self.label_Vorname = wx.StaticText(panel, -1, pos=(12,134), size=(200,18), name="Vorname")
-        self.labelmap["Vorname"] = "Vorname.Adresse"
+        self.labelmap["Vorname"] = "Vorname.ADRESSE"
         self.label_Nachname = wx.StaticText(panel, -1, pos=(12,150), size=(200,18), name="Nachname")
-        self.labelmap["Nachname"] = "Name.Adresse"
+        self.labelmap["Nachname"] = "Name.ADRESSE"
         self.label_Info = wx.StaticText(panel, -1, pos=(224,134), size=(156,36), name="Info")
-        self.labelmap["Info"] = "Info.Anfrage"
+        self.labelmap["Info"] = "Info.ANFRAGE"
         self.label_TBem = wx.StaticText(panel, -1, label="&Bem:", pos=(10,174), size=(36,20), name="TBem")
         self.text_Bem = wx.TextCtrl(panel, -1, value="", pos=(50,174), size=(330,22), style=0, name="Bem")
         self.textmap["Bem"] = "Bem.ANMELD"
@@ -682,39 +777,44 @@ class AfpDialog_TouristEdit(AfpDialog):
         self.label_TAb = wx.StaticText(panel, -1, label="Abfahrts&ort:", pos=(14,350), size=(80,20), name="TAb")
         self.label_TGrund = wx.StaticText(panel, -1, label="Reisepreis:", pos=(210,264), size=(78,20), name="TGrund")
         self.label_Grund = wx.StaticText(panel, -1, pos=(300,264), size=(78,20), name="Grund")
-        self.labelmap["Grund"] = "Preis.PREISE"
+        self.labelmap["Grund"] = "Preis.Preis"
         self.label_TExtra = wx.StaticText(panel, -1, label="Extras:", pos=(210,284), size=(78,20), name="TExtra")
         self.label_Extra = wx.StaticText(panel, -1, pos=(300,284), size=(78,20), name="Extra")
-        self.labelmap["Extra"] = "Extra.Anmeld"
+        self.labelmap["Extra"] = "Extra.ANMELD"
         self.label_TTransfer = wx.StaticText(panel, -1, label="Transfer:", pos=(208,304), size=(78,20), name="TTransfer")
         self.label_Transfer = wx.StaticText(panel, -1, pos=(300,304), size=(78,20), name="Transfer")
-        self.labelmap["Transfer"] = "Transfer.Anmeld"
+        self.labelmap["Transfer"] = "Transfer.ANMELD"
         self.label_TPreis = wx.StaticText(panel, -1, label="Preis:", pos=(210,330), size=(78,20), name="TPreis")
         self.label_Preis = wx.StaticText(panel, -1, pos=(300,330), size=(78,20), name="Preis")
-        self.labelmap["Preis"] = "Preis.Anmeld"
+        self.labelmap["Preis"] = "Preis.ANMELD"
         self.label_TBezahlt = wx.StaticText(panel, -1, label="bezahlt:", pos=(210,354), size=(78,20), name="TBezahlt")
         self.label_Zahlung = wx.StaticText(panel, -1, pos=(300,354), size=(78,20), name="Zahlung")
-        self.labelmap["Zahlung"] = "Zahlung.Anmeld"
+        self.labelmap["Zahlung"] = "Zahlung.ANMELD"
         self.label_ZahlDat = wx.StaticText(panel, -1, pos=(300,374), size=(78,20), name="ZahlDat")
-        self.labelmap["ZahlDat"] = "ZahlDat.Anmeld"
+        self.labelmap["ZahlDat"] = "ZahlDat.ANMELD"
         # ListBoxes
         self.list_Preise = wx.ListBox(panel, -1, pos=(12,264), size=(194,82), name="Preise")
-        self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_Anmeld_Preis, self.list_Preise)
+        self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_Anmeld_Preise, self.list_Preise)
         self.listmap.append("Preise")
         self.list_Alle = wx.ListBox(panel, -1, pos=(12,10), size=(476,50), name="Alle")
         self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_Anmeld_Alle, self.list_Alle)
         self.listmap.append("Alle")
+        self.keepeditable.append("Alle")
     #FOUND: DialogComboBox "Weiter", conversion not implemented due to lack of syntax analysis!
     
         # COMBOBOX
         self.combo_Ort = wx.ComboBox(panel, -1, value="", pos=(12,368), size=(194,20), style=wx.CB_DROPDOWN|wx.CB_SORT, name="Ort")
         self.Bind(wx.EVT_COMBOBOX, self.On_CBOrt, self.combo_Ort)
+        self.combomap["Ort"] = "Ort.TORT"
         # BUTTON
+        self.choice_Zustand = wx.Choice(panel, -1,  pos=(390,62), size=(100,30),  choices= [""] + AfpTourist_getZustandList() ,  name="CZustand")      
+        #self.choicemap["CZustand"] = "Zustand.ANMELD"
+        self.Bind(wx.EVT_CHOICE, self.On_CZustand, self.choice_Zustand)  
         self.button_Agent = wx.Button(panel, -1, label="&Reisebüro".decode("UTF-8"), pos=(390,96), size=(100,30), name="Agent")
-        self.Bind(wx.EVT_BUTTON, self.On_Anmeld_Agent, self.button_Agent)
+        self.Bind(wx.EVT_BUTTON, self.On_Agent, self.button_Agent)
         self.button_Adresse = wx.Button(panel, -1, label="A&dresse", pos=(390,130), size=(100,30), name="Adresse")
         self.Bind(wx.EVT_BUTTON, self.On_Adresse_aendern, self.button_Adresse)
-        self.check_Mehrfach = wx.CheckBox(panel, -1, label="", pos=(390,190), size=(84,14), name="Mehrfach")
+        self.check_Kopie = wx.CheckBox(panel, -1, label="Kopie", pos=(390,190), size=(84,14), name="Kopie")
         self.button_Neu = wx.Button(panel, -1, label="&Neu", pos=(390,204), size=(100,30), name="Neu")
         self.Bind(wx.EVT_BUTTON, self.On_Anmeld_Neu, self.button_Neu)
         self.button_Storno = wx.Button(panel, -1, label="&Stornierung", pos=(390,256), size=(100,30), name="Storno")
@@ -732,6 +832,7 @@ class AfpDialog_TouristEdit(AfpDialog):
         routenr = data.get_value("Route.REISEN")
         self.route = AfpToRoute(data.get_globals(), routenr, None, self.debug, True)
         super(AfpDialog_TouristEdit, self).attach_data(data, new, editable)
+        if new: self.Populate()
 
     ## read values from dialog and invoke writing into data         
     def store_data(self):
@@ -741,12 +842,24 @@ class AfpDialog_TouristEdit(AfpDialog):
         for entry in self.changed_text:
             name, wert = self.Get_TextValue(entry)
             data[name] = wert
+        if self.preisnr:
+            data["PreisNr"] = self.preisnr
+        if self.ort:
+            data["Ab"] = self.ort
         if not self.agent is None:
-            data = self.add_agent_data(data)
+            if self.agent:
+                data["AgentNr"] = self.agent.get_value("KundenNr")
+                data["AgentName"] = self.agent.get_value("Name")
+            else:
+                data["AgentNr"] = None
+                data["AgentName"] = None
+        if self.zustand:
+            data["Zustand"] = self.zustand
         print "store_data data:",self.new,self.change_data, data
         if data or self.change_data:
             if self.new:
-                data = self.complete_data(data)
+                if not "Zustand" in data:
+                    data["Zustand"] = AfpTourist_getZustandList[-1]
                 self.data.add_afterburner("PREISE", "Kennung = 100*FahrtNr + PreisNr")
             self.data.set_data_values(data, "REISEN")
             self.data.store()
@@ -768,19 +881,21 @@ class AfpDialog_TouristEdit(AfpDialog):
         self.store_data()
 
     ## common population routine overwritten from AfpDialog
-    def Populate(self):
-        super(AfpDialog_TouristEdit, self).Populate()
-        ortsnr = self.data.get_value("Ab.Anmeld")
-        row = self.route.get_location_data(ortsnr)
-        ort = None
-        if row: ort = row[1]
-        self.combo_Ort.SetValue(Afp_toString(ort))
+    #def Populate(self):
+        #super(AfpDialog_TouristEdit, self).Populate()
+        #ortsnr = self.data.get_value("Ab.Anmeld")
+        #row = self.route.get_location_data(ortsnr)
+        #ort = None
+        #if row: ort = row[1]
+        #self.combo_Ort.SetValue(Afp_toString(ort))
 
     ## populate the 'Preise' list, \n
     # this routine is called from the AfpDialog.Populate
     def Pop_Preise(self):
-        rows = self.data.get_value_rows("ANMELDEX", "Preis,Bezeichnung,Kennung")
+        row = self.data.get_value_rows("Preis", "Preis,Bezeichnung,Kennung")[0]
         liste = ["--- Extraleistung hinzufügen ---".decode("UTF-8")]
+        liste.append(Afp_toFloatString(row[0]).rjust(10) + "  " + Afp_toString(row[1]))
+        rows = self.data.get_value_rows("ANMELDEX", "Preis,Bezeichnung,Kennung")
         #print "AfpDialog_TouristEdit.Pop_Preise:", rows
         for row in rows:
             liste.append(Afp_toFloatString(row[0]).rjust(10) + "  " + Afp_toString(row[1]))
@@ -789,67 +904,224 @@ class AfpDialog_TouristEdit(AfpDialog):
     ## populate the 'Alle' list, \n
     # this routine is called from the AfpDialog.Populate
     def Pop_Alle(self):
-        rows = self.data.get_value_rows("RechNr", "RechNr,Preis,Zahlung,KundenNr")
+        rows = self.data.get_value_rows("RechNr", "RechNr,Preis,Zahlung,KundenNr,AnmeldNr")
         liste = []
-        #print "AfpDialog_TouristEdit.Pop_Preise:", rows
+        self.sameRechNr = []
+        #print "AfpDialog_TouristEdit.Pop_Alle:", rows
         for row in rows:
             name = AfpAdresse(self.data.get_globals(), row[3]).get_name()
             liste.append( Afp_toString(row[0]) + Afp_toFloatString(row[1]).rjust(10) + Afp_toFloatString(row[2]).rjust(10) + "  " + name)
+            self.sameRechNr.append(row[4])
         self.list_Alle.Clear()
         self.list_Alle.InsertItems(liste, 0)
- 
-    ## Eventhandler TEXT-KILLFOCUS - check date syntax 
-    # @param event - event which initiated this action 
-    def On_Check_Datum(self,event):
-        if self.debug: print "Event handler `On_Check_Datum'" 
-        object = event.GetEventObject()
-        datum = object.GetValue()
-        date = Afp_ChDatum(datum)
-        object.SetValue(date)
-        self.On_KillFocus(event)
-        event.Skip()
-        
+        #print "AfpDialog_TouristEdit.Pop_Alle:", self.sameRechNr
+         
     ## Eventhandler CHOICE - enable/disable widgets according to choice value
     # @param event - event which initiated this action   
-    def On_CArt(self,event):
-        if self.debug: print "Event handler `On_CArt'"
-        self.set_kind()
+    def On_CZustand(self,event):
+        if self.debug: print "Event handler `On_CZustand'"
+        self.zustand = self.choice_Zustand.GetStringSelection()
+        self.label_Zustand.SetLabel(self.zustand)
+        self.choice_Zustand.SetSelection(0)
         event.Skip()
         
     ## event handler when window is activated
     # @param event - event which initiated this action   
     def On_CBOrt(self,event):
-        print "Event handler `On_CBOrt' not implemented"
-        
-   ## event handler when window is activated
+        if self.debug: print "Event handler `On_CBOrt'"
+        select = self.combo_Ort.GetStringSelection()
+        row = []
+        print "AfpDialog_TouristEdit.On_CBOrt:", select
+        if select == self.route.get_spezial_text("raste"):
+            row = AfpTo_selectLocation(self.route,"routeOnlyRaste")
+        elif select == self.route.get_spezial_text("free"):
+            row = AfpTo_selectLocation(self.route, "allNoRoute")
+        if row: # selection from dependend dialog
+            self.ort = row[0]
+            self.combo_Ort.SetValue(row[1] + " [" + row[2] + "]")
+        else:
+            if row is None: # cancel selected, restore current selection
+                if self.ort: ort = self.ort
+                else: ort = self.data.get_value("Ab")
+                row = self.route.get_location_data(ort)
+                self.combo_Ort.SetValue(row[1] + " [" + row[2] + "]")
+            else: # direct  selection
+                self.ort = self.ortsnr[self.orte.index(select)]
+        print "AfpDialog_TouristEdit.On_CBOrt Ort:", self.ort
+    ## event handler when window is activated
     # @param event - event which initiated this action   
     def On_Activate(self,event):
         if self.active is None:
             if self.debug: print "Event handler `On_Activate'"
-            orte = self.route.get_location_list('RA')
-            orte.append("Raststätten".decode("UTF-8"))
-            orte = sorted(orte)
-            for ort in orte:
+            self.orte, self.ortsnr = self.route.get_sorted_location_list("routeNoRaste", True)
+            for ort in self.orte:
                 self.combo_Ort.Append(Afp_toString(ort))
             self.active = True
         
-    # Event Handlers 
-    def On_Anmeld_Preis(self,event):
-        print "Event handler `On_Anmeld_Preis' not implemented!"
+    ## Eventhandler LISTBOX: extra price is doubleclicked
+    # @param event - event which initiated this action   
+    def On_Anmeld_Preise(self,event):
+        if self.debug: print "Event handler `On_Anmeld_Preise'"
+        index = self.list_Preise.GetSelections()[0] - 2
+        if index < 0: 
+            #print "AfpDialog_TouristEdit.On_Anmeld_Preise:", index
+            row = self.get_Preis_row(index)
+            if row:
+                self.actualise_preise(row)
+                self.change_data = True
+        else:
+            #print "AfpDialog_TouristEdit.On_Anmeld_Preise loeschen:", index
+            extra = self.data.get_value_rows("AnmeldEx", "Preis", index)[0][0]
+            self.data.delete_row("AnmeldEx", index)
+            self.add_extra_preis_value(-extra)
+            self.change_data = True
+        self.Pop_Preise()
         event.Skip()
-
+    
+    ## select or generate new basic or extra price \n
+    # the result is delivered in following order: 
+    # "Preis, Bezeichnung, NoPrv, Kennung, Typ"
+    # @param index - action indicator
+    # - -1: select basic price
+    # - -2: select or generate extra price
+    def get_Preis_row(self, index):
+        res_row = None
+        liste = []
+        listentries = []
+        idents = []
+        name = self.data.get_name()
+        rows = self.data.get_value_rows("PREISE", "Preis,Bezeichnung,NoPrv,Kennung,Typ")
+        if index == -1:
+            for row in rows:
+                if row[4] == "Grund":
+                    liste.append(Afp_toFloatString(row[0]).rjust(10) + "  " + Afp_toString(row[1]))
+                    listentries.append(row)
+                    idents.append(row[3])
+            #if len(liste) > 1: 
+            name = self.data.get_name()
+            value, Ok = AfpReq_Selection("Grundpreis für die Anmeldung von ".decode("UTF-8") + name + " ändern?".decode("UTF-8"), "Bitte neuen Grundpreis auswählen!".decode("UTF-8"), liste, "Grundpreis".decode("UTF-8"), idents)
+        elif index == -2:
+            liste.append(" --- freien Extrapreis eingeben --- ")
+            listentries.append(liste[0])
+            idents.append(-1)
+            extras = self.data.get_value_rows("ExtraPreis", "Preis,Bezeichnung,NoPrv,Kennung,Typ")
+            ind = 1
+            for ex in extras:
+                liste.append(Afp_toFloatString(ex[0]).rjust(10) + "  " + Afp_toString(ex[1]))
+                listentries.append(ex)
+                idents.append(ind)
+                ind += 1
+            for row in rows:
+                if row[4] == "Aufschlag":
+                    liste.append(Afp_toFloatString(row[0]).rjust(10) + "  " + Afp_toString(row[1]))
+                    listentries.append(row)
+                    idents.append(row[3])
+            #if len(liste) > 1: 
+            value, Ok = AfpReq_Selection("Extrapreis für die Anmeldung von ".decode("UTF-8") + name + " eingeben?".decode("UTF-8"), "Bitte neues Extra auswählen!".decode("UTF-8"), liste, "Grundpreis".decode("UTF-8"), idents)
+            #print "AfpDialog_TouristEdit.get_Preis_row Extrapreis:", Ok, value
+        if Ok:
+            if value == -1: # manual entry
+                res_row = AfpReq_MultiLine("Bitte Extrapreis und Bezeichnung manuell eingeben.", "", ["Text","Text","Check"], [["Preis:", ""], ["Bezeichnung:", ""], "Verprovisionierbar"],"Eingabe Extrapreis")
+                if res_row:
+                    res_row[0] = Afp_fromString(res_row[0])
+                    res_row[2] = not res_row[2]
+                    res_row.append(0)
+                    res_row.append("")
+                #print "AfpDialog_TouristEdit.get_Preis_row Manual:", Ok, value, res_row
+            elif value < len(liste): # common extra price selected
+                res_row = listentries[value]
+                if not res_row[0]:
+                    value, Ok = AfpReq_Text("Bitte Preis für das Extra".decode("UTF-8"), "'" + res_row[1] + "' eingeben!","0.0","Preiseingabe")
+                    if Ok:
+                        res_row[0] = Afp_floatString(value)
+                #print "AfpDialog_TouristEdit.get_Preis_row Common:", Ok, value, res_row
+            else: # tour specific basic or extra price selected
+                res_row = listentries[idents.index(value)]
+                #print "AfpDialog_TouristEdit.get_Preis_row Tour:", Ok, value, res_row
+        return res_row
+    ## actualise all price data according to input row
+    # @param row - holding data of selected or manually created price
+    def actualise_preise(self, row):
+        if row[4] == "Grund":
+            if self.preisnr: preisnr = self.preisnr
+            else: preisnr = self.data.get_value("PreisNr") 
+            if not preisnr == row[3]:
+                self.preisnr = row[3]
+                select = "Kennung = " + Afp_toString(self.preisnr)
+                self.data.get_selection("Preis").load_data(select)
+                plus = row[0] - Afp_fromString(self.label_Grund.GetLabel())
+                if plus:
+                    self.label_Grund.SetLabel( Afp_toString(row[0]))
+                    preis = Afp_fromString(self.label_Preis.GetLabel())
+                    preis += plus
+                    self.label_Preis.SetLabel(Afp_toString(preis))
+        else:
+            changed_data = {"AnmeldNr": self.data.get_value("AnmeldNr"), "Preis": row[0], "Bezeichnung":row[1], "NoPrv":row[2]}
+            self.data.get_selection("ANMELDEX").add_data_values(changed_data)
+            self.add_extra_preis_value(row[0])
+    ## add value to 'extra' and 'preis' Lables
+    # @param: plus - value to be added
+    def add_extra_preis_value(self, plus):
+            extra = Afp_fromString(self.label_Extra.GetLabel())
+            extra += plus
+            self.label_Extra.SetLabel(Afp_toString(extra))
+            preis = Afp_fromString(self.label_Preis.GetLabel())
+            preis += plus
+            self.label_Preis.SetLabel(Afp_toString(preis))
+        
+    ## Eventhandler LISTBOX: another tourist entry is selected in same RechNr listbox
+    # @param event - event which initiated this action   
     def On_Anmeld_Alle(self,event):
-        print "Event handler `On_Anmeld_Alle' not implemented!"
+        if self.debug: print "Event handler `On_Anmeld_Alle'"
+        index = self.list_Alle.GetSelections()[0]
+        ANr = self.sameRechNr[index] 
+        #print "AfpDialog_TouristEdit.On_Anmeld_Alle Index:", index, self.data.get_value("AnmeldNr") , ANr
+        if self.data.get_value("AnmeldNr") != ANr:
+            #print "AfpDialog_TouristEdit.On_Anmeld_Alle: change data:", ANr
+            data = AfpTourist(self.data.globals, ANr)
+            if data:
+                self.attach_data(data)
         event.Skip()
 
-    def On_Anmeld_Agent(self,event):
-        print "Event handler `On_Anmeld_Agent' not implemented!"
-        event.Skip()
-
+    ## Eventhandler BUTTON - select travel agency
+    # @param event - event which initiated this action   
+    def On_Agent(self,event):
+        if self.debug: print "Event handler `On_Agent'"
+        name = self.data.get_value("Name.Agent")
+        if not name: name = "a"
+        text = "Bitte Vermittler für diese Reise auswählen:"
+        #self.data.globals.mysql.set_debug()
+        KNr = AfpLoad_AdAusw(self.data.get_globals(),"ADRESATT","AttName",name, "Attribut = \"Reisebüro\"".decode("UTF-8"), text)
+        #self.data.globals.mysql.unset_debug()
+        print "AfpDialog_TouristEdit.On_Agent:", KNr
+        changed = False
+        if KNr:
+            self.agent = AfpAdresse(self.data.get_globals(),KNr)
+            self.label_Buero.SetLabel(self.agent.get_name())
+            changed = True
+        else:
+            if self.data.get_value("AgentNr") or self.agent:
+                Ok = AfpReq_Question("Buchung nicht über Reisebüro?".decode("UTF-8"),"Vermittlereintrag löschen?".decode("UTF-8"),"Reisebüro löschen?".decode("UTF-8"))
+                if Ok: 
+                    if self.agent: self.agent = None
+                    else: self.agent = False
+                    self.label_Buero.SetLabel("")
+                    changed = True
+        if changed:
+            self.choice_Edit.SetSelection(1)
+            self.Set_Editable(True)
+        event.Skip()  
+ 
+   ##Eventhandler BUTTON - change address \n
+    # invokes the AfpDialog_DiAdEin dialog
+    # @param event - event which initiated this action   
     def On_Adresse_aendern(self,event):
-        print "Event handler `On_Adresse_aendern' not implemented!"
+        if self.debug: print "Event handler `On_Adresse_aendern'"
+        KNr = self.data.get_value("KundenNr.ADRESSE")
+        changed = AfpLoad_DiAdEin_fromKNr(self.data.get_globals(), KNr)
+        if changed: self.Populate()
         event.Skip()
-
+ 
     def On_Anmeld_Neu(self,event):
         print "Event handler `On_Anmeld_Neu' not implemented!"
         event.Skip()
@@ -863,26 +1135,36 @@ class AfpDialog_TouristEdit(AfpDialog):
         event.Skip()
 # end of class AfpDialog_TouristEdit
 
-## loader routine for dialog TourEin
+## loader routine for dialog TouristEdit
 def AfpLoad_TouristEdit(data):
-    DiTouristEin = AfpDialog_TouristEdit(None)
-    new = data.is_new()
-    DiTouristEin.attach_data(data, new)
-    DiTouristEin.ShowModal()
-    Ok = DiTouristEin.get_Ok()
-    DiTouristEin.Destroy()
-    return Ok
-## loader routine for dialog TourEin according to the given superbase object \n
+    if data:
+        DiTouristEin = AfpDialog_TouristEdit(None)
+        new = data.is_new()
+        DiTouristEin.attach_data(data, new)
+        DiTouristEin.ShowModal()
+        Ok = DiTouristEin.get_Ok()
+        DiTouristEin.Destroy()
+        return Ok
+    else: return False
+## loader routine for dialog TouristEdit according to the given superbase object \n
 # @param globals - global variables holding database connection
 # @param sb - AfpSuperbase object, where data can be taken from
 def AfpLoad_TouristEdit_fromSb(globals, sb):
     Tourist = AfpTourist(globals, None, sb, sb.debug, False)
-    if sb.eof(): Tourist.set_new(True)
+    #if sb.eof("FahrtNr","ANMELD"): Tourist.set_new(True)
+    if Tourist.is_new():
+        FNr = sb.get_value("FahrtNr.REISEN")
+        text = "Bitte Name des Kunden auswählen:".decode("UTF-8")
+        KNr = AfpLoad_AdAusw(globals,"ADRESSE","NamSort","", None, text, True)
+        if KNr: Tourist.set_new(FNr, KNr)
+        else: Tourist = None
+    #if Tourist: print "AfpLoad_TouristEdit_fromSb Tourist:", Tourist.view()
+    #else: print "AfpLoad_TouristEdit_fromSb Tourist:", Tourist
     return AfpLoad_TouristEdit(Tourist)
-## loader routine for dialog DiChEin according to the given charter identification number \n
+## loader routine for dialog TouristEdit according to the given tourist identification number \n
 # @param globals - global variables holding database connection
-# @param fahrtnr -  identification number of charter to be filled into dialog
-def AfpLoad_TourEdit_fromFNr(globals, anmeldnr):
+# @param anmeldnr -  identification number of tourist emtry to be filled into dialog
+def AfpLoad_TouristEdit_fromANr(globals, anmeldnr):
     Tourist = AfpTourist(globals, anmeldnr)
     return AfpLoad_TourEdit(Tourist)
   

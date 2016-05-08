@@ -11,6 +11,9 @@
 # - AfpDialog - dialog base class
 #
 #   History: \n
+#        05 May 2016 - allow typ list in AfpReq_MultiLine 
+#        10 Apr. 2016 - add 'keepeditable' flag to AfpDialog 
+#                              - add 'comboboxes' to populate and set_editable  - Andreas.Knoblauch@afptech.de \n
 #        05 Mar. 2015 - move screen base class to separate file - Andreas.Knoblauch@afptech.de \n
 #        26 Feb. 2015 - move common dialogs to AfpBaseDialogCommon - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
@@ -199,15 +202,19 @@ def AfpReq_EditText(oldtext = "", header = "TextEditor", label1 = None, label2 =
 # - return an empty list, if Cancel is hit
 # - return None, if Delete is hit
 # @param text1, text2 - two lines of text to be displayed (used for historical reasons)
-# @param typ - typ of dialog entries, "Text" and "Check" are possible
+# @param typ - typ of dialog entries, "Text" and "Check" are possible, or a list of those values
 # @param liste - list with data for dialog entries; 
 # in case "Text" - [label, text], in case "Check" - checked text
 # @param header - header to be displayed on top ribbon of dialog
 # @param width - width of dialog
 # @param no_delete - flag if 'delete' button should be hidden
 def AfpReq_MultiLine(text1, text2, typ, liste, header = "Multi Editing", width = 250, no_delete = True):
+    if Afp_isString(typ):
+        types = [typ]
+    else:
+        types = typ
     dialog = AfpDialog_MultiLines(None, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
-    dialog.attach_data(text1 + '\n' + text2 , header, [typ], liste, width, no_delete)
+    dialog.attach_data(text1 + '\n' + text2 , header, types, liste, width, no_delete)
     dialog.ShowModal()
     result = dialog.get_result()
     dialog.Destroy()
@@ -397,6 +404,9 @@ class AfpDialog_MultiLines(wx.Dialog):
         self.SetTitle(header)
         self.types = types
         self.lines = len(datas)
+        self.texts = [None]*self.lines
+        self.sizers = [None]*self.lines
+        self.check = [None]*self.lines
         if no_delete: self.button_Delete.Hide()
         if len(self.types) < self.lines: 
             while len(self.types) < self.lines:
@@ -406,16 +416,16 @@ class AfpDialog_MultiLines(wx.Dialog):
             data = datas[i]
             if self.types[i] == "Text":
                 self.label.append(wx.StaticText(self, -1, label=data[0], name=data[0]))
-                self.texts.append(wx.TextCtrl(self, -1, value=data[1], name=data[1]))
-                self.sizers.append(wx.BoxSizer(wx.HORIZONTAL))
-                self.sizers[-1].AddStretchSpacer(1)
-                self.sizers[-1].Add(self.label[-1],5,wx.EXPAND)
-                self.sizers[-1].Add(self.texts[-1],9,wx.EXPAND) 
-                self.sizers[-1].AddStretchSpacer(1)
+                self.texts[i] = wx.TextCtrl(self, -1, value=data[1], name=data[1])
+                self.sizers[i] = wx.BoxSizer(wx.HORIZONTAL)
+                self.sizers[i].AddStretchSpacer(1)
+                self.sizers[i].Add(self.label[-1],5,wx.EXPAND)
+                self.sizers[i].Add(self.texts[i],9,wx.EXPAND) 
+                self.sizers[i].AddStretchSpacer(1)
                 height += 30
             elif self.types[i] == "Check":
-                self.check.append(wx.CheckBox(self, -1, label=data, name=data))
-                self.check[-1].SetValue(True)
+                self.check[i] = wx.CheckBox(self, -1, label=data, name=data)
+                self.check[i].SetValue(True)
                 height += 20
         self.sizer=wx.BoxSizer(wx.VERTICAL)
         self.sizer.Add(self.statictext, 2, wx.EXPAND)
@@ -442,10 +452,10 @@ class AfpDialog_MultiLines(wx.Dialog):
         for i in range(self.lines):
             data = None
             if self.types[i] == "Text":
-                if ind_t < len(self.texts): values[i] = self.texts[ind_t].GetValue()
+                if not self.texts[i] is None: values[i] = self.texts[i].GetValue()
                 ind_t += 1
             elif self.types[i] == "Check":
-                if ind_c < len(self.check): values[i] = self.check[ind_c].GetValue()
+                if not self.check[i] is None: values[i] = self.check[i].GetValue()
                 ind_c += 1
         self.result = values
     ## return results, to be called from calling routine
@@ -645,7 +655,9 @@ class AfpDialog(wx.Dialog):
         self.vtextmap = {}
         self.labelmap = {}
         self.choicemap = {}
+        self.combomap = {}
         self.listmap = []
+        self.keepeditable = []
         self.conditioned_display = {}
         self.changed_text = []
         self.readonlycolor = self.GetBackgroundColour()
@@ -749,6 +761,7 @@ class AfpDialog(wx.Dialog):
         self.Pop_text()
         self.Pop_label()
         self.Pop_choice()
+        self.Pop_combo()
         self.Pop_lists()
     ## population routine for textboxes \n
     # covention: textmap holds the entryname to retrieve the string value from self.data \n
@@ -774,6 +787,7 @@ class AfpDialog(wx.Dialog):
             if entry in self.conditioned_display:
                 display = self.evaluate_condition(self.conditioned_display[entry])
             if display:
+                #print entry, self.labelmap[entry]
                 value = self.data.get_string_value(self.labelmap[entry])
                 #print self.labelmap[entry], "=", value
                 Label.SetLabel(value)
@@ -785,6 +799,14 @@ class AfpDialog(wx.Dialog):
             value = self.data.get_string_value(self.choicemap[entry])
             #print "AfpDialog:Pop_choice:", self.choicemap[entry], "=", value
             Choice.SetStringSelection(value)
+    ## population routine for comboboxes
+    # covention: combomap holds the entryname to retrieve value from self.data
+    def Pop_combo(self):
+      for entry in self.combomap:
+            Combo= self.FindWindowByName(entry)
+            value = self.data.get_string_value(self.combomap[entry])
+            #print "AfpDialog:Pop_combo", self.combomap[entry], "=", value
+            Combo.SetValue(value)
     ## population routine for lists \n
     # covention: listmap holds the name to generate the routinename to be called: \n
     # Pop_'name'()
@@ -822,11 +844,17 @@ class AfpDialog(wx.Dialog):
         for entry in self.choicemap:
             Choice = self.FindWindowByName(entry)
             Choice.Enable(ed_flag)
+        for entry in self.combomap:
+            Combo = self.FindWindowByName(entry)
+            Combo.Enable(ed_flag)
         for entry in self.listmap:
             list = self.FindWindowByName(entry)
-            list.Enable(ed_flag)
-            if ed_flag: list.SetBackgroundColour(self.editcolor)
-            else: list.SetBackgroundColour(self.readonlycolor)    
+            if ed_flag or entry in self.keepeditable:
+                list.SetBackgroundColour(self.editcolor) 
+                list.Enable(True)
+            else: 
+                list.SetBackgroundColour(self.readonlycolor)   
+                list.Enable(False)  
         if ed_flag:
             if self.choice_Edit.GetCurrentSelection() != 1: 
                 self.choice_Edit.SetSelection(1)

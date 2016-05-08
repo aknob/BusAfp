@@ -6,6 +6,7 @@
 # it does not hold any classes
 #
 #   History: \n
+#        08 May 2016 - allow negativ values in Afp_fromString - Andreas.Knoblauch@afptech.de \n
 #        19 Okt. 2014 - adapt package hierarchy - Andreas.Knoblauch@afptech.de \n
 #        30 Nov. 2012 - inital code generated - Andreas.Knoblauch@afptech.de
 
@@ -153,6 +154,8 @@ def Afp_fromString(string):
         elif len(split) > 1:
             left = 0
             if split[0].isdigit(): left = int(split[0])
+            elif len(split[0]) > 1 and split[0][0] == "-" and split[0][1:].isdigit():
+                left =  - int(split[0][1:])
             right = 0
             if split[1].isdigit(): right = int(split[1])
             if (not left == 0 or Afp_isZeroString(split[0])) and (right > 0 or Afp_isZeroString(split[1])):
