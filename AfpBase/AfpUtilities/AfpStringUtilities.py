@@ -353,6 +353,13 @@ def Afp_isCompare(sign):
 # @param string - string to be analysed
 def Afp_isNewline(string):
     return string.strip() == ""
+## flag if string represents an float value
+# @param string - string to be analysed
+def Afp_isFloatString(string):
+    value = Afp_fromString(string)
+    #print "Afp_isFloatString:", string, value, type(value)
+    if type(value) == float: return True
+    return False
 ## flag if string represents an zero value
 # @param string - string to be analysed
 def Afp_isZeroString(string):
@@ -794,7 +801,7 @@ def Afp_SbToDbName(string,dateien):
         i = -1
         for word in words:
             i = -1
-            if "." in word:
+            if "." in word and not Afp_isFloatString(word):
                 wsplit = word.split(".")
                 if wsplit[1] in dateien: i = dateien.index(wsplit[1])
                 else: i = dateien.index(wsplit[1].upper())
@@ -807,6 +814,7 @@ def Afp_SbToDbName(string,dateien):
     lghm = len(masked)
     out_string = ""
     for i in range(0,lgh):
+        if i: out_string += " "
         out_string += out_unmasked[i]
         if i < lghm: out_string += " \"" + masked[i] + "\""
     return out_string

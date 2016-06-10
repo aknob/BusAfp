@@ -319,7 +319,7 @@ class AfpDialog_DiChEin(AfpDialog):
                 if self.initial_transaction(): self.add_invoice()
                 else: self.syncronise_invoice()
             # write data to database
-            self.data.view() # show data for debugging
+            #self.data.view() # show data for debugging
             self.data.store()
             # execute financial transactions
             if transaction_needed:
@@ -671,7 +671,7 @@ class AfpDialog_DiChEin(AfpDialog):
     # @param event - event which initiated this action   
     def On_Fahrt_Zahl(self,event):
         if self.debug: print "Event handler `On_Fahrt_Zahl'"
-        Ok, data = AfpLoad_DiFiZahl(self.data, True)
+        Ok, data = AfpLoad_DiFiZahl(self.data, None, True)
         if Ok:
             self.zahl_data = data
             data.view() # for debug

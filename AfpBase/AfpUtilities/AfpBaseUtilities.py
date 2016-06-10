@@ -148,12 +148,17 @@ def Afp_addMonthToDate(date, nmonth, sign = None, day=None):
     while month > 12 or month < 1:
         addyear += 1
         month -= plus*12
+    if day is None:
+        shortmonth = [4, 6, 9, 11]
+        oldday = date.day
+        if month == 2 and oldday > 28: day = 28
+        elif month in shortmonth and oldday > 30: day = 30
+    if day:
+        date = date.replace(day=day)
     date = date.replace(month=month)
     if addyear:
         year = date.year + plus*addyear
         date = date.replace(year=year)
-    if day:
-        date = date.replace(day=day)
     return date
 ## return difference of two dates
 # @param start - startdate

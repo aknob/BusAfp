@@ -32,13 +32,19 @@ from AfpBase import *
 from AfpBase.AfpDatabase import AfpSQL
 from AfpBase.AfpDatabase.AfpSQL import AfpSQLTableSelection
 from AfpBase.AfpBaseRoutines import *
-from AfpBase.AfpBaseAdRoutines import AfpAdresse_getListOfTable
+from AfpBase.AfpBaseAdRoutines import AfpAdresse, AfpAdresse_getListOfTable
 
 ## returns all possible entries for kind of tours
 def AfpTourist_possibleTourKinds():
     #return ["Indi","Eigen","Fremd"]
     return ["Eigen","Fremd"]
-## available 'Zustand' values are set here \n
+## return field to be increased to generate 'RechNr'  
+# @param kind - tour kind (see above) involved
+def AfpTourist_getTourKindTyp(kind):
+    if kind == "Fremd": return "Nummer.ExternNr" 
+    elif kind == "Eigen":  return "RechNr.REISEN"
+    return "RechNr.RECHNG"
+ ## available 'Zustand' values are set here \n
 # This is the definition routine for all available 'Zustand' values
 def AfpTourist_getZustandList():
     return ["Reservierung","Anmeldung"]
@@ -175,13 +181,15 @@ class AfpTourist(AfpSelectionList):
         self.selects["TORT"] = [ "TORT","OrtsNr = Ab.ANMELD"] 
         self.selects["ANMELDER"] = [ "ANMELDER","AnmeldNr = AnmeldNr.ANMELD"] 
         self.selects["ANMELDEX"] = [ "ANMELDEX","AnmeldNr = AnmeldNr.ANMELD"] 
+        self.selects["RECHNG"] = [ "RECHNG","RechNr = RechNr.ANMELD","RechNr"] 
         self.selects["ARCHIV"] = [ "ARCHIV","AnmeldNr = AnmeldNr.ANMELD"] 
-        self.selects["AUSGABE"] = [ "AUSGABE","Typ = Zustand.ANMELD"] 
+        self.selects["AUSGABE"] = [ "AUSGABE","Typ = Art.REISEN + Zustand.ANMELD"] 
+        #self.selects["AUSGABE"] = [ "AUSGABE","Typ = \"EigenAnmeldung\""] 
         self.selects["RechNr"] = [ "ANMELD","RechNr = RechNr.ANMELD"] 
         self.selects["Agent"] = [ "ADRESSE","KundenNr = AgentNr.ANMELD"] 
-        self.selects["ExtraPreis"] = [ "PREISE","FahrtNr = 0"] 
+        self.selects["ExtraPreis"] = [ "PREISE","!FahrtNr = 0"] 
         self.selects["Preis"] = [ "PREISE","Kennung = PreisNr.ANMELD"] 
-        #self.selects["RECHNG"] = [ "RECHNG","RechNr = RechNr.ANMELD","RechNr"] 
+        self.selects["Umbuchung"] = [ "REISEN","FahrtNr = UmbFahrt.ANMELD"] 
         #self.selects["ERTRAG"] = [ "ERTRAG","FahrtNr = FahrtNr.ANMELD"] 
         #self.selects["EINSATZ"] = [ "EINSATZ","ReiseNr = FahrtNr.ANMELD"] 
         self.selects["TORT"] = [ "TORT","OrtsNr = Ab.ANMELD"] 
@@ -196,29 +204,36 @@ class AfpTourist(AfpSelectionList):
     def __del__(self):    
         if self.debug: print "AfpTourist Destruktor"
         #AfpSelectionList.__del__(self) 
+    ## decide whether this tourist entry has been cancelled
+    def is_cancelled(self):
+        return self.get_value("Zustand") == "Storno"
     ## decide whether payment is possible or not
     def is_payable(self):
-        payable = False
         zustand = self.get_string_value("Zustand")
-        if AfpTourist_isPayable(zustand): payable = True
-        return payable
-    ## charter will be tracked with financial transaction (accounted)
+        if zustand == "Anfrage": return False
+        return True
+    ## tourist will be tracked with financial transaction (accounted)
     def is_accountable(self):
-        zustand = self.get_value("Zustand.FAHRTEN")
-        return AfpTourist_needsTransaction(zustand)
+        zustand = self.get_string_value("Zustand")
+        if zustand == "Anfrage": return False
+        return True
+    ## tourist is connected to a separate invoice which has to be syncronised
+    def is_invoice_connected(self):
+        return self.get_tour_kind_typ() == "RechNr.RECHNG"
     ## clear current SelectionList to behave as a newly created List 
     # @param FahrtNr - identifier of tour == None if tour is kept
     # @param KundenNr - KundenNr of newly selected adress, == None if adress is kept
     # @param keep_flag -  flags which data should be kept while creation this copy
-    # - [0] == True: agent should be kept 
-    # - [1] == True: prices and Anmeldex should be kept 
-    # - [2] == True: the rest of the data should be kept 
+    # - [0] == True: same invoice number used 
+    # - [1] == True: agent should be kept 
+    # - [2] == True: prices and Anmeldex should be kept 
+    # - [3] == True: the rest of the data should be kept 
     def set_new(self, FahrtNr, KundenNr, keep_flag = None):
         self.new = True
         data = {}
-        keep = []
+        keep = ["ExtraPreis"]
         if keep_flag == True:
-            keep_flag = [True, True, True]
+            keep_flag = [True, True, True, True]
         if FahrtNr:
             data["FahrtNr"] = FahrtNr
         else:
@@ -231,42 +246,80 @@ class AfpTourist(AfpSelectionList):
             data["KundenNr"] = self.get_value("KundenNr")
             keep.append("ADRESSE")
         if keep_flag:
-            if keep_flag[0]: # agent kept
+            if keep_flag[0]: # invoice number kept
+                data["RechNr"] = self.get_value("RechNr") 
+                keep.append("RechNr")
+            if keep_flag[1]: # agent kept
                 data["AgentNr"] = self.get_value("AgentNr")
                 data["AgentName"] = self.get_value("AgentName")
                 keep.append("Agent")
-            if keep_flag[1] and "ANMELDEX" in self.selections: # Anmeldex kept
+            if keep_flag[2] and "ANMELDEX" in self.selections: # Anmeldex kept
                 keep.append("ANMELDEX")
                 self.selections["ANMELDEX"].new = True
+                keep.append("Preis")
                 data["Extra"] = self.get_value("Extra") 
                 data["PreisNr"] = self.get_value("PreisNr") 
                 data["Preis"] = self.get_value("Preis") 
                 data["Transfer"] = self.get_value("Transfer") 
                 data["ProvPreis"] = self.get_value("ProvPreis") 
-            if keep_flag[2]: # data kept
+            if keep_flag[3]: # data kept
                 data["Ab"] = self.get_value("Ab") 
+                keep.append("TORT")
                 data["Bem"] = self.get_value("Bem") 
                 data["Info"] = self.get_value("Info") 
                 data["ExText"] = self.get_value("ExText") 
                 data["Zustand"] = self.get_value("Zustand") 
-                data["RechNr"] = self.get_value("RechNr") 
         data["Zustand"] = AfpTourist_getTransactionList()[0]
         data["Anmeldung"] = self.globals.today()
-        print "AfpTourist.set_new data:", data
+        print "AfpTourist.set_new data:", data, FahrtNr, KundenNr
         print "AfpTourist.set_new keep:", keep
         self.clear_selections(keep)
         self.set_data_values(data,"ANMELD")
         if keep_flag:
-            if keep_flag[1]:
+            if keep_flag[2]:
                 self.spread_mainvalue()
         if FahrtNr:
             self.create_selection("REISEN", False)
             self.create_selection("PREISE", False)
+            self.create_selection("ExtraPreis", False)
         if KundenNr:
             self.create_selection("ADRESSE", False)
         if not self.get_value("Preis"):
-            self.set_value("Preis", self.get_value("Preis.PREISE"))
-            self.set_value("PreisNr", self.get_value("Kennung.PREISE"))
+            preis, kennung = self.get_basic_price()
+            self.set_value("Preis", preis)
+            self.set_value("PreisNr", kennung)
+            self.create_selection("Preis", False)
+    ## extract basic price
+    def get_basic_price(self):
+        liste = self.get_value_rows("PREISE","Preis,Kennung,Typ")
+        print "AfpTourist.get_basic_price:", liste
+        for entry in liste:
+            if entry[2] == "Grund":
+                return entry[0], entry[1]
+        return None, None
+    ## get tour kind for 'RechNr' generation
+    def get_tour_kind_typ(self):
+        return AfpTourist_getTourKindTyp(self.get_value("Art.REISEN"))
+    ## generate invoice number
+    def generate_RechNr(self):
+        RechNr = None
+        typ = self.get_tour_kind_typ()
+        print "AfpTourist.generate_RechNr Typ:",typ
+        if typ == "RechNr.REISEN":
+            self.lock_data("REISEN")
+            Nr = self.get_value("RechNr.REISEN") + 1
+            self.set_value("RechNr.REISEN", Nr)
+            Kst = self.get_value("Kostenst.REISEN")
+            RNr = Kst + float(Nr)/100
+            print "AfpTourist.generate_RechNr RNr:", Kst, Nr, RNr
+            RechNr = Afp_toString(RNr)
+        elif typ == "Nummer.ExternNr":
+            ExternNr = AfpExternNr(self.data.get_globals(),"Monat", self.debug)
+            RechNr = ExternNr.get_number()
+        else:
+            self.add_invoice()
+            #RechNr will be set automatically after store and has not to be returned here 
+        return RechNr
     ## financial transaction will be initated if the appropriate modul is installed
     # @param initial - flag for initial call of transaction (interal payment may be added)
     def execute_financial_transaction(self, initial):
@@ -284,19 +337,19 @@ class AfpTourist(AfpSelectionList):
         print "AfpTourist.add_invoice"
         invoice = AfpSQLTableSelection(self.get_mysql(), "RECHNG", self.debug, "RechNr")
         KNr = self.get_value("KundenNr")
-        data = {"Datum": self.globals.today(), "KundenNr": KNr, "Name": self.get_name(True), "Fahrt": self.get_value("FahrtNr")}
+        data = {"Datum": self.globals.today(), "KundenNr": KNr, "Name": self.get_name(True), "Anmeld": self.get_value("AnmeldNr")}
         data["Debitor"] = Afp_getIndividualAccount(self.get_mysql(), KNr)
         betrag = self.get_value("Preis")
         data["Zahlbetrag"] = betrag
-        betrag2 = self.extract_taxfree_portion()
-        if betrag2:
-            betrag -= betrag2
-            data["Betrag2"] = betrag
-            data["Konto2"] = Afp_getSpecialAccount(self.get_mysql(), "EMFA")
+        #betrag2 = self.extract_taxfree_portion()
+        #if betrag2:
+            #betrag -= betrag2
+            #data["Betrag2"] = betrag
+            #data["Konto2"] = Afp_getSpecialAccount(self.get_mysql(), "EMFA")
         data["RechBetrag"] = betrag
-        data["Kontierung"] = Afp_getSpecialAccount(self.get_mysql(), "EMF")
+        data["Kontierung"] = Afp_getSpecialAccount(self.get_mysql(), "ERL")
         data["Zustand"] = "offen"
-        data["Wofuer"] = "Mietfahrt Nr " + self.get_string_value("FahrtNr") + " am " + self.get_string_value("Abfahrt") + " nach " + self.get_string_value("Zielort")
+        data["Wofuer"] = "Reiseanmeldung Nr " + self.get_string_value("AnmeldNr") + " am " + self.get_string_value("Abfahrt.REISEN") + " nach " + self.get_string_value("Zielort.REISEN")
         if self.get_value("ZahlDat"):
             data["Zahlung"] = self.get_value("Zahlung")
             data["ZahlDat"] = self.get_value("ZahlDat")
@@ -304,25 +357,25 @@ class AfpTourist(AfpSelectionList):
         invoice.new_data()
         invoice.set_data_values(data)
         self.selections["RECHNG"] = invoice
-    ## routine to hold separate invoice syncron to the actuel charter values
+    ## routine to hold separate invoice syncron to the actuel tourist values
     def syncronise_invoice(self):
         print "AfpTourist.syncronise_invoice"
         betrag = self.get_value("Preis")
         data = {}
         data["Zahlbetrag"] = betrag
-        betrag2 = self.extract_taxfree_portion()
-        if betrag2:
-            betrag -= betrag2
-            data["Betrag2"] = betrag
+        #betrag2 = self.extract_taxfree_portion()
+        #if betrag2:
+            #betrag -= betrag2
+            #data["Betrag2"] = betrag
         data["RechBetrag"] = betrag
         if self.get_value("ZahlDat"):
             data["Zahlung"] = self.get_value("Zahlung")
             data["ZahlDat"] = self.get_value("ZahlDat")
         #print "AfpTourist.syncronise_invoice data:", data
         self.set_data_values(data, "RECHNG")
-    ## one line to hold all relevant values of charter, to be displayed 
+    ## one line to hold all relevant values of tourist, to be displayed 
     def line(self):
-        zeile =  self.get_string_value("SortNr").rjust(8) + "  "  + self.get_string_value("Datum") + " " +  self.get_string_value("Zustand") + " " + self.get_string_value("Art") + " " + self.get_string_value("Zielort")  
+        zeile =  self.get_string_value("RechNr").rjust(8) + " " +  self.get_string_value("Anmeldung") + "  "  + self.get_name().rjust(35)  + " " + self.get_string_value("Kennung.TORT")  
         zeile += " " + self.get_string_value("Preis").rjust(10) + " " +self.get_string_value("Zahlung").rjust(10) 
         return zeile
     ## internal routine to set the appropriate agency name
@@ -330,12 +383,30 @@ class AfpTourist(AfpSelectionList):
         #name = self.get_name(False,"Kontakt") + " " + self.get_string_value("KontaktNr")
         name = self.get_name(False,"Agent")
         self.set_value("AgentName",name)
+    ## get list of tourist entries having the same 'RechNr' (invoice number) \n
+    # to be used in different dialogs
+    def get_sameRechNr(self):
+        rows = self.get_value_rows("RechNr", "RechNr,Preis,Zahlung,KundenNr,AnmeldNr,FahrtNr")
+        FNr = self.get_value("FahrtNr")
+        liste = []
+        sameRechNr = []
+        preis = 0.0
+        zahlung = 0.0
+        #print "AfpTourist.get_sameRechNr:", rows
+        for row in rows:
+            if row[5] == FNr:
+                name = AfpAdresse(self.get_globals(), row[3]).get_name()
+                liste.append( Afp_toString(row[0]) + Afp_toFloatString(row[1]).rjust(10) + Afp_toFloatString(row[2]).rjust(10) + "  " + name)
+                sameRechNr.append(row[4])  
+                preis += row[1]
+                zahlung += row[2]
+        return [preis, zahlung], sameRechNr, liste
     ## set all necessary values to keep track of the payments
     # @param payment - amount that has been payed
     # @param datum - date when last payment has been made
     def set_payment_values(self, payment, datum):
         AfpSelectionList.set_payment_values(self, payment, datum)
-        if self.get_value("RechNr"):
+        if self.is_invoice_connected():
             self.set_value("Zahlung.RECHNG", payment)
             self.set_value("ZahlDat.RECHNG", datum)
     ## return specific identification string to be used in dialogs \n

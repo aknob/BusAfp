@@ -36,9 +36,9 @@ class AfpZahlung(object):
     ## initialize payment class, \n
     # if avaulable attach modul to record financial transactions
     # @param data - SelectionList where payment is due to - this input is mandatory
-    # @param multiName - if given, additional entries will be retrieved from database with identic values in this column
+    # @param multi - if given, additional entries will be retrieved from database with identic values in this column(s)
     # @param debug - flag for debug information
-    def  __init__(self, data , multiName = None, debug = False):
+    def  __init__(self, data , multi = None, debug = False):
         self.globals = data.get_globals()
         self.mysql = self.globals.get_mysql()
         self.moduls = {}
@@ -54,15 +54,21 @@ class AfpZahlung(object):
         self.ausgang = False
         self.selected_list = [data]
         self.append_payment_data(data)
-        if multiName:
-            value = data.get_value(multiName)
-            if value > 0:
+        if multi:
+            if Afp_isString(multi):
+                multi = [multi]
+            select = ""
+            for mult in multi:
+                value = data.get_string_value(mult)
+                if value:
+                    if select: select += " AND "
+                    select += mult + " = " + Afp_toString(value)
+            if select:
                 feld = data.get_mainindex()
-                table = data.get_tablename()
-                select = multiName + " = " + Afp_toString(value)
+                table = data.get_selection().get_tablename()
                 rows = self.mysql.select(feld, select, table)
                 if len(rows) > 1:
-                    ident = data.get_value()
+                    ident = Afp_fromString(data.get_value())
                     for row in rows:
                         if row[0] != ident: 
                             self.add_selection(table, row[0])
@@ -150,12 +156,12 @@ class AfpZahlung(object):
                 modul = self.get_modul("AfpCharter.AfpChRoutines")
                 if modul:
                     sellist = modul.AfpCharter(self.globals, nr, None, self.debug)
-            if tablename == "RECHNG":
+            elif tablename == "RECHNG":
                 sellist = AfpRechnung(self.globals, nr, self.debug)
-          #if tablename == "ANMELD":
-                #sellist = AfpAnmeldung(self.globals, nr)
-                #self.preis += sellist.get_value("Preis")
-                #self.anzahlung += sellist.get_value("Zahlung")
+            elif tablename == "ANMELD":
+                modul = self.get_modul("AfpTourist.AfpToRoutines")
+                if modul:
+                    sellist = modul.AfpTourist(self.globals, nr, None, self.debug)
             if sellist:
                 sellist.lock_data()
                 self.selected_list.append(sellist)

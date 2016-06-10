@@ -540,8 +540,9 @@ class AfpSelectionList(object):
     def view(self):
         # convenience routine for debug purpose
         print "AfpSelectionList.view():", self.get_listname()
+        print self.selects, self.selections
         for sel in self.selections: 
-            print sel, self.selections[sel].data
+            print sel, self.selections[sel].select, self.selections[sel].data
     ## get the user-relevant data in a line \n
     # this routine may (or rather should) be overwritten
     def line(self): 
@@ -653,10 +654,10 @@ class AfpSelectionList(object):
         selection = None
         if name is None: selname = self.mainselection
         else: selname = name
-        #print "AfpSelectionList.get_selection:", selname in self.selections, selname, self.selections
+        #print "AfpSelectionList.get_selection:", selname in self.selections, selname#, self.selections
         if not selname in self.selections:  
             self.create_selection(selname, allow_new_creation)
-            #print "AfpSelectionList.get_selection created:", selname in self.selections, selname, self.selections
+            #print "AfpSelectionList.get_selection created:", selname in self.selections, selname#, self.selections
         if selname in self.selections: 
             selection = self.selections[selname]  
         else:
@@ -730,7 +731,7 @@ class AfpSelectionList(object):
             selname = self.mainselection
         else:
             selname = sel
-        selection = self.get_selection(selname)
+        selection = self.get_selection(selname, False)
         if selection is None:
             return None
         else:
@@ -746,7 +747,7 @@ class AfpSelectionList(object):
             result = []
             fsplit = felder.split(",")
             for feld in fsplit:
-                wert = self.get_value(feldname)
+                wert = self.get_value(feld)
                 result.append(wert)
             return [result]
     ## extract one value from a TableSelection
@@ -802,11 +803,13 @@ class AfpSelectionList(object):
         strings =  Afp_ArraytoString(rows)
         return strings
     ## set a database lock on the main selection (table) of the SelectionList
-    def lock_data(self):
-        self.get_selection().lock_data()   
+    # @param selname - if given name of TableSelection to be locked
+    def lock_data(self, selname = None):
+        self.get_selection(selname).lock_data()   
     ## remove a database lock from the main selection (table) of the SelectionList
-    def unlock_data(self):
-        self.get_selection().unlock_data()
+    # @param selname - if given name of TableSelection to be unlocked
+    def unlock_data(self, selname = None):
+        self.get_selection(selname).unlock_data()
     ## propgate new mainvalue to the dependent TableSelections
     def spread_mainvalue(self):
         print "AfpTableSelectionList.spread_mainvalue"
@@ -973,7 +976,49 @@ class AfpSelectionList(object):
             selection.set_data_values(new_data, row)
         else:
             print "WARNING SelectionList.add_to_Archiv called but not implemented for", self.listname
-            
+ 
+ ## class for handling extern numberations       
+class AfpExternNr(AfpSQLTableSelection):
+    ## initialize AfpExternNr class
+    # @param globals - global values including the mysql connection - this input is mandatory
+    def  __init__(self, globals, Typ = None, debug = None):
+        if debug: self.debug = debug
+        else: self.debug = globals.is_debug()
+        AfpSQLTableSelection.__init__(self, globals.get_mysql(), "EXTERNNR", self.debug)
+        self.typ = Typ
+        if Typ == "Monat":
+            today = globals.today()
+            jahr = Afp_toString(today.year)[-2:]
+            mon = Afp_toString(today.month)
+            if len(mon) < 2: mon = "0" + mon
+            self.prefix = jahr + mon
+            self.separator = "."
+        if self.debug: print "AfpExternNr Konstruktor"
+    ## destuctor
+    def __del__(self):    
+        if self.debug: print "AfpExternNr Destruktor"
+    ## generate new extern number for given prefix and separator
+    def get_number(self):
+        ExtNr = None
+        nr = None
+        self.select = "Typ = \"" + self.typ + "\" AND Pre = \"" + self.prefix + "\""
+        self.lock_data()
+        self.load_data(self.select)
+        lgh = self.get_data_length()
+        if lgh == 0:
+            nr = 1
+            self.add_row([self.typ, self.prefix, nr, self.typ+self.prefix])
+        elif lgh > 1:
+            print "WARNING: AfpExternNr.gen_number datalength not 1 but:", lgh
+        else:
+            nr = self.get_value("Nummer") + 1
+            self.set_value("Nummer", nr)
+        if nr:
+            self.store()
+            ExtNr = self.prefix + self.separator + Afp_toString(nr)
+        #self.unlock_data()
+        return ExtNr
+          
 ##  class to export Afp-database entries to other formats 
 class AfpExport(object):
     ## initialize AfpExport class

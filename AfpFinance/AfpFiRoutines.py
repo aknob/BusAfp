@@ -103,19 +103,27 @@ class AfpFinanceTransactions(AfpSelectionList):
     ## check if identifier of statement of this account (Auszug) exists, if yes load it
     # @param auszug - identifier of statement of account
     def check_auszug(self, auszug):
-        if auszug == self.get_value("Auszug.AUSZUG"): return True
-        self.selects["AUSZUG"][1] = "Auszug = \"" + auszug + "\""  
+        if not "/" in auszug:
+            auszug += "/" + Afp_toString(self.globals.today().year)[-2:]
+        if self.exists_selection("AUSZUG"): 
+            #print "AfpFinanceTransactions.check_auszug exists:", auszug, type(auszug), self.get_value("Auszug.AUSZUG")
+            if auszug == self.get_value("Auszug.AUSZUG"): return True
+            self.delete_selection("AUSZUG")
+        self.selects["AUSZUG"][1] = "Auszug = \"" + auszug + "\""
+        #print "AfpFinanceTransactions.check_auszug create:", auszug, type(auszug), self.get_value("Auszug.AUSZUG")
         if auszug == self.get_value("Auszug.AUSZUG"): return True
         return False
     ## set identifier of statement of account (Auszug)
     # @param auszug - identifier of statement of account (xxnnn - xx identifier of bankaccount, nnn number)
     # @param datum, - date of statement of account 
     def set_auszug(self, auszug, datum):
+        today = self.globals.today()
+        if datum is None: datum = today
+        if not "/" in auszug:
+            auszug += "/" + Afp_toString(datum.year)[-2:]
         if auszug == self.get_value("Auszug.AUSZUG"): return
         ausname = Afp_getStartLetters(auszug) 
         if not ausname: return
-        today = self.globals.today()
-        if datum is None: datum = today
         self.selects["Auszugkonto"] =  [ "KTNR","KtName = \"" + ausname.upper() + "\""] 
         self.create_selection("Auszugkonto", False)
         ktnr = self.get_value("KtNr.Auszugkonto")
@@ -140,10 +148,10 @@ class AfpFinanceTransactions(AfpSelectionList):
     ## overwritten 'store' of the AfpSelectionList, the parent 'store' is called and a common action-number spread.          
     def store(self):
         print "AfpFinanceTransactions.store 0:",self.new, self.mainindex
-        self.view()
+        #self.view()
         AfpSelectionList.store(self)
         print "AfpFinanceTransactions.store 1:",self.new, self.mainindex 
-        self.view()
+        #self.view()
         if self.new:
             self.new = False
             VNr = self.get_value("BuchungsNr")
@@ -220,7 +228,7 @@ class AfpFinanceTransactions(AfpSelectionList):
     # @param auszug -  statement of account where payment has been recorded
     # @param KdNr -  number of address this payment is assigned to
     # @param Name -  name of the address this payment is assigned to
-    # @param data -  incident data where financial values have to be extracted, if == None: payment is assigne to transferaccount
+    # @param data -  incident data where financial values have to be extracted, if == None: payment is assigned to transferaccount
     # @param reverse -  accounting data has to be swapped
     def add_payment(self, payment, datum, auszug, KdNr, Name, data = None, reverse = False):
         print "AfpFinanceTransactions.add_payment:", payment, datum, auszug, KdNr, Name, data 
@@ -257,9 +265,10 @@ class AfpFinanceTransactions(AfpSelectionList):
         if reverse: accdata = self.set_storno_values(accdata, "Auszahlung")
         self.set_data_values(accdata, None, -1)
         # possible Skonto has to be accounted during payment
-        accdata = self.data_create_skonto_accounting(data)
-        if accdata:
-            self.set_data_values(accdata, None, -1)
+        if data:
+            accdata = self.data_create_skonto_accounting(data)
+            if accdata:
+                self.set_data_values(accdata, None, -1)
     ## extract payment relevant data from 'data' input
     # @param paymentdata - payment data dictionary to be modified and returned
     # @param data - incident data where relevant values have to be extracted

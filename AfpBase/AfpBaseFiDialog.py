@@ -135,7 +135,7 @@ class AfpDialog_DiFiZahl(AfpDialog):
         if not auszug:
             Ok = AfpReq_Question("Barzahlung?","","Zahlung")
             if Ok:
-                today = Afp_toString(self.data.get_globals().get_value("today"))
+                today = Afp_toString(self.data.get_globals().today())
                 auszug = "BAR" + today
                 self.text_Auszug.SetValue(auszug)
         if auszug:
@@ -143,7 +143,7 @@ class AfpDialog_DiFiZahl(AfpDialog):
             if not checked:
                 datum, Ok = AfpReq_Date("Bitte Datum für Auszug '".decode("UTF-8") + auszug + "' abgeben,", "", "", "", True)
                 if Ok: 
-                    self.set_auszug(auszug, datum) 
+                    self.set_auszug(auszug, Afp_fromString(datum)) 
                     checked = True
             return checked
         else:
@@ -277,10 +277,11 @@ class AfpDialog_DiFiZahl(AfpDialog):
 
 ## loader routine for dialog DiFiZahl \n
 # @param data - initial data to be attached to this dialog
+# @param multi - if given, additional entries will be retrieved from database with identic values in this column(s)
 # @param do_not_store - flag if writing to database should be skipped
-def AfpLoad_DiFiZahl(data, do_not_store = False):
+def AfpLoad_DiFiZahl(data, multi = None, do_not_store = False):
     DiZahl = AfpDialog_DiFiZahl(None)
-    Zahl = AfpZahlung(data) 
+    Zahl = AfpZahlung(data, multi) 
     DiZahl.attach_data(Zahl, False, True)
     if do_not_store: DiZahl.do_not_store()
     DiZahl.ShowModal()

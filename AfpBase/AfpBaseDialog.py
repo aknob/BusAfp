@@ -886,7 +886,7 @@ class AfpDialog(wx.Dialog):
     def On_Button_Ok(self,event):
         if self.choice_Edit.GetSelection() == 1:
             self.execute_Ok()
-            if self.lock_data and not self.new: self.data.unlock_data() 
+            #if self.lock_data and not self.new: self.data.unlock_data() 
             if self.debug: print "Event handler `On_Button_Ok' save, neu:", self.new,"Ok:",self.Ok 
         else: 
             if self.debug: print "Event handler `On_Button_Ok' quit!"
@@ -1135,12 +1135,16 @@ class AfpDialog_Auswahl(wx.Dialog):
         if text: self.label_Auswahl.SetLabel(text)
         if not value == "":
             self.select = self.selectname  + " >= \"" + value + "\""
-        self.where = where
         self.set_size()
         self.adjust_grid_rows()
-        self.Pop_grid()
-        if not self.grid_is_complete(): # grid not filled comletely, go for last entries
-            self.On_Ausw_Last()
+        while not where == self.where:
+            self.where = where
+            self.Pop_grid()
+            if not self.grid_is_complete(): # grid not filled comletely
+                if self.grid_is_empty():# nothing found, remove filter
+                    where = None
+                else: # go for last entries
+                    self.On_Ausw_Last
     ## set size depending on different glabal variables
     def set_size(self, size = None):
         if size is None:
@@ -1170,6 +1174,9 @@ class AfpDialog_Auswahl(wx.Dialog):
                     self.grid_auswahl.SetCellValue(row, col,  "")
             if row < lgh:
                 self.ident.append(rows[row][self.cols])
+    ## return if grid-rows are empty
+    def grid_is_empty(self):
+        return len(self.ident) == 0
     ## return if grid-rows are filled completely
     def grid_is_complete(self):
         return len(self.ident) >= self.rows
@@ -1185,6 +1192,7 @@ class AfpDialog_Auswahl(wx.Dialog):
             limit = "0,1"
             ssplit = self.select.split()
             rows = self.mysql.select(self.feldlist, self.select, self.dateien, self.sortname + " DESC", limit, self.where, self.link)
+            print "AfpDialog_Auswahl.set_step_back last:", rows, self.valuecol
             value = Afp_toInternDateString(rows[0][self.valuecol])
             self.select = ssplit[0] + " " + ssplit[1] + " \"" + value + "\""
             self.ident[0] = rows[0][-1]

@@ -177,7 +177,7 @@ class AfpSQL(object):
                 cons = ""
                 cone = ""
                 connew = ""
-                if len(fld) > 1: 
+                if len(fld) > 1 and not Afp_isFloatString(feld): 
                     #print "extract_clauses:", fld[1], dateien, fld[1] in dateien
                     if fld[1] in dateien: i = dateien.index(fld[1])
                     else: i = dateien.index(fld[1].upper())
@@ -242,13 +242,13 @@ class AfpSQL(object):
     # @param select - select clause for locked database entries
     def lock(self, datei, select):
         Befehl = "SELECT * FROM "  + self.dbname + "." + datei + " WHERE "  + select + " LOCK IN SHARE MODE;"
-        self.db_cursor.execute(Befehl)
         if self.debug: print "AfpSQL.lock:",Befehl
+        self.db_cursor.execute(Befehl)
     ## remove the lock from the table, rollback to database status befor the lock was set
     def unlock(self):
         Befehl = "ROLLBACK;"
-        self.db_cursor.execute(Befehl)
         if self.debug: print "AfpSQL.unlock:", Befehl
+        self.db_cursor.execute(Befehl)
     ## return the las inserted database id
     def get_last_inserted_id(self):
         return self.db_lastrowid
@@ -338,8 +338,8 @@ class AfpSQLTableSelection(object):
     def  __init__(self, mysql, tablename, debug = False, unique_feldname = None, feldnamen = None):
         #self.dbg = True # hardecode switch for storage logging
         self.dbg = False # hardecode switch for storage logging
-        #if debug or tablename == "PREISE" or tablename == "TROUTE" or tablename == "TORT": 
-        if debug: 
+        if debug or tablename == "REISEN": 
+        #if debug: 
             print "AfpSQLTableSelection Konstruktor dbg On", tablename
             self.dbg = True # hardecode switch for storage logging
         self.mysql = mysql      
@@ -415,18 +415,26 @@ class AfpSQLTableSelection(object):
         if self.select:
             split = self.select.split(" ")
             feldname = split[0]
-            value = int(split[2])
-            last_index = self.get_data_length() - 1
-            self.set_value(feldname, value, last_index)
+            if Afp_isNumeric(split[2]):
+                value = int(split[2])
+                last_index = self.get_data_length() - 1
+                self.set_value(feldname, value, last_index)
     ## resets select criterium from last row
     def reset_select(self):
         if self.select:
             split = self.select.split(" ")
-            feldname = split[0]
             last_index = self.get_data_length() - 1
-            value = self.get_values(feldname, last_index)[0][0]
-            self.select = feldname + " = " + Afp_toString(value)
-            #print "AfpSQLTableSelection.reset_select:", self.select
+            self.select = ""
+            for i in range(0, len(split), 4):
+                if i: self.select += " " + split[i-1] + " "
+                feldname = split[i]
+                mask = split[i+2][0] == "\""
+                values = self.get_values(feldname, last_index)
+                if values:
+                    value = Afp_toString(values[0][0])
+                    if mask: value = "\"" + value + "\""
+                    self.select += feldname + " = " + value
+            print "AfpSQLTableSelection.reset_select:", self.select
     ## load data into TableSelection according to given select clause
     # @param select - select clause to identify desired data
     # @param order - if given desired order of output rows
@@ -450,6 +458,7 @@ class AfpSQLTableSelection(object):
     # @param data - data to be attached
     # @param select - select clause for this  data
     def set_data(self, data, select=None):
+        if self.dbg: print "AfpSQLTableSelection.set_data:", self.select, data
         if select: self.select = select      
         self.data = map(list, data) 
     ## attach empty data
@@ -517,7 +526,7 @@ class AfpSQLTableSelection(object):
                     self.data.append(values)
                     self.set_select_criteria()
             else:
-                print "ERROR: AfpSQLTableSelection.manipulate_data incorrect values"
+                print "ERROR: AfpSQLTableSelection.manipulate_data incorrect values:", action, typ, len(values), len(self.feldnamen)
             self.manipulation.append([action, index, originals, values])
     ## returns the original or the new value of the column in the actuel manipulation data, 
     # if no actuel manipulation data is present, the last manipulation data is schecked 
@@ -739,10 +748,10 @@ class AfpSQLTableSelection(object):
         else:
             original = self.get_values(feldname, row)
             self.manipulation.append(["replace", row, {feldname: original[0][0]}, {feldname: value}])
-    ## set a lock on database table accordint to actuel select clause
+    ## set a lock on database table according to actuel select clause
     def lock_data(self):
         self.mysql.lock(self.tablename,  self.select)
-    ## unlocj database table and rollback
+    ## unlock database table and rollback
     def unlock_data(self):
         self.mysql.unlock()
     ## add formula to afterburner, to be executed after storage
@@ -757,28 +766,33 @@ class AfpSQLTableSelection(object):
     def execute_afterburner(self):
         if self.afterburner:
             for form in self.afterburner:
-                split = form.split("=")
-                vars, signs = Afp_splitFormula(split[1])
-                #print "execute_afterburner:", form, vars, signs
-                vals = []
-                for var in vars:
-                    vals.append(var)
-                for row in range(self.get_data_length()):
-                    for i in range(len(vars)):
-                        if not Afp_hasNumericValue(vars[i]):
-                            vals[i] = Afp_toString(self.get_values(vars[i], row)[0][0])
-                    #print "execute_afterburner vals:", vals, signs
-                    formula = ""
-                    for i in range(len(vals)-1):
-                        formula += vals[i] + signs[i]
-                    formula += vals[-1]
-                    if len(signs) == len(vals):
-                        formula += signs[-1]
-                    pyBefehl = "value = " + formula
+                if "=" in form:
+                    split = form.split("=")
+                    vars, signs = Afp_splitFormula(split[1])
+                    #print "execute_afterburner:", form, vars, signs
+                    vals = []
+                    for var in vars:
+                        vals.append(var)
+                    for row in range(self.get_data_length()):
+                        for i in range(len(vars)):
+                            if not Afp_hasNumericValue(vars[i]):
+                                vals[i] = Afp_toString(self.get_values(vars[i], row)[0][0])
+                        #print "execute_afterburner vals:", vals, signs
+                        formula = ""
+                        for i in range(len(vals)-1):
+                            formula += vals[i] + signs[i]
+                        formula += vals[-1]
+                        if len(signs) == len(vals):
+                            formula += signs[-1]
+                        pyBefehl = "value = " + formula
+                        exec pyBefehl
+                        self.set_value(split[0].strip(), value, row),
+                        if self.dbg: print "AfpSQLTableSelection.execute_afterburner:", pyBefehl, "       Row:", row, split[0], "=", value
+                        #print "execute_afterburner:", pyBefehl, "\nRow:", row, split[0], "=", value,  type(value) 
+                else:
+                    pyBefehl = form
                     exec pyBefehl
-                    self.set_value(split[0].strip(), value, row),
-                    if self.dbg: print "AfpSQLTableSelection.execute_afterburner:", pyBefehl, "       Row:", row, split[0], "=", value
-                    #print "execute_afterburner:", pyBefehl, "\nRow:", row, split[0], "=", value,  type(value) 
+                    if self.dbg: print "AfpSQLTableSelection.execute_afterburner:", pyBefehl
             self.afterburner = None
     ## write attached data to database
     def store(self):
