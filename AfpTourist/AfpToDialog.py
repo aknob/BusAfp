@@ -166,7 +166,7 @@ class AfpDialog_ToAusw(AfpDialog_Auswahl):
 def AfpLoad_ToAusw(globals, index, value = "", where = None, ask = False):
     result = None
     Ok = True
-    #print "AfpLoad_ToAusw input:", index, value, where, ask
+    print "AfpLoad_ToAusw input:", index, value, where, ask
     if ask:
         sort_list = AfpTourist_getOrderlistOfTable(globals.get_mysql(), index)        
         #print "AfpLoad_ToAusw sort_list:", sort_list
@@ -764,6 +764,7 @@ class AfpDialog_TouristEdit(AfpDialog):
         self.route = None
         self.zustand = None
         self.sameRechNr = None
+        self.zahl_data = None
         self.SetSize((500,410))
         self.SetTitle("Anmeldung")
         self.Bind(wx.EVT_ACTIVATE, self.On_Activate)
@@ -854,6 +855,13 @@ class AfpDialog_TouristEdit(AfpDialog):
         self.route = AfpToRoute(data.get_globals(), routenr, None, self.debug, True)
         super(AfpDialog_TouristEdit, self).attach_data(data, new, editable)
         if new: self.Populate()
+    ## only allow OK-button to exit dialog for automatic new creation \n
+    # set 'only OK' mode
+    def set_onlyOk(self):
+        if self.new:
+            self.Set_Editable(True)
+            self.choice_Edit.SetSelection(1)
+            self.choice_Edit.Enable(False)
 
     ## read values from dialog and invoke writing into data         
     def store_data(self):
@@ -887,7 +895,13 @@ class AfpDialog_TouristEdit(AfpDialog):
                 preis = Afp_floatString(self.label_Preis.GetLabel())
                 data["Preis"] = preis
             self.data.set_data_values(data, "ANMELD")
+            # store data
             self.data.store()
+            # count up number of tour participants
+            if self.new: self.data.add_to_tour()
+            # execute payment
+            if self.zahl_data:
+                self.zahl_data.store()
             self.new = False
             self.Ok = True
         self.changed_text = []   
@@ -910,6 +924,10 @@ class AfpDialog_TouristEdit(AfpDialog):
     ## execution in case the OK button ist hit - overwritten from AfpDialog
     def execute_Ok(self):
         self.store_data()
+    ## get created invoicenumber from data \n
+    # only used in 'only Ok' mode
+    def get_RechNr(self):
+        return self.data.get_value("RechNr")
 
     ## common population routine overwritten from AfpDialog
     #def Populate(self):
@@ -923,9 +941,11 @@ class AfpDialog_TouristEdit(AfpDialog):
     ## populate the 'Preise' list, \n
     # this routine is called from the AfpDialog.Populate
     def Pop_Preise(self):
-        row = self.data.get_value_rows("Preis", "Preis,Bezeichnung,Kennung")[0]
+        rows = self.data.get_value_rows("Preis", "Preis,Bezeichnung,Kennung")
         liste = ["--- Extraleistung hinzufügen ---".decode("UTF-8")]
-        liste.append(Afp_toFloatString(row[0]).rjust(10) + "  " + Afp_toString(row[1]))
+        if rows:
+            row = rows[0]
+            liste.append(Afp_toFloatString(row[0]).rjust(10) + "  " + Afp_toString(row[1]))
         rows = self.data.get_value_rows("ANMELDEX", "Preis,Bezeichnung,Kennung")
         #print "AfpDialog_TouristEdit.Pop_Preise:", rows
         for row in rows:
@@ -1173,9 +1193,10 @@ class AfpDialog_TouristEdit(AfpDialog):
         event.Skip()
 
     def On_Anmeld_Storno(self,event):
-        print "Event handler `On_Anmeld_Storno' not implemented!"
-        AfpLoad_TouristCancel(self.data)
+        if self.debug: print "Event handler `On_Anmeld_Storno'"
+        Ok = AfpLoad_TouristCancel(self.data)
         event.Skip()
+        if Ok: self.EndModal(wx.ID_OK)
 
     def On_Zahlung(self,event):
         print "Event handler `On_Zahlung' not implemented!"
@@ -1183,7 +1204,9 @@ class AfpDialog_TouristEdit(AfpDialog):
         Ok, data = AfpLoad_DiFiZahl(self.data,["RechNr","FahrtNr"])
         if Ok: 
             self.change_data = True
-            self.data = data
+            self.zahl_data = data
+            data.view() # for debug
+            self.data = data.get_data()
             self.Populate()
             self.choice_Edit.SetSelection(1)
             self.Set_Editable(True)
@@ -1191,13 +1214,16 @@ class AfpDialog_TouristEdit(AfpDialog):
 # end of class AfpDialog_TouristEdit
 
 ## loader routine for dialog TouristEdit
-def AfpLoad_TouristEdit(data):
+# @param onlyOk - flag if only the Ok exit is possible to leave dialog, used for 'Umbuchung'
+def AfpLoad_TouristEdit(data, onlyOk = None):
     if data:
         DiTouristEin = AfpDialog_TouristEdit(None)
         new = data.is_new()
         DiTouristEin.attach_data(data, new)
+        if onlyOk: DiTouristEin.set_onlyOk()
         DiTouristEin.ShowModal()
         Ok = DiTouristEin.get_Ok()
+        if onlyOk: Ok = DiTouristEin.get_RechNr()
         DiTouristEin.Destroy()
         return Ok
     else: return False
@@ -1229,8 +1255,14 @@ def AfpLoad_TouristEdit_fromANr(globals, anmeldnr):
 class AfpDialog_TouristCancel(AfpDialog):
     def __init__(self, *args, **kw):
         AfpDialog.__init__(self,None, -1, "")
+        self.charges = None
+        self.sameRechNr = None
+        self.sameCount = 0
+        self.umbuchung = None
+        self.tourists = None
         self.SetSize((520,348))
         self.SetTitle("Stornierung")
+        self.Bind(wx.EVT_ACTIVATE, self.On_Activate)
 
     def InitWx(self):
         panel = wx.Panel(self, -1)
@@ -1245,62 +1277,316 @@ class AfpDialog_TouristCancel(AfpDialog):
         self.labelmap["Agent"] = "AgentName.ANMELD"
         self.label_TPreis = wx.StaticText(panel, -1, label="Preis:", pos=(14,176), size=(42,16), name="TPreis")
         self.label_Preis = wx.StaticText(panel, -1, label="", pos=(60,176), size=(80,16), name="Preis")
+        self.labelmap["Preis"] = "Preis.ANMELD"
         self.label_TZahlung = wx.StaticText(panel, -1, label="Zahlung:", pos=(240,176), size=(60,16), name="TZahlung")
         self.label_Zahlung = wx.StaticText(panel, -1, label="", pos=(304,176), size=(80,16), name="Zahlung")
-        self.label_ExtRechNr = wx.StaticText(panel, -1, label="", pos=(80,200), size=(4,4), name="ExtRechNr")
+        self.labelmap["Zahlung"] = "Zahlung.ANMELD"
         self.label_T_Storno_Geb = wx.StaticText(panel, -1, label="Stornierungsgebühr:".decode("UTF-8"), pos=(8,222), size=(140,20), name="T_Storno_Geb")
-        self.text_Storno_Geb= wx.TextCtrl(panel, -1, value="Gebuehr_Storno", pos=(152,220), size=(64,24), style=0, name="Storno_Geb")
-        self.textmap["Storno_Geb"] = "Gebuehr_Storno"
+        self.text_Storno_Geb= wx.TextCtrl(panel, -1, value="Gebuehr_Storno", pos=(152,220), size=(64,30), style=0, name="Storno_Geb")
+        self.vtextmap["Storno_Geb"] = "Gebuehr_Storno"
         self.text_Storno_Geb.Bind(wx.EVT_KILL_FOCUS, self.On_KillFocus)
-    #FOUND: DialogComboBox "Storno_Geb", conversion not implemented due to lack of syntax analysis!
+        
+        self.choice_Geb = wx.Choice(panel, -1,  pos=(230,220), size=(176,30),  name="CStornoGeb")      
+        self.Bind(wx.EVT_CHOICE, self.On_CStornoGeb, self.choice_Geb)  
+ 
         self.label_T_Datum_Storno = wx.StaticText(panel, -1, label="Stornierungs&datum:", pos=(84,14), size=(130,20), name="T_Datum_Storno")
         self.text_Storno_Datum = wx.TextCtrl(panel, -1, value="Datum_Storno", pos=(224,12), size=(90,24), style=0, name="Storno_Datum")
-        self.textmap["Storno_Datum"] = "Datum_Storno"
+        self.vtextmap["Storno_Datum"] = "Anmeldung.ANMELD"
         self.text_Storno_Datum.Bind(wx.EVT_KILL_FOCUS, self.On_Storno_Dat)
-   #FOUND: DialogFrame "T_Storno_Umb", conversion not implemented due to lack of syntax analysis!
+        
         self.label_Umb_Zielort = wx.StaticText(panel, -1, label="Keine Umbuchung", pos=(14,272), size=(200,16), name="Umb_Zielort")
         self.labelmap["Umb_Zielort"] = "Zielort.Umbuchung"
-        self.label_T_Umb_am = wx.StaticText(panel, -1, label="am", pos=(244,272), size=(60,16), name="T_Umb_am")
+        self.label_T_Umb_am = wx.StaticText(panel, -1, pos=(244,272), size=(60,16), name="T_Umb_am")
         self.label_Umb_Abfahrt = wx.StaticText(panel, -1, label="", pos=(304,272), size=(80,16), name="Umb_Abfahrt")
         self.labelmap["Umb_Abfahrt"] = "Abfahrt.Umbuchung"
         self.label_Umb_Kst = wx.StaticText(panel, -1, label="", pos=(14,292), size=(140,16), name="Umb_Kst")
         self.labelmap["Umb_Kst"] = "Kennung.Umbuchung"
-        self.label_Umb_FNr = wx.StaticText(panel, -1, label="UmbFahrt.Anmeld", pos=(160,292), size=(20,16), name="Umb_FNr")
-        self.labelmap["Umb_FNr"] = "FahrtNr.Umbuchung"
         self.label_T_Umb_Gutschrift = wx.StaticText(panel, -1, label="Gutschrift:", pos=(234,292), size=(68,16), name="T_Umb_Gutschrift")
-        self.label_Umb_Gutschrift = wx.StaticText(panel, -1, label="", pos=(304,292), size=(80,16), name="Umb_Gutschrift")
+        self.label_Gutschrift = wx.StaticText(panel, -1, label="", pos=(304,292), size=(80,16), name="Gutschrift")
 
         self.list_Mehrfach = wx.ListBox(panel, -1, pos=(10,106), size=(396,66), name="Mehrfach")
         self.Bind(wx.EVT_LISTBOX_DCLICK, self.On_Storno_Mehr, self.list_Mehrfach)
         self.listmap.append("Mehrfach")
        
-        self.button_Storno_Umb = wx.Button(panel, -1, label="&Umbuchung", pos=(420,106), size=(90,36), name="Storno_Umb")
-        self.Bind(wx.EVT_BUTTON, self.On_Storno_Umb, self.button_Storno_Umb)
+        self.button_Umbuchung = wx.Button(panel, -1, label="&Umbuchung", pos=(420,106), size=(90,36), name="Storno_Umb")
+        self.Bind(wx.EVT_BUTTON, self.On_Umbuchung, self.button_Umbuchung)
         self.setWx(panel, [420, 220, 90, 36], [420, 270, 90, 50]) # set Edit and Ok widgets
         
     # Population routine
+    ## populates list of involved tourists, sets price and payments \n
+    # called automatically from AfpDialog
     def Pop_Mehrfach(self):
         zahlen, self.sameRechNr, liste = self.data.get_sameRechNr()
+        self.sameCount = len(liste)
+        for i in range(len(liste)):
+            liste[i] = "   " + liste[i]
         #print "AfpDialog_TouristStorno.Pop_Mehrfach:", zahlen, self.sameRechNr, liste
         self.list_Mehrfach.Clear()
         self.list_Mehrfach.InsertItems(liste, 0)
         self.label_Preis.SetLabel(Afp_toString(zahlen[0]))
         self.label_Zahlung.SetLabel(Afp_toString(zahlen[1]))
+    
+   ## attaches data to this dialog overwritten from AfpDialog
+    # @param data - AfpSelectionList which holds data to be filled into dialog wodgets 
+    # @param new - flag if new database entry has to be created 
+    # @param editable - flag if dialogentries are editable when dialog pops up
+    def attach_data(self, data, new = False, editable = False):
+        super(AfpDialog_TouristCancel, self).attach_data(data, new, editable)
+        if not data.is_cancelled():
+            self.set_new_cancel()
+        if self.data.get_value("UmbFahrt"):
+            self.label_T_Umb_am.SetLabel("am")
+            self.button_Umbuchung.Enable(False)
+            self.choice_Edit.SetSelection(0)
+            self.choice_Edit.Enable(False)
+    
+    ## execution in case the OK button ist hit - overwritten from AfpDialog \n
+    # if a new tour is selected for all involved tourists a new dialog is created
+    def execute_Ok(self):
+        self.store_data()
+        if self.umbuchung and self.tourists:
+            ReNr = None
+            for tourist in self.tourists:
+                if ReNr: tourist.set_value("RechNr", ReNr)
+                ReNr = AfpLoad_TouristEdit(tourist, True)
 
+    ## read values from dialog and invoke writing into data  \n
+    # don't rely on AfpDialog menchanismns, as 'mehrfach' list has to be applied
+    def store_data(self):
+        self.Ok = False
+        if not self.data.is_cancelled():
+            data = {}
+            werte = []
+            liste = []
+            payment = []
+            self.tourists = []
+            if self.umbuchung:
+                self.tourists.append(self.data)
+            items = self.list_Mehrfach.GetItems()
+            anr = self.data.get_value("AnmeldNr")
+            for i in range(len(items)):
+                if items[i][0] == " ":
+                    nr = self.sameRechNr[i]
+                    if i > 0 and nr == anr:
+                        liste.append(liste[0])
+                        liste[0] = anr
+                    else:
+                        liste.append(nr)
+            anz = len(liste)
+            name, wert = self.Get_TextValue("Storno_Datum")
+            data["Anmeldung"] = wert
+            name, wert = self.Get_TextValue("Storno_Geb")
+            common, special = Afp_distributeCents(wert, anz)
+            data["Preis"] = special
+            data["Zustand"] = "Storno"
+            if self.umbuchung:
+                data["UmbFahrt"] = self.umbuchung.get_value("FahrtNr")
+                data["Info"] = "Umb. -> " + self.umbuchung.get_value("Kennung")
+                payment.append(self.data.get_value("Zahlung"))
+                data, payment[0] = self.reset_payment(data, payment[0])
+            self.data.set_data_values(data, "ANMELD")
+            self.data.store()
+            if anz > 1:
+                data["Preis"] = common
+                for i in range(1, anz):
+                    tourist = AfpTourist(self.data.get_globals(), liste[i])
+                    if self.umbuchung:
+                        payment.append(tourist.get_value("Zahlung"))
+                        data, payment[i] = self.reset_payment(data, payment[i])
+                    tourist.set_data_values(data, "ANMELD")
+                    if self.umbuchung: self.tourists.append(tourist)
+                    tourist.store()
+            self.data.delete_from_tour(anz)
+            if self.umbuchung:
+                #print "AfpDialog_TouristCancel.store_data: Umbuchungen:", anz, "Zahlung:", payment, "Anmeldungen:", self.tourists
+                for i in range(anz):
+                    self.tourists[i].set_new(self.umbuchung.get_value("FahrtNr"), None, [False, True, False, False])
+                    #print "AfpDialog_TouristCancel.store_data set payment:", self.tourists[i].get_name(), payment[i]
+                    self.tourists[i].set_payment_values(payment[i], self.data.get_globals().today())
+            self.Ok = True
+
+    ## activate or deactivate changeable widgets \n
+    # this method also calls the parent method
+    # @param ed_flag - flag if widgets have to be activated (True) or deactivated (False)
+    # @param initial - flag if data has to be locked, used in parent method 
+    def Set_Editable(self, ed_flag, initial = False):
+        super(AfpDialog_TouristCancel, self).Set_Editable(ed_flag, initial)
+        if ed_flag: 
+            self.choice_Geb.Enable(True)
+        else:  
+            self.choice_Geb.Enable(False)
+            
+    ## set new cancellation date
+    def set_new_cancel(self):
+        self.text_Storno_Datum.SetValue(self.data.globals.today_string())
+    ## set cancellation charges
+    def set_charges(self):
+        if self.data.is_cancelled():
+            self.text_Storno_Geb.SetValue(self.label_Preis.GetLabel())
+            cancel = self.data.get_value("Anmeldung")
+            already_cancelled = True
+        else:
+            cancel = self.data.globals.today()
+            already_cancelled = False
+        cancel = Afp_fromString(self.text_Storno_Datum.GetValue())
+        start = self.data.get_value("Abfahrt.REISEN")
+        diff = Afp_diffDays(cancel, start)
+        percent = 0
+        index = len(self.charges) - 1
+        for i in range(len(self.charges)):
+        #for row in self.charges:
+            row = self.charges[i]
+            if diff < row[0]:
+                percent = row[1]
+                index = i
+                break
+        #print "AfpDialog_TouristCancel.set_charges:",percent, index, diff, cancel, start
+        self.choice_Geb.SetSelection(index)
+        if not already_cancelled:
+            self.set_charge()
+    ## set value of charge depending on selection in choice
+    def set_charge(self):
+        index = self.choice_Geb.GetSelection()
+        if index < len(self.charges)-1:
+            percent = self.charges[index][1]
+            preis = Afp_fromString(self.label_Preis.GetLabel())
+            charge = percent*preis/100
+        else:
+            charge = self.charges[len(self.charges)-1][1] * self.sameCount
+        self.text_Storno_Geb.SetValue(Afp_toFloatString(charge))
+        zahl = Afp_fromString(self.label_Zahlung.GetLabel())
+        if zahl > charge:
+            gut = zahl - charge
+            self.label_Gutschrift.SetLabel(Afp_toFloatString(gut))
+        else: 
+            self.label_Gutschrift.SetLabel(Afp_toFloatString(0.0))
+            
+    ## modify payment setting
+    # @param data - dictionary where payment data should be set
+    # @param payment - actuel payment data
+    def reset_payment(self, data, payment):
+        charge = data["Preis"]
+        pay = 0.0
+        leftover = 0.0
+        if payment:
+            if charge:
+                if charge > payment: 
+                    pay = payment
+                else:
+                    pay = charge
+                    leftover = payment - charge
+            data["ZahlDat"] = self.data.globals.today() 
+        data["Zahlung"] = pay
+        print "AfpDialog_TouristCancel.reset_payment:", charge,  leftover, pay  
+        return data, leftover
+    
+    ## get values from line in 'mehrfach' list
+    def get_mehrfach_values(self, line):
+        preis = 0.0
+        zahl = 0.0
+        split = line.split()
+        #print "AfpDialog_TouristCancel.get_mehrfach_values:", split
+        if split[0] == "*":
+            preis = Afp_fromString(split[2])
+            zahl = Afp_fromString(split[3])
+        else:
+            preis = Afp_fromString(split[1])
+            zahl = Afp_fromString(split[2])
+        return preis, zahl
+        
+    ## modify preis and zahl labels
+    def modify_mehrfach_values(self, diff_preis, diff_zahl):
+        preis = Afp_fromString(self.label_Preis.GetLabel()) + diff_preis
+        zahl = Afp_fromString(self.label_Zahlung.GetLabel()) + diff_zahl
+        self.label_Preis.SetLabel(Afp_toString(preis))
+        self.label_Zahlung.SetLabel(Afp_toString(zahl))
+ 
     # Event Handlers 
+    ## event handler when window is activated
+    # @param event - event which initiated this action   
+    def On_Activate(self, event):
+        #print "AfpDialog_TouristCancel.OnActivate", self.charges
+        if not self.charges:
+            self.charges = self.data.globals.get_value("cancellation-charges","Tourist")
+            if not self.charges: self.charges = [[0,50]]
+            for row in self.charges:
+                if row[0]:
+                    text = "ab " + Afp_toString(row[0]) + " Tage: " + Afp_toString(row[1]) + "%"
+                else:
+                    text = "Standartgebühr: ".decode("UTF-8") + Afp_toString(row[1]) + " EUR"
+                self.choice_Geb.Append(text)
+            self.choice_Geb.SetSelection(len(self.charges) - 1)
+            self.set_charges()
+ 
+    ## event handler when charge choice has been changed
+    # @param event - event which initiated this action   
+    def On_CStornoGeb(self, event):
+        if self.debug: print "Event handler `On_CStornoGeb'"
+        self.set_charge()
+        event.Skip()
+       
     def On_Storno_Mehr(self,event):
-        print "Event handler `On_Storno_Mehr' not implemented!"
+        if self.debug: print "Event handler `On_Storno_Mehr'"
+        index = self.list_Mehrfach.GetSelections()[0]
+        if index == 0:
+            AfpReq_Info("Referenzbuchung kann nicht markiert werden!","Bitte eine Buchung als Referenzbuchung auswählen, die storniert werden soll!".decode("UTF-8"))
+        else:
+            liste = self.list_Mehrfach.GetItems()
+            preis, zahl = self.get_mehrfach_values(liste[index])
+            if liste[index][0] == "*":
+                liste[index] = "  " + liste[index][1:]
+                self.modify_mehrfach_values(preis, zahl)
+                self.sameCount -= 1
+            else:
+                liste[index] = "*" + liste[index][2:]
+                self.modify_mehrfach_values(-preis, -zahl)
+                self.sameCount += 1
+            self.list_Mehrfach.Clear()
+            self.list_Mehrfach.InsertItems(liste, 0)
+            self.set_charge()
         event.Skip()
 
     def On_Storno_Dat(self,event):
-        print "Event handler `On_Storno_Dat' not implemented!"
+        if self.debug: print "Event handler `On_Storno_Dat'"
+        object = event.GetEventObject()
+        datum = object.GetValue()
+        date = Afp_ChDatum(datum)
+        object.SetValue(date)
+        self.On_KillFocus(event)
+        self.set_charges()
         event.Skip()
 
-    def On_Storno_Umb(self,event):
-        print "Event handler `On_Storno_Umb' not implemented!"
-        Ok = True
-        if Ok:
+    def On_Umbuchung(self,event):
+        if self.debug: print "Event handler `On_Umbuchung'"
+        globals = self.data.get_globals()
+        start = Afp_addMonthToDate(globals.today(), 1, "-",1)
+        where = "'Abfahrt' > \"" + Afp_toInternDateString(start) +"\""
+        value = self.data.get_string_value("Abfahrt.REISEN")
+        auswahl = AfpLoad_ToAusw(globals, "Abfahrt" , value, where, True)
+        FNr = None
+        if auswahl:  
+            FNr = Afp_fromString(auswahl)
+            if FNr == self.data.get_value("FahrtNr"): FNr = None
+        if FNr:
+            self.umbuchung = AfpTour(globals, FNr)
             self.label_T_Storno_Geb.SetLabel("Umbuchungsgebühr:".decode("UTF-8"))
+            ort = self.umbuchung.get_string_value("Zielort")
+            am = "am"
+            ab = self.umbuchung.get_string_value("Abfahrt")
+            kenn = self.umbuchung.get_string_value("Kennung")
+        else:
+            self.umbuchung = None
+            self.label_T_Storno_Geb.SetLabel("Stornierungssgebühr:".decode("UTF-8"))
+            ort = ""
+            am = ""
+            ab = ""
+            kenn = ""
+        self.label_Umb_Zielort.SetLabel(ort)
+        self.label_T_Umb_am.SetLabel(am)
+        self.label_Umb_Abfahrt.SetLabel(ab)
+        self.label_Umb_Kst.SetLabel(kenn)
+        self.choice_Edit.SetSelection(1)
+        self.Set_Editable(True)
         event.Skip()
 
 # loader routine for dialog TouristCancel

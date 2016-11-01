@@ -109,6 +109,20 @@ def Afp_extractPureValues(indices, array):
         for ind in indices:
             werte.append(array[ind])
     return werte
+ 
+## distributes given value in given parts, \n 
+# returns the common portion and the special portion to get the full cent sum
+# @param value - value to be distributed
+# @param count - number of protions to be generated
+def Afp_distributeCents(value, count):
+    if count < 2: return value, value
+    count = int(count)
+    intval = int(value * 100)
+    part = intval/count
+    rest = intval - part*count
+    fpart = float(part)/100
+    frest = float(rest)/100
+    return fpart, fpart+frest
    
 # date and time routines
 ## return today

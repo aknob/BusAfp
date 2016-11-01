@@ -183,13 +183,13 @@ class AfpSbIndex(object):
     def get_where(self):
         return self.where
     def get_value(self, ind):
-        #print "get_value", ind, type(ind)
         if self.felder == None: return ""
         if type(ind) == int: # single value
             if len(self.felder) <= ind: return ""
             wert = self.felder[ind]
         else: # array
             wert = Afp_extractValues(ind, self.felder)
+        #print "AfpSbIndex.get_value:", self.name, ind, type(ind),  wert
         return wert
     def get_values(self, indices=None):
         if self.felder == None: return None
@@ -371,7 +371,7 @@ class AfpSbIndex(object):
         index_clause = ""
         for name in self.index_bez:
             Befehl = "SELECT " + name + " FROM " + self.db + "." + self.datei + where_clause + index_clause +" ORDER BY (" + name + ")" + order + " LIMIT 0,1"
-            if self.debug: print Befehl
+            if self.debug: print "AfpSbIndex.gen_first_indexwert:", Befehl
             self.db_cursor.execute (Befehl)
             row = self.db_cursor.fetchone()
             values.append(row[0])
@@ -398,7 +398,7 @@ class AfpSbIndex(object):
                 continue
             index_clause = name + " " + unequal +" \"" + indices[ind] + "\""
             Befehl = "SELECT " + name + " FROM " + self.db + "." + self.datei +  " WHERE " + where_clause + index_clause + " ORDER BY (" + name + ")" + order + " LIMIT 0,1"
-            if self.debug: print Befehl
+            if self.debug: print "AfpSbIndex.gen_next_indexwert:", Befehl
             self.db_cursor.execute (Befehl)
             row = self.db_cursor.fetchone()
             if row:
@@ -492,15 +492,16 @@ class AfpSbIndex(object):
         else:
             self.endoffile = True
     def select_step(self, in_step):
+        #print  "AfpSbIndex.select_step:", self.name, self.endoffile, self.index_bez, in_step
         self.select_plus_step(in_step)
         if self.endoffile and  not self.index_bez is None:
-            #print self.name, self.endoffile, self.index_bez
             if in_step < 0: order = "DESC"
             else: order = ""
             self.gen_next_indexwert(order)
             if self.endoffile == False:
                 self.select_plus_step(0)
     def select_plus_step(self, in_step):
+        if self.debug: print "AfpSbIndex.select_plus_step input:",in_step
         step = in_step
         if in_step < 0:
             step *= -1
@@ -519,7 +520,7 @@ class AfpSbIndex(object):
         while anz > 0:          
             limit =  (" LIMIT 0,%d") % anz
             Befehl = "SELECT * FROM " + self.db + "." + self.datei +" WHERE "+ where_clause + index_clause + limit
-            if self.debug: print "AfpSbIndex.select_plus_step:",Befehl, offset, self.where
+            if self.debug: print "AfpSbIndex.select_plus_step:",Befehl, "Offset:", offset
             rows = self.cached_select(Befehl)
             #self.db_cursor.execute (Befehl)     
             #rows = self.db_cursor.fetchall () 
@@ -553,9 +554,10 @@ class AfpSbIndex(object):
                     # print "MaxIdent:",self.imaxident , self.indexoffset   
         # datenfelder einfuellen
         offset += step      
-        #print rows
-        #print 'Ende rows', dup, anz, offset
+        #print "AfpSbIndex.select_plus_step rows:",rows
+        #print "AfpSbIndex.select_plus_step Ende rows", dup, anz, offset, len(rows)
         if rows and len(rows) > offset:
+            if self.endoffile: offset -= step
             self.felder = list(rows[offset])   
             self.modified = False        
             self.indexwert = self.get_indexwert()
@@ -565,6 +567,7 @@ class AfpSbIndex(object):
             #print  "Off:",offset, dup, self.felder[1], self.indexwert, self.indexoffset, self.indexdups 
         else:
             self.endoffile = True
+        #print "AfpSbIndex.select_plus_step Endoffile", self.endoffile
     def select_keywert(self, indexwert):
         if self.is_numeric() != Afp_isNumeric(indexwert): 
             print "Warning: AfpSuperbase.select_keywert: FALSCHER EINGABETYP", Afp_isNumeric(indexwert)
@@ -614,22 +617,22 @@ class AfpSbIndex(object):
         else:   
             self.where = where_clause
     def select_first(self):
-        # print "SELECT FIRST",self.name   
+        # print "AfpSbIndex SELECT FIRST", self.date, self.name   
         self.select_first_last("")
     def select_last(self):
-        # print "SELECT LAST",self.name   
+        # print "AfpSbIndex SELECT LAST",self.date, self.name   
         self.select_first_last("DESC")
     def select_current(self):
-        # print "SELECT CURRENT",self.name
+        # print "AfpSbIndex SELECT CURRENT", self.date, self.name
         self.select_step(0)
     def select_next(self):
-        # print "SELECT NEXT",self.name
+        # print "AfpSbIndex SELECT NEXT", self.date, self.name
         self.select_step(1)
     def select_previous(self):
-        # print "SELECT PREVIOUS",self.name
+        # print "AfpSbIndex SELECT PREVIOUS", self.date, self.name
         self.select_step(-1)
     def select_key(self, wert):
-        # print "SELECT KEY",wert,self.name
+        # print "AfpSbIndex SELECT KEY",wert, self.date, self.name
         self.select_keywert(wert)
       
 ## Table (Datei) class, to generate and hold all indices of a table, provide syncronation 
@@ -1016,7 +1019,7 @@ class AfpSuperbase(object):
     # @param dateiname - name of the table, index belongs to. None - the actuel table is used.
     def eof(self, indexname=None, dateiname=None):  
         CurrentIndex = self.identify_index(indexname, dateiname)       
-        if self.debug: print "SB: EOF", CurrentIndex.eof() 
+        if self.debug: print "SB: EOF", dateiname, indexname, CurrentIndex.eof() 
         return CurrentIndex.eof() 
     ## return flag if end of file is NOT reached in indexorder
     # @param indexname - name of index. None - the actuel index is used.

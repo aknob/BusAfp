@@ -141,7 +141,7 @@ class AfpZahlung(object):
         tablename = data.get_selection().get_tablename()
         if Afp_isEps(payment):
             sum = self.partial[index] + payment
-            today = data.get_globals().get_value("today")
+            today = self.globals.today()
             data.set_payment_values(sum, today)
             self.add_payment_transaction(payment, data)
             self.partial[index] = sum
@@ -349,7 +349,7 @@ class AfpRechnung(AfpSelectionList):
             data["KundenNr"] = self.get_value("KundenNr")
             keep.append("ADRESSE")
         data["Zustand"] = "offen"
-        data["Datum"] = self.globals.get_string_value("today")
+        data["Datum"] = self.globals.today_string()
         #print data
         #print keep
         self.clear_selections(keep)

@@ -135,7 +135,7 @@ class AfpDialog_DiFiZahl(AfpDialog):
         if not auszug:
             Ok = AfpReq_Question("Barzahlung?","","Zahlung")
             if Ok:
-                today = Afp_toString(self.data.get_globals().today())
+                today = self.data.globals.today_string()
                 auszug = "BAR" + today
                 self.text_Auszug.SetValue(auszug)
         if auszug:

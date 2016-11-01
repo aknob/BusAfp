@@ -324,7 +324,7 @@ class AfpToScreen(AfpScreen):
             else:    
                 start = Afp_genDate(today.year, 1, 1)
             self.sb_date_filter = "Abfahrt >= \"" + Afp_toInternDateString(start) + "\"" 
-        print "AfpToScreen.set_sb_date Startdate:", start, self.sb_date_filter
+        print "AfpToScreen.set_sb_date Startdate:", start, self.sb_date_filter, "CURRENT RECORD:", self.sb.get_value()
         
     ## Eventhandler COMBOBOX - filter
     def On_Tourist_Filter(self,event=None):
@@ -341,27 +341,35 @@ class AfpToScreen(AfpScreen):
         value = self.filtermap[value]
         filter = value.split("-")
         re_filter = "Art LIKE \"" + filter[0] + "\""
-        if self.sb_date_filter:
-            re_filter += " AND " + self.sb_date_filter
         an_filter = "Zustand LIKE \"" + filter[1] + "\""
+        if self.sb_date_filter:
+            if self.sb_master == "ANMELD":
+                an_filter += " AND " + self.get_minor_date_filter()
+            else:
+                re_filter += " AND " + self.sb_date_filter
         if re_filter != self.sb_re_filter:
             self.sb_re_filter = re_filter
-            self.sb.select_where(self.sb_re_filter)        
+            self.sb.select_where(self.sb_re_filter, None, "REISEN")        
         if an_filter != self.sb_an_filter:
             if not filter[1]:
                 self.sb.select_where("", None, "ANMELD")
                 self.sb_an_filter = "" 
             else:
                 self.sb_an_filter = an_filter
-                self.sb.select_where(self.sb_an_filter, None, "ANMELD")        
-        print "AfpToScreen.set_tourist_filter filters REISEN:", self.sb_re_filter,"ANMLED:", self.sb_an_filter
-      
+                self.sb.select_where(self.sb_an_filter, None, "ANMELD")   
+        print "AfpToScreen.set_tourist_filter REISEN:", self.sb_re_filter,"ANMELD:", self.sb_an_filter, "CURRENT RECORD:", self.sb.get_value()
+    ## return "ANMELD" filter clause from date filter
+    def get_minor_date_filter(self):
+        return self.sb_date_filter.replace("Abfahrt","Anmeldung")
+
     ## Eventhandler COMBOBOX - sort index
     def On_Tourist_Index(self,event = None):
         value = self.combo_Sortierung.GetValue()
         if self.debug: print "Event handler `On_Tourist_Index'",value
         index = self.indexmap[value]
-        if index == "RechNr": master = "ANMELD"
+        if index == "RechNr": 
+            master = "ANMELD"
+            self.sb.CurrentIndexName("FahrtNr","REISEN")
         else: master = "REISEN"
         if self.sb_master != master:
             self.sb_master = master
@@ -635,13 +643,13 @@ class AfpToScreen(AfpScreen):
     ## set current record to be displayed 
     # (overwritten from AfpScreen) 
     def set_current_record(self):
-        #print "AfpToScreen.set_current_record initial:", self.sb.get_value("AnmeldNr.ANMELD")
+        #print "AfpToScreen.set_current_record initial:", self.sb.get_value("AnmeldNr.ANMELD"), self.sb.get_value("RechNr.ANMELD")
         FNr = self.sb.get_value("FahrtNr")
         if self.sb_master == "ANMELD": slave = "REISEN"
         else: slave = "ANMELD"
         self.sb.select_key(FNr,"FahrtNr",slave)
         ANr = self.sb.get_value("AnmeldNr.ANMELD")    
-        #print "AfpToScreen.set_current_record ANr:", ANr, slave
+        #print "AfpToScreen.set_current_record ANr:", ANr, FNr, slave
         KNr = self.sb.get_value("KundenNr.ANMELD")      
         TNr = self.sb.get_value("Route.REISEN")      
         PNr = self.sb.get_value("PreisNr.ANMELD") 
@@ -656,7 +664,7 @@ class AfpToScreen(AfpScreen):
             nr = self.sb.get_value("PreisNr.PREISE")
             fnr = self.sb.get_value("FahrtNr.PREISE")
         if fnr != FNr: self.sb.select_key(FNr,"FahrtNr","PREISE")
-        print "AfpToScreen.set_current_record Fahrt:", FNr,"Anmeld:",ANr,"Kunde:",KNr,"Tour:",TNr,"Preis:",PNr,nr
+        #print "AfpToScreen.set_current_record Fahrt:", FNr,"Anmeld:",ANr,"Kunde:",KNr,"Tour:",TNr,"Preis:",PNr,nr
         return   
     ## set initial record to be shown, when screen opens the first time
     #overwritten from AfpScreen) 
@@ -671,15 +679,16 @@ class AfpToScreen(AfpScreen):
             #FNr = self.sb.get_value("Reise.ADRESSE")
             FNr = self.globals.get_value("FahrtNr", origin)
         if FNr is None: FNr = 0
-        # only for testing: in real life stardate  date + 14 should be selected
-        if FNr == 0: FNr = 2179
+        # only for testing: in real life startdate  date + 14 should be selected
+        if FNr == 0: FNr = 2213
         print "AfpToScreen.set_initial_record:", FNr, origin
         if FNr:
             self.sb.select_key(FNr, "FahrtNr","REISEN")
-            self.sb.set_index("Abfahrt","REISEN","FahrtNr")            
+            self.sb.set_index("Kennung","REISEN","FahrtNr")            
             self.sb.CurrentIndexName("Kennung","REISEN")
         else:
             self.sb.select_last() # for tests
+        #print "AfpToScreen.set_initial_record initial record set:", self.sb.get_value()
         self.On_Tourist_Index()
         self.sb.select_current()
         return
@@ -693,7 +702,7 @@ class AfpToScreen(AfpScreen):
             dat = None
             if Afp_isNumeric(Jahr):
                 dat = Afp_fromString("1.7." + Jahr)
-            self.sb.set_debug()
+            #self.sb.set_debug()
             abfahrt = self.get_current_record("Abfahrt", dat)
             if abfahrt:
                 Jahr = abfahrt.year
@@ -702,7 +711,7 @@ class AfpToScreen(AfpScreen):
                 self.set_sb_date_filter(Jahr)
                 self.On_Tourist_Filter()
             print "AfpToScreen.set_valid_record Last record:", abfahrt, Jahr
-            self.sb.unset_debug()
+            #self.sb.unset_debug()
     ## - not used yet - get last record of given index 
     # @param index - name of column where record is searched
     def get_current_record(self, colname, dat = None):

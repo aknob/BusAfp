@@ -224,7 +224,7 @@ def Afp_startRoutine(globals, instring, debug = False):
     else:
         routines = [instring]
     for routine in routines:
-        print "Afp_startRoutine:", routine
+        #print "Afp_startRoutine:", routine
         split = routine.split(".")
         if len(split) > 1:
             mname = Afp_ArraytoLine(split,".",len(split)-1)
@@ -424,8 +424,8 @@ def Afp_selectGetValue(mysql, table, column, index, value):
 def Afp_getOrderlistOfTable(mysql, datei, keep = None, indirect = None, special = None):
     fields, types = mysql.get_info(datei, "fields",  [0, 1])
     indices, columns = mysql.get_info(datei, "index", [2, 4])
-    print "Afp_getOrderlistOfTable input:", datei, keep, indirect, special
-    print "Afp_getOrderlistOfTable:", fields, types, indices, columns
+    #print "Afp_getOrderlistOfTable input:", datei, keep, indirect, special
+    #print "Afp_getOrderlistOfTable:", fields, types, indices, columns
     liste = {}
     name = ""
     for entry in indices:
@@ -529,7 +529,7 @@ class AfpSelectionList(object):
     # @param selname - name of TableSelection where to retrieve names
     def get_name(self, rev = False, selname = "ADRESSE"):
         name = ""
-        sel = self.get_selection(selname)
+        sel = self.get_selection(selname, False)
         if sel:
             if rev:
                 name = sel.get_string_value("Name") + " " + sel.get_string_value("Vorname")
@@ -695,7 +695,7 @@ class AfpSelectionList(object):
         else:
             rows = select.get_values(None, row)         
             selection.set_data(rows)
-        print "AfpSelectionList.get_selection_from_row:",selname, row, selection
+        #print "AfpSelectionList.get_selection_from_row:",selname, row, selection
         return selection
     ## delete a selection row from a TableSelection
     # @param selname - name of TableSelection 
@@ -812,7 +812,7 @@ class AfpSelectionList(object):
         self.get_selection(selname).unlock_data()
     ## propgate new mainvalue to the dependent TableSelections
     def spread_mainvalue(self):
-        print "AfpTableSelectionList.spread_mainvalue"
+        #print "AfpTableSelectionList.spread_mainvalue"
         target = None
         # mainindex 
         source = self.mainindex + "." + self.mainselection
@@ -821,12 +821,12 @@ class AfpSelectionList(object):
         for sel in self.selections:
             if not sel == self.mainselection and self.selections[sel].data:
                 select = self.selects[sel][1]
-                print "AfpTableSelectionList.spread_mainvalue select:", sel, select, self.selections[sel].data
+                #print "AfpTableSelectionList.spread_mainvalue select:", sel, select, self.selections[sel].data
                 if source in select:
                     split = select.split("=")
                     target = split[0].strip()
                     if  "." in target: target = target.split(".")[0]
-                    print "AfpTableSelectionList.spread_mainvalue target:", sel, target, value
+                    #print "AfpTableSelectionList.spread_mainvalue target:", sel, target, value
                     if len(split) > 1 and "-" in split[1]:
                         self.selections[sel].spread_value(target, -value)
                     else:
@@ -834,7 +834,7 @@ class AfpSelectionList(object):
     ## sample newly created unique identifier value of dependent selection to the appropriate entries in the main selectrion
     # @param selname - name of TableSelection where new identifier has been created
     def resample_value(self, selname):
-        print "AfpTableSelectionList.resample_value initiated:", selname
+        #print "AfpTableSelectionList.resample_value initiated:", selname
         target = None
         source = None 
         value = None 
@@ -883,7 +883,7 @@ class AfpSelectionList(object):
         selection = self.get_selection(value_selection.get_tablename())
         value_row = value_selection.get_values(None)[0]
         mani = [row, value_row]
-        print "AfpSelectionList.set_row_to_selection_values:", mani
+        #print "AfpSelectionList.set_row_to_selection_values:", mani
         selection.manipulate_data([mani])
     ## store complete SelectionList
     def store(self):

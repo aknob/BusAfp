@@ -206,7 +206,7 @@ class AfpTourist(AfpSelectionList):
         #AfpSelectionList.__del__(self) 
     ## decide whether this tourist entry has been cancelled
     def is_cancelled(self):
-        return self.get_value("Zustand") == "Storno"
+        return "Storno" in self.get_value("Zustand")
     ## decide whether payment is possible or not
     def is_payable(self):
         zustand = self.get_string_value("Zustand")
@@ -228,18 +228,20 @@ class AfpTourist(AfpSelectionList):
     # - [1] == True: agent should be kept 
     # - [2] == True: prices and Anmeldex should be kept 
     # - [3] == True: the rest of the data should be kept 
-    def set_new(self, FahrtNr, KundenNr, keep_flag = None):
+    def set_new(self, FahrtNr, KundenNr = None, keep_flag = None):
         self.new = True
         data = {}
-        keep = ["ExtraPreis"]
+        keep = []
         if keep_flag == True:
             keep_flag = [True, True, True, True]
         if FahrtNr:
             data["FahrtNr"] = FahrtNr
+            data["PreisNr"] = 100*FahrtNr + 1
         else:
             data["FahrtNr"] = self.get_value("FahrtNr.REISEN")
             keep.append("REISEN")
             keep.append("PREISE")
+            keep.append("ExtraPreis")
         if KundenNr:
             data["KundenNr"] = KundenNr
         else:
@@ -320,6 +322,21 @@ class AfpTourist(AfpSelectionList):
             self.add_invoice()
             #RechNr will be set automatically after store and has not to be returned here 
         return RechNr
+    ## count tour entry up or down
+    # @param plus - number to be added to tour, default: 1
+    def add_to_tour(self, plus = 1):
+        if plus != 0:
+            reise = self.get_selection("REISEN")
+            reise.lock_data()
+            reise.reload_data()
+            cnt = reise.get_value("Anmeldungen")
+            reise.set_value("Anmeldungen", cnt + plus)
+            reise.store()
+    ## delete entries from tour
+    # @param minus - number to be addeleted from tour, default: 1
+    def delete_from_tour(self, minus = 1):
+        if minus != 0:
+           self.add_to_tour(-minus)
     ## financial transaction will be initated if the appropriate modul is installed
     # @param initial - flag for initial call of transaction (interal payment may be added)
     def execute_financial_transaction(self, initial):
@@ -398,8 +415,8 @@ class AfpTourist(AfpSelectionList):
                 name = AfpAdresse(self.get_globals(), row[3]).get_name()
                 liste.append( Afp_toString(row[0]) + Afp_toFloatString(row[1]).rjust(10) + Afp_toFloatString(row[2]).rjust(10) + "  " + name)
                 sameRechNr.append(row[4])  
-                preis += row[1]
-                zahlung += row[2]
+                if row[1]: preis += row[1]
+                if row[2]: zahlung += row[2]
         return [preis, zahlung], sameRechNr, liste
     ## set all necessary values to keep track of the payments
     # @param payment - amount that has been payed

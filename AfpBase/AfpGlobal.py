@@ -346,6 +346,9 @@ class AfpGlobal(object):
     ## return the date of today
     def today(self):
         return self.get_value("today")
+    ## return the date of today as a string
+    def today_string(self):
+        return Afp_toString(self.today())
     ## get the python program path
     def get_programpath(self):
         path = self.get_value("python-path")
