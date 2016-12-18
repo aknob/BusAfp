@@ -76,7 +76,14 @@ class AfpFinance(AfpSelectionList):
     ## destructor
     def __del__(self):    
         if self.debug: print "AfpFinance Destruktor"
-
+        
+## return financial tarnsaction class, if possible
+def AfpFi_getFinanceTransactions(globals):
+    #print "AfpFi_getFinanceTransactions:", globals.get_mysql().get_tables()
+    if "BUCHUNG" in globals.get_mysql().get_tables():
+        return AfpFinanceTransactions(globals)
+    else:
+        return None
 ## class to sample all financial transaction entries needed for one action. \n
 # central class for financial transactions of all kinds. \n
 # this centralisation is considered to more usefull then following the object oriented approach.

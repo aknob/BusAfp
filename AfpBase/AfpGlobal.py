@@ -325,7 +325,7 @@ class AfpGlobal(object):
     # special retrieve routines
     ## get header with database information
     def get_host_header(self):
-        return "auf " + self.get_value("database-host") + ", User: \""  + self.get_value("database-user") + "\""
+        return self.get_value("name") + " auf " + self.get_value("database-host") + ", User: \""  + self.get_value("database-user") + "\""
     ## sample infomation about all modules
     def get_modul_infos(self):
         infos = ""

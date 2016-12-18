@@ -367,8 +367,19 @@ def Afp_importFileLines(fname):
          fin.close()
     return lines
   
+## extract a column of a 2 dimensional array
+# @param ind - index of column
+# @param matrix - matrix where column is extraced from
+def Afp_extractColumn(ind, matrix):
+    column = []
+    for row in matrix:
+        if len(row) > ind:
+            column.append(row[ind])
+        else:
+            column.append(None)
+    return column
 ## deep copy of an array (list)
-# @param array - arrayu to be copied
+# @param array - array to be copied
 def Afp_copyArray(array):
     new_array = []
     for entry in array:

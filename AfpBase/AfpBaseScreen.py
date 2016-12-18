@@ -54,7 +54,9 @@ class AfpScreen(wx.Frame):
         self.setting = None
         self.sb = None
         self.sb_filter = ""
+        self.data = None
         self.menu_items = {}
+        self.labelmap = {}
         self.textmap = {}
         self.choicemap = {}
         self.extmap = {}
@@ -68,6 +70,8 @@ class AfpScreen(wx.Frame):
         self.no_keydown = []     
         self.buttoncolor = (230,230,230)
         self.actuelbuttoncolor = (255,255,255)
+        self.readonlycolor = self.GetBackgroundColour()
+        self.editcolor = (255,255,255)
         self.panel = wx.Panel(self, -1, style = wx.WANTS_CHARS) 
         
     ## connect to database and populate widgets
@@ -76,11 +80,11 @@ class AfpScreen(wx.Frame):
     # @param origin - string from where to get data for initial record, 
     # to allow syncronised display of screens (only works if 'sb' is given)
     def init_database(self, globals, sb, origin):
+        self.globals = globals
         self.create_menubar()
         self.create_modul_buttons()
-        self.globals = globals
         # set header
-        self.SetTitle(self.GetTitle() + " " + globals.get_host_header())
+        self.SetTitle(globals.get_host_header())
         # shortcuts for convienence
         self.mysql = self.globals.get_mysql()
         self.debug = self.globals.is_debug()
@@ -123,7 +127,7 @@ class AfpScreen(wx.Frame):
         self.menubar = wx.MenuBar()
         # setup screen menu
         tmp_menu = wx.Menu()
-        modules = Afp_ModulNames()
+        modules = Afp_ModulNames(self.globals)
         for mod in modules:
             new_id = wx.NewId()
             self.menu_items[new_id] = wx.MenuItem(tmp_menu, new_id, mod, "", wx.ITEM_CHECK)
@@ -163,7 +167,7 @@ class AfpScreen(wx.Frame):
    
     ## create buttons to switch modules 
     def create_modul_buttons(self):
-        modules = Afp_ModulNames()
+        modules = Afp_ModulNames(self.globals)
         panel = self.panel
         cnt = 0
         self.button_modules = {}
@@ -189,7 +193,13 @@ class AfpScreen(wx.Frame):
         elif  new_lgh < old_lgh:
             for i in range(new_lgh, old_lgh):
                 grid.DeleteRows(1)
-      
+                
+    ## central routine which returns if screen is in editable mode
+    def is_editable(self):
+        editable = False
+        if self.panel.GetBackgroundColour() == self.editcolor: editable = True
+        return editable 
+    
     ## Eventhandler Menu - show version information
     def On_ScreenVersion(self, event):
         if self.debug: print "AfpScreen Event handler `On_ScreenVersion'!"
@@ -259,15 +269,29 @@ class AfpScreen(wx.Frame):
      
     ## Population routines for form and widgets
     def Populate(self):
+        self.Pop_label()
         self.Pop_text()
         self.Pop_ext()
         self.Pop_grid()
         self.Pop_list()
+        self.Pop_special()
+    ## populate label widgets
+    def Pop_label(self):
+        for entry in self.labelmap:
+            Label = self.FindWindowByName(entry)
+            if self.data:
+                value = self.data.get_string_value(self.labelmap[entry])
+            else:
+                value = self.sb.get_string_value(self.labelmap[entry])
+            Label.SetLabel(value)
     ## populate text widgets
     def Pop_text(self):
         for entry in self.textmap:
             TextBox = self.FindWindowByName(entry)
-            value = self.sb.get_string_value(self.textmap[entry])
+            if self.data:
+                value = self.data.get_string_value(self.textmap[entry])
+            else:
+                value = self.sb.get_string_value(self.textmap[entry])
             TextBox.SetValue(value)
     ## populate external file textboxes
     def Pop_ext(self):
@@ -275,7 +299,10 @@ class AfpScreen(wx.Frame):
         for entry in self.extmap:
             filename = ""
             TextBox = self.FindWindowByName(entry) 
-            text = self.sb.get_string_value(self.extmap[entry])
+            if self.data:
+                text = self.data.get_string_value(self.extmap[entry])
+            else:
+                text = self.sb.get_string_value(self.extmap[entry])
             file= Afp_archivName(text, delimiter)
             if file:
                 filename = self.globals.get_value("antiquedir") + file
@@ -324,7 +351,25 @@ class AfpScreen(wx.Frame):
                     for row in range(row_lgh, self.grid_minrows[typ]):
                         for col in range(0,max_col_lgh):
                             grid.SetCellValue(row, col,"")
-   
+    ## population routine for special treatment - to be overwritten in derived class
+    def Pop_special(self):
+        return
+ 
+    ## set or unset editable mode
+    # @param ed_flag - flag to turn editing on or off
+    # @param lock_data - flag if invoking of editable mode needs a lock on the database
+    def Set_Editable(self, ed_flag, lock_data = None):
+        if ed_flag:
+            self.panel.SetBackgroundColour(self.editcolor)
+        else:
+            self.panel.SetBackgroundColour(self.readonlycolor)
+        self.panel.Refresh()
+        if lock_data and self.data:
+            if ed_flag:
+                if not self.data.new: self.data.lock_data()
+            else: 
+                if not self.data.new: self.data.unlock_data()
+  
     ## reload current data to screen
     def Reload(self):
         self.sb.select_current()
@@ -392,11 +437,11 @@ class AfpScreen(wx.Frame):
 # the parameter 'sb' and 'origin' may only be used aternatively
 def Afp_loadScreen(globals, modulname, sb = None, origin = None):
     Modul = None
-    moduls = Afp_ModulNames()
+    moduls = Afp_ModulNames(globals)
     if modulname in moduls:
         screen = "Afp" + modulname[:2] + "Screen" 
         modname = "Afp" + modulname + "." + screen 
-        #print "Afp_loadScreen:", modname
+        print "Afp_loadScreen:", modname
         pyModul =  Afp_importPyModul(modname, globals)
         #print "Afp_loadScreen:", pyModul
         pyBefehl = "Modul = pyModul." + screen + "()"

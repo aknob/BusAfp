@@ -53,19 +53,21 @@ def AfpAdDi_selectAttributRow(Adresse):
     name = Adresse.get_name()
     liste = Afp_ArraytoString(liste)
     row, ok = AfpReq_Selection("Bitte Adressmerkmal für".decode("UTF-8") , name + " auswählen.".decode("UTF-8") , liste, "Merkmalauswahl", rows)
-    index = sel.get_feldindices("Attribut,Tag,AttText")
+    #index = sel.get_feldindices("Attribut,Tag,AttText")
+    index = sel.get_feldindices("Attribut,AttText,Tag,Aktion")
     if not row[index[0]] and ok:
         attribut, ok = AfpReq_Text("Bitte Bezeichnung für neues Adressenmerkmal eingeben.","Dieses Merkmal wird " + name + " zugeordnet.")
         if ok: row[index[0]] = attribut
     else:
         attribut = row[index[0]]
     if ok:
-        Tag =  row[index[1]] 
-        AttText = row[index[2]]      
-        ok, AttText, Tag = AfpAdDi_spezialAttribut(name, attribut, AttText, Tag, True)
+        AttText = row[index[1]]      
+        Tag =  row[index[2]] 
+        Aktion =  row[index[3]] 
+        ok, AttText, Tag = AfpAdDi_spezialAttribut(name, attribut, AttText, Tag, Aktion, True)
         if ok:  
-            row[index[1]]  = Tag
-            row[index[2]] = AttText
+            row[index[1]] = AttText
+            row[index[2]]  = Tag
     if ok: return row
     else: return None
    
@@ -74,21 +76,42 @@ def AfpAdDi_selectAttributRow(Adresse):
 # @param attribut - name of  attribut to be modified
 # @param text - additional text string for this attribut
 # @param tag - individual data string holding all values for this special attribut
+# @param action - individual string holding names of values for this special attribut
 # @param no_delete - flag if 'delete' button should be hidden
-def AfpAdDi_spezialAttribut(name, attribut, text, tag, no_delete = False):
+def AfpAdDi_spezialAttribut(name, attribut, text, tag, action, no_delete = False):
     Ok = None
+    taglist= None
     list = []
     attribut = Afp_toString(attribut)
-    #print "AfpAdDi_spezialAttribut:",attribut, type(attribut), tag, Ok
-    taglist = AfpAdresse_getAttributTagList(attribut)
-    split = tag.split(" ")
-    lspl = len(split)
-    for i in range(len(taglist)):
-        entry = [taglist[i] + ":"]
-        if i < lspl: entry.append(split[i])
-        else: entry.append("")
-        list.append(entry)
-    list.append(["(optional) Merkmaltext:", text])
+    #print "AfpAdDi_spezialAttribut:", attribut, type(attribut), tag, action, Ok
+    if action:
+        taglist = action.split(",")
+    if not taglist or len(taglist) == 1:
+        taglist = AfpAdresse_getAttributTagList(attribut)
+    #print "AfpAdDi_spezialAttribut taglist:", tag, taglist
+    ind_text = -1
+    if taglist:
+        split = ""
+        if tag:
+            split = tag.split(",")
+            if tag and len(split) == 1:
+                split = tag.split(" ")
+        lspl = len(split)
+        cnt = 0
+        for i in range(len(taglist)):
+            if "sichtbar" in taglist[i]: 
+                ind_text = i
+                continue
+            entry = [taglist[i] + ":"]
+            if cnt < lspl: 
+                entry.append(split[cnt])
+                cnt += 1
+            else: entry.append("")
+            list.append(entry)
+    if not text: text = ""
+    if ind_text < 0: list.append(["(optional) Merkmaltext:", text])
+    else: list.append([taglist[ind_text] + ":", text])
+    #print "AfpAdDi_spezialAttribut MultiLine:", name, attribut, list
     result = AfpReq_MultiLine("Für '".decode("UTF-8") + name + "' werden die folgenden " + attribut +"-Daten benötigt:".decode("UTF-8"), "", "Text", list, attribut, 400 , no_delete)
     if not result is None: Ok = False
     if result:
@@ -97,7 +120,7 @@ def AfpAdDi_spezialAttribut(name, attribut, text, tag, no_delete = False):
             if not list[i][1] == result[i]:
                 changed = True
         if changed: 
-            tag = Afp_ArraytoLine(result, " ", len(result)-1)
+            tag = Afp_ArraytoLine(result, ",", len(result)-1)
             Ok = True
         if not list[-1][1] == result[-1]:
             text = result[-1]
@@ -441,13 +464,14 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
             name = self.data.get_name()
             selection = self.data.get_selection("ADRESATT")
             #attribut = Afp_toString(selection.get_values("Attribut", index)[0][0])
-            row = selection.get_values("Attribut,AttText,Tag", index)[0]
+            row = selection.get_values("Attribut,AttText,Tag,Aktion", index)[0]
             print "AfpDialog_DiAdEin_SubMrk.On_DClick_Attribut:", row
             attribut = Afp_toString(row[0])
             text = Afp_toString(row[1])
             tag = Afp_toString(row[2])
+            action = Afp_toString(row[3])
 
-            Ok, text, tag = AfpAdDi_spezialAttribut(name, attribut, text, tag)
+            Ok, text, tag = AfpAdDi_spezialAttribut(name, attribut, text, tag, action)
             if Ok is None:
                 Ok = AfpReq_Question("Soll das Merkmal '" + attribut + "'", "für diese Adresse gelöscht werden?".decode("UTF-8"), "Löschen?".decode("UTF-8"))
                 if Ok:
@@ -481,10 +505,12 @@ class AfpDialog_DiAdEin_SubMrk(AfpDialog):
     def On_Ad_Merkmal(self,event):
         if self.debug: print "Event handler `On_Ad_Merkmal'!"
         row = AfpAdDi_selectAttributRow(self.data)
-        #print row
+        #print "On_Ad_Merkmal:", row
         if row:
-            #mani = [-1, row]
-            #self.data.get_selection("ADRESATT").manipulate_data([mani])
+            if row[0] == 0: # here additional manipulation for new  dataset can be made
+                row[0] = self.data.get_value("KundenNr")
+                row[1] = self.data.get_name(True)
+            #print "On_Ad_Merkmal add row:", row
             self.data.get_selection("ADRESATT").add_row(row)
             self.changes["Attribut"].append(row)
             self.Pop_Attribut()

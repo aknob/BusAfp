@@ -102,8 +102,15 @@ class AfpSQL(object):
         Befehl = "SELECT VERSION()"
         if self.debug: print Befehl
         self.db_cursor.execute (Befehl)     
-        rows = self.db_cursor.fetchall ()
+        rows = self.db_cursor.fetchall()
         return rows[0][0]
+    ## return tables available in this database
+    def get_tables(self):
+        Befehl = "SHOW TABLES"
+        if self.debug: print Befehl
+        self.db_cursor.execute (Befehl)     
+        rows = self.db_cursor.fetchall()
+        return Afp_extractColumn(0, rows)
     ## return information of database table
     # @param datei - name of table
     # @param typ - type of information ('fields' and 'index' implemented)
@@ -234,7 +241,7 @@ class AfpSQL(object):
         if self.debug: print "AfpSQL.select:",Befehl
         self.db_cursor.execute (Befehl)     
         rows = self.db_cursor.fetchall ()
-        if self.debug: print "AfpSQL.select:",rows
+        if self.debug: print "AfpSQL.select result:",rows
         self.select_clause= Befehl
         return rows
     ## set a lock on the database table
@@ -823,19 +830,19 @@ class AfpSQLTableSelection(object):
             else:
                 if self.dbg: print "AfpSQLTableSelection.store manipulation:", self.manipulation
                 if self.dbg: print "AfpSQLTableSelection.store data:", self.data
-                if self.manipulation:
-                    new = True
-                    for mani in self.manipulation:
-                        if not mani[0] == "insert": new = False
+                #if self.manipulation:
+                    #new = True
+                    #for mani in self.manipulation:
+                        #if not mani[0] == "insert": new = False
             if self.dbg: print "AfpSQLTableSelection.store new:", new, self.new
             if new or self.new:
                 if self.dbg: print "AfpSQLTableSelection.store insert:", self.get_values()
                 self.mysql.write_insert( self.tablename, self.feldnamen, self.get_values())
-                self.reset_select()
-                self.reload_data()
             else:
                 if self.dbg: print "AfpSQLTableSelection.store no_unique:", self.select_clause, self.get_values()            
                 self.mysql.write_no_unique(self.select_clause, self.feldnamen, self.get_values())
+            self.reset_select()
+            self.reload_data()
         self.new = False
         self.last_manipulation = self.manipulation
         self.manipulation = []

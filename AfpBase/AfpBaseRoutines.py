@@ -43,24 +43,52 @@ from AfpUtilities.AfpStringUtilities import *
 from AfpUtilities.AfpBaseUtilities import *
 
 # definition routines
-## get all possible module with own graphical interfaces (screens)
-def Afp_graphicModulNames():
-    return ["Adresse","Charter","Tourist"]
-## get all possible internal moduls
-def Afp_internalModulNames():
-    return ["Finance","Einsatz","Calendar"]
+## get all possible module with own graphical interfaces (screens) \n
+# if globals are given, only modules available for this program are returned
+# @param globals - if given, global variables holding program name,only modules available for this program are returned
+def Afp_graphicModulNames(globals = None):
+    modules = ["Adresse","Charter","Tourist","Faktura"]
+    if globals:
+        modules = ["Adresse"]
+        name = globals.get_value("name")
+        if name == "BusAfp":
+            modules = ["Adresse","Charter","Tourist"]
+        elif name == "AfpMotor":
+            modules = ["Adresse","Faktura"]
+    return modules
+## get all possible internal moduls\n
+# if globals are given, only modules available for this program are returned
+# @param globals - if given, global variables holding program name
+def Afp_internalModulNames(globals = None):
+    modules = ["Finance","Einsatz","Calendar"]
+    if globals:
+        modules = []
+        name = globals.get_value("name")
+        if name == "BusAfp":
+            modules = ["Finance","Einsatz","Calendar"]
+    return modules
 ## get modul short names - used for filename generation
+# @param modul - long name of modul
 def Afp_getModulShortName(modul):
     if modul == "Einsatz" or modul == "Calendar": 
         return modul[:3]
     else:
         return modul[:2]
 ## return possible user-moduls \n
-# - check if needed python moduls are present has to be implemented
-def Afp_ModulNames():
-    modules = Afp_graphicModulNames()
-    # check if appropriate python files exists
-    # AfpXXRoutines, AfpXXDialog, AfpXXScreen
+# and check if needed python moduls are present, if globals are given
+# @param globals - global variables holding program name
+def Afp_ModulNames(globals = None):
+    mods = Afp_graphicModulNames(globals)
+    # check if appropriate python files exists, if global variables are given
+    if globals:
+        modules = []
+        path = globals.get_programpath()
+        deli = globals.get_value("path-delimiter") 
+        for mod in mods:
+            if Afp_existsModulFiles(mod, deli, path):
+                modules.append(mod)
+    else:
+        modules = mods
     return modules
 ## get all possible afp-modul names
 def Afp_allModulNames():
@@ -98,7 +126,7 @@ def Afp_ModulPyNames(modul):
             return [files[0]]
         else:
             return files
-    return None
+    return []
 ## get all python-modul file names for a afp-modul
 # @param modul - name of afp-modul
 # @param delimiter - path delimiter
@@ -120,7 +148,8 @@ def Afp_existsModulFiles(modul, delimiter, path):
     if filenames:
         exists = True
         for file in filenames:
-                exists = exists and Afp_existsFile(file)
+                # look if appropriate .py or .pyc file exists im path
+                exists = exists and (Afp_existsFile(file) or Afp_existsFile(file + "c"))
         return exists
     return False
 ## get 'modul info' (timestamp) of all python-modul files for a afp-modul
@@ -613,12 +642,11 @@ class AfpSelectionList(object):
     # @param select - name of TableSelection
     # @param allow_new - allow creation of a new TableSelection with no data attached
     def create_selection(self, select, allow_new = True):
-        #print self.selects[select]
         if allow_new and self.new: new = True
         else: new = False
         selection = self.constitute_selection(select)
         select_clause = self.evaluate_selects(select)
-        #print "AfpSelectionList.create_selection:", select, select_clause, new, selection
+        #print "AfpSelectionList.create_selection:", "\"" + select + "\"", select_clause, new, selection
         if selection is None and select_clause == []:
             if new: selection = self.spezial_selection(select, True)
             else:   selection = self.spezial_selection(select)

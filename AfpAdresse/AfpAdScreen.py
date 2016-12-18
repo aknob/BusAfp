@@ -37,7 +37,7 @@ import wx.grid
 import AfpBase
 from AfpBase import *
 from AfpBase.AfpUtilities import *
-from AfpBase.AfpUtilities.AfpStringUtilities import AfpSelectEnrich_dbname, Afp_ArraytoString, Afp_toString
+from AfpBase.AfpUtilities.AfpStringUtilities import Afp_MatrixSplitCol, AfpSelectEnrich_dbname, Afp_ArraytoString, Afp_toString
 from AfpBase.AfpUtilities.AfpBaseUtilities import Afp_existsFile
 from AfpBase.AfpDatabase import *
 from AfpBase.AfpDatabase.AfpSQL import AfpSQL
@@ -189,15 +189,6 @@ class AfpAdScreen(AfpScreen):
         self.Bind(wx.EVT_MENU, self.On_MEMail, mmenu)
         tmp_menu.AppendItem(mmenu)
         self.menubar.Append(tmp_menu, "Adresse")
-        # setup address menu
-        #tmp_menu = wx.Menu() 
-        #mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "&Suche", "")
-        #self.Bind(wx.EVT_MENU, self.On_MAddress_search, mmenu)
-        #tmp_menu.AppendItem(mmenu)
-        #mmenu =  wx.MenuItem(tmp_menu, wx.NewId(), "Be&arbeiten", "")
-        #self.Bind(wx.EVT_MENU, self.On_Adresse_aendern, mmenu)
-        #tmp_menu.AppendItem(mmenu)
-        #self.menubar.Append(tmp_menu, "Adresse")
         return
 
       
@@ -422,7 +413,8 @@ class AfpAdScreen(AfpScreen):
                 rows = self.mysql.select_strings("ExternNr,Datum,Wofuer,RechBetrag,Zahlung,VerbNr",select,"VERBIND") 
             elif typ == "Merkmale":
                 self.archiv_colname = self.archiv_colnames[5]
-                rows = self.mysql.select_strings("Attribut,AttText,Attribut",select,"ADRESATT") 
+                rows = self.mysql.select_strings("Attribut,AttText,Tag,Attribut",select,"ADRESATT") 
+                rows = self.split_tag_rows(rows)
             elif typ == "Beziehungen":
                 self.archiv_colname = self.archiv_colnames[6]
                 rows = []
@@ -437,4 +429,10 @@ class AfpAdScreen(AfpScreen):
             for col in range(0,5):
                 self.grid_archiv.SetColLabelValue(col, self.archiv_colname[col])
         #print "get_grid_rows:", rows
+        return rows
+    ## split tag columns to show maximum of content
+    # @param rows - matrix, where tag column should be split up
+    def split_tag_rows(self, rows):
+        if rows:
+            rows = Afp_MatrixSplitCol(rows, 2,",", " ")
         return rows

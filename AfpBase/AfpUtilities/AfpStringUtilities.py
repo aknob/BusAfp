@@ -324,6 +324,50 @@ def Afp_ArraytoLine(liste, separator = " ", max = None):
             zeile += Afp_toString(entry) + separator
             count += 1
     return zeile[:-sep]
+## splits one column in a matrix into the maximal possiuble number of columns
+# @param matrix - matrix where column should be split up
+# @param col - number of column to be split up
+# @param sep - separator where entry in column should be split up, if integer: number of parts column ist extended to, default: comma 
+# @param ret - retired separator where enty in column should be split up, if first don't work
+def Afp_MatrixSplitCol(matrix, col=0, sep=",", ret=None):
+    column = []
+    max = 1
+    lgm = len(matrix[0])
+    extend_col = False
+    if type(sep) == int:
+        max = sep
+        extend_col = True
+    for row in matrix:
+        split = [""]
+        if row[col]:
+            if extend_col: 
+                split = [row[col]]
+            else:
+                split = row[col].split(sep)
+                if len(split) < 2 and ret: 
+                    split = row[col].split(ret)
+                if len(split) > max: max = len(split)
+        column.append(split)
+    #print "Afp_MatrixSplitCol:", max, column
+    if max > 1:
+        new_matrix = []
+        for i in range(len(column)):
+            lgh = len(column[i])
+            if  lgh < max:
+                for j in range(lgh,max): 
+                    column[i].append("")
+        lgm = len(matrix[0])
+        for i in range(len(matrix)):
+            new_row = []
+            if col > 0: new_row += matrix [i][:col]
+            new_row +=column[i] 
+            if col < lgm: new_row += matrix[i][col+1:]
+            new_matrix.append(new_row)
+    else:
+        new_matrix = matrix
+    #print "Afp_MatrixSplitCol matrix:", matrix
+    #print "Afp_MatrixSplitCol newmat:", new_matrix
+    return new_matrix
 
 # type of strings and values
 ## flag is value is a stringtype

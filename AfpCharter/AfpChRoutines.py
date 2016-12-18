@@ -180,7 +180,7 @@ class AfpCharter(AfpSelectionList):
         if not self.globals.skip_accounting():
             self.finance_modul = Afp_importAfpModul("Finance", self.globals)[0]
             if self.finance_modul:
-                self.finance = self.finance_modul.AfpFinanceTransactions(self.globals)
+                self.finance = self.finance_modul.AfpFi_getFinanceTransactions(self.globals)
         print "AfpCharter.finance:", self.finance
         if self.debug: print "AfpCharter Konstruktor, FahrtNr:", self.mainvalue
     ## destuctor
