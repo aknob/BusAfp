@@ -17,7 +17,7 @@
 #  AfpTechnologies (afptech.de)
 #
 #    BusAfp is a software to manage coach and travel acivities
-#    Copyright© 1989 - 2016  afptech.de (Andreas Knoblauch)
+#    Copyright© 1989 - 2017  afptech.de (Andreas Knoblauch)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -52,8 +52,8 @@ class BusAfp(wx.App):
     # @param config - configuration string to set global variables
     def initialize(self, debug, startpath, confpath, dbhost, dbname, dbuser, dbword, config): 
         name = 'BusAfp'
-        version = "6.0.0 alpha"       
-        copyright = '(C) 1989 - 2016 AfpTech.de'
+        version = "6.0.1 alpha"       
+        copyright = '(C) 1989 - 2017 AfpTech.de'
         website = 'http://www.busafp.de'
         description = """BusAfp ist eine Verwaltungsprogramm für den Buseinsatz 
         für Mietfahrten, sowie der Organisation von eigenen Reisen.
@@ -68,7 +68,7 @@ class BusAfp(wx.App):
         rechtssichere englische Version:
       
          BusAfp is a software to manage coach and travel acivities
-         Copyright© 1989 - 2016  afptech.de (Andreas Knoblauch)
+         Copyright© 1989 - 2017  afptech.de (Andreas Knoblauch)
 
          This program is free software: you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
