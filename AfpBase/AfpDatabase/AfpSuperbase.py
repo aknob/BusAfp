@@ -327,7 +327,7 @@ class AfpSbIndex(object):
                 #ind += 1
         return rows_o
     def gen_index_clause(self, desc = False, first = False, indexwert = None):
-        #print self.name, self.indexwert, self.is_numeric(True)
+        #print "AfpSbIndex.gen_index_clause:", self.name, self.indexwert, self.index_bez, desc, first, indexwert
         index_clause = ""
         if desc:
             unequal = "<="
@@ -353,7 +353,7 @@ class AfpSbIndex(object):
             if len(indices) < lgh:
                 for i in range(len(indices),lgh):
                     indices.append("")
-            if lgh == len(indices):
+            if lgh <= len(indices):
                 for i in range(0,lgh):
                     if index_clause == "": plus = " "
                     else: plus = " and "
@@ -364,7 +364,6 @@ class AfpSbIndex(object):
                     if self.where and clause in self.where: continue
                     index_clause += plus + clause
                 index_clause += " ORDER BY " + self.index_bez[-1] + " " + postfix
-        #print index_clause
         return index_clause
     def gen_first_indexwert(self, order, where_clause):
         values = []
@@ -580,7 +579,7 @@ class AfpSbIndex(object):
         ident = self.imaxident
         where_clause = ""
         if not self.where is None: where_clause = "("+self.where+") and "
-        index_clause = self.gen_index_clause(False, False, indexwert)
+        index_clause = self.gen_index_clause(False, False, indexwert) 
         while do_selection:        
             limit =  (" LIMIT 0,%d") % ident
             Befehl = "SELECT * FROM " + self.db + "." + self.datei +" WHERE "+ where_clause + index_clause + limit

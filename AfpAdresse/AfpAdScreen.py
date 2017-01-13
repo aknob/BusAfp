@@ -288,7 +288,7 @@ class AfpAdScreen(AfpScreen):
             changed = True
         self.sb_filter = where
         if changed:
-            #print "On_Filter_Merk", self.sb_master, s_key, value
+            #print "AfpAdScreen.On_Filter_Merk:", self.sb_master, "KEY:", s_key, "VALUE:", value, "WHERE:", where
             #self.sb.set_debug()
             self.sb.select_key(s_key)
             while KNr != self.sb.get_value("KundenNr") and name ==  self.sb.get_string_value("Name") and vorname ==  self.sb.get_string_value("Vorname.ADRESSE") and self.sb.neof():
