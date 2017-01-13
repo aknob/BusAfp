@@ -99,7 +99,6 @@ def Afp_iniGlobalVars(settings, modul = None):
     elif modul =="Adresse":
         if not "standart-location" in settings:
             settings["standart-location"] = "Braunschweig"
-        
     return settings
 
 ## class to hold global of modul specific varaiables
@@ -229,6 +228,7 @@ class AfpGlobal(object):
         self.setting = setting
         self.setting.set("name", name)
         self.debug = self.setting.is_debug()
+        self.confdir = Afp_extractPath(self.setting.config) + self.get_value("path-delimiter")
         self.settings = {}
         if self.debug: print "AfpGlobal Konstruktor"
     ## destructor
@@ -258,12 +258,12 @@ class AfpGlobal(object):
     def set_value(self, name, value, module = None):
         set = self.get_setting(module)
         if set is None and module:
-            set = AfpSettings(self.is_debug(), None, module, self.get_value("homedir"))
+            set = AfpSettings(self.is_debug(), None, module, self.confdir)
             self.add_setting(module, set)
         if set and name:
             set.set(name, value)
     ## set values according to direct configuration string
-    # @param conf - cobniguration string to be evaluated
+    # @param conf - configuration string to be evaluated
     def set_configuration(self, conf):
         config = conf.split(",")
         for entry in config:
@@ -316,7 +316,7 @@ class AfpGlobal(object):
     def view(self):
         print "AfpGlobal.view: Global", self.setting.settings
         for set in self.settings: 
-            print  "AfpGlobal.view:", self.settings[set].modul, self.settings[set].settings
+            print "AfpGlobal.view:", self.settings[set].modul, self.settings[set].settings
     ## return if operating system is assumed to be windows
     def os_is_windows(self):
         op_sys = self.get_value("op-system")

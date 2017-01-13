@@ -923,7 +923,6 @@ class AfpDialog_Auswahl(wx.Dialog):
         self.cols = 1
         self.col_percents = []
         self.col_labels = []
-        self.feldindex = []
         self.feldlist = ""
         self.dateien = ""
         self.textmap = []
@@ -1033,48 +1032,55 @@ class AfpDialog_Auswahl(wx.Dialog):
          # initialize grid
         felder = self.get_grid_felder()
         #print "AfpDialog_Auswahl.extract_grid_column_values:", felder
-        self.feldindex = []        
         self.feldlist = ""
         self.selectname = ""
-        if "=" in felder[-1][0]:
-            self.link = felder[-1][0]
-            lsplit =  self.link.split()
-            felder[-1][0] = lsplit[-1]
         lgh = len(felder)
-        skip = False
-        percent = 0
-        name = ""
+        ident = None
+        sum_percent = 0
+        explicit_name = None
         for i in range(0,lgh):
             feld = felder[i][0]    
-            self.feldindex.append(len(self.col_labels))
-            self.feldlist += feld + "," 
             if not felder[i][1] is None:
-                new_percent = felder[i][1]
-                if skip:  percent += new_percent
+                self.feldlist += feld + "," 
+                percent = felder[i][1]
                 fsplit = feld.split(".") 
                 if i == 0:  self.selectname = fsplit[0] + "." + fsplit[1]
                 if len(fsplit) > 2:
                     new_name = fsplit[2]
-                    if new_name: skip = True
-                    else: skip = False
+                    if not new_name: new_name = None
                 else:
-                    new_name = ""
-                    skip = False
-                if name and not name == new_name: # delayed write
-                    if self.sortname == "":
-                        self.sortname = name
-                        self.valuecol = len(self.col_percents)
-                    self.col_labels.append(name)
-                    self.col_percents.append(percent)
-                    percent = 0
-                name = new_name
-                if not skip: # direct write
+                    new_name = None
+                if new_name and (explicit_name is None or new_name == explicit_name):
+                    sum_percent += percent
+                else:
+                    if explicit_name: # delayed write
+                        if self.sortname == "":
+                            self.sortname = explicit_name
+                            self.valuecol = len(self.col_percents)
+                        self.col_labels.append(explicit_name)
+                        self.col_percents.append(sum_percent)
+                    if new_name: sum_percent = percent
+                    else: sum_percent = 0
+                explicit_name = new_name
+                if not explicit_name: # direct write
                     self.col_labels.append(fsplit[0])
-                    self.col_percents.append(new_percent)
+                    self.col_percents.append(percent)
                 if not fsplit[1].upper() in self.dateien:
                     self.dateien += " " + fsplit[1].upper()
+            else:
+                if "=" in feld:
+                    if self.link is None:
+                        self.link = feld
+                    else:
+                        self.link += " AND " + feld
+                    if not ident:
+                        ident = feld.split()[-1]
+                else:
+                    ident = feld
         self.feldlist = self.feldlist[:-1]
+        if ident: self.feldlist += "," + ident
         self.cols = len(self.col_percents) 
+        #print "AfpDialog_Auswahl.extract_grid_column_values 2:", self.cols, self.feldlist, self.link
     ## adjust grid rows and columns for dynamic resize of window            
     def adjust_grid_rows(self):
         if self.new_rows > self.rows:
@@ -1145,6 +1151,8 @@ class AfpDialog_Auswahl(wx.Dialog):
                     where = None
                 else: # go for last entries
                     self.On_Ausw_Last
+        #self.select = "Name.ADRESSE >= \"Knoblauch\""
+        #print "AfpDialog_Auswahl.initialize Ende:", self.select
     ## set size depending on different glabal variables
     def set_size(self, size = None):
         if size is None:
@@ -1162,6 +1170,7 @@ class AfpDialog_Auswahl(wx.Dialog):
             rows = self.grid_data
         else:
             rows = self.mysql.select(self.feldlist, self.select, self.dateien, self.sortname, limit, self.where, self.link)
+        #print "AfpDialog_Auswahl.Pop_grid:", self.feldlist, self.select, self.dateien, self.sortname, limit, self.where, self.link, rows
         lgh = len(rows)
         self.ident = []
         #print "AfpDialog_Auswahl.Pop_grid lgh:", lgh, self.rows, self.cols, self.grid_auswahl.GetNumberRows(), self.grid_auswahl.GetNumberCols() 
@@ -1173,7 +1182,7 @@ class AfpDialog_Auswahl(wx.Dialog):
                 else:
                     self.grid_auswahl.SetCellValue(row, col,  "")
             if row < lgh:
-                self.ident.append(rows[row][self.cols])
+                self.ident.append(rows[row][-1])
     ## return if grid-rows are empty
     def grid_is_empty(self):
         return len(self.ident) == 0
@@ -1334,16 +1343,17 @@ class AfpDialog_Auswahl(wx.Dialog):
     # must be overwritten in devired dialog \n
     #
     # All columns with a 'width' entry will be shown, the witdh entry is the percetage of the available witdh used by this column. \n
-    # The column with a 'None' entry is used for identification and the appropriate value will be returned in case of selection. \n
+    # The columns with a 'None' entry will be used as a connection formula or for identification. 
+    # In the later case the appropriate value will be returned in case of selection. \n
     # The first string defines the 'field' and the 'table' where the data is extracted from, the optional additional third part indicates
-    #   that a concatinated column will be used for all lines having the same value ('alias'). \n
+    # that a concatinated column will be used for all lines having the same value ('alias'). The columns with the same 'alias' have to follow each other. \n
     # Selection works either on the 'field.table' entry of the first line or in the 'index' supplied from outside if it can be found in this list. \n
     # Sorting works on the first 'alias' entry if available or is handled simular to the selection. \n
     #
-    # If different tables are involved the 'Ident column' string must hold the connection formular. \n
+    # If different tables are involved the connection between the tables must be supplied in connection formular with a 'None' entry. \n
     # The first 'field.table' string will then be returned in the case of selection.\n
     #
-    # Felder = [[Field .Table .Alias,Width], ... , [Field1.Table1,None]]  
+    # Felder = [[Field.Table.Alias,Width], ... ,[FieldL.TableL = FieldN.TableN,None] [FieldN.TableN,None]]  
     #
     # example and comments see in "AfpAdDialog.AfpDialog_AdAusw"
     def get_grid_felder(self):

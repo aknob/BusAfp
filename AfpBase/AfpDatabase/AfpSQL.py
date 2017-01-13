@@ -441,7 +441,7 @@ class AfpSQLTableSelection(object):
                     value = Afp_toString(values[0][0])
                     if mask: value = "\"" + value + "\""
                     self.select += feldname + " = " + value
-            print "AfpSQLTableSelection.reset_select:", self.select
+            if self.debug: print "AfpSQLTableSelection.reset_select:", self.select
     ## load data into TableSelection according to given select clause
     # @param select - select clause to identify desired data
     # @param order - if given desired order of output rows

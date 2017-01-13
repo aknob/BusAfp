@@ -191,7 +191,6 @@ class AfpAdScreen(AfpScreen):
         self.menubar.Append(tmp_menu, "Adresse")
         return
 
-      
     ## Eventhandler MENU; BUTTON - select other address, either direkt or via attribut
     def On_Adresse_AuswErw(self,event):
         if self.debug: print "Event handler `On_Adresse_AuswErw'!"
@@ -382,7 +381,8 @@ class AfpAdScreen(AfpScreen):
     ## get names of database tables to be opened for this screen
     # (overwritten from AfpScreen)
     def get_dateinamen(self):
-        return  ["ADRESATT", "ADRESSE", "ANFRAGE", "ARCHIV"]
+        #return  ["ADRESATT", "ADRESSE", "ANFRAGE", "ARCHIV"]
+        return  ["ADRESATT", "ADRESSE", "ARCHIV"]
     ## get grid rows to populate grids \n
     # (overwritten from AfpScreen) 
     # @param name - name of grid to be populated

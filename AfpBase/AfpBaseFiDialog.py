@@ -250,7 +250,7 @@ class AfpDialog_DiFiZahl(AfpDialog):
                 for row in rows:
                     zahlungen.append(Afp_ArraytoLine(row))
                 liste[ident] = zahlungen
-                print liste
+                print "AfpZahlung.On_Zahlung_Liste:", liste
             Afp_printToInfoFile(self.data.globals, liste)
         event.Skip()
 

@@ -46,10 +46,11 @@ class BusAfp(wx.App):
     # @param startpath - path where BusAfp has been started from
     # @param confpath - path to configuration file
     # @param dbhost - host for database
+    # @param dbname - name or schema for database
     # @param dbuser - user on host for database
     # @param dbword - password for user on host for database
     # @param config - configuration string to set global variables
-    def initialize(self, debug, startpath, confpath, dbhost, dbuser, dbword, config): 
+    def initialize(self, debug, startpath, confpath, dbhost, dbname, dbuser, dbword, config): 
         name = 'BusAfp'
         version = "6.0.0 alpha"       
         copyright = '(C) 1989 - 2016 AfpTech.de'
@@ -88,6 +89,7 @@ class BusAfp(wx.App):
         set = AfpBase.AfpGlobal.AfpSettings(debug, confpath)   
         if startpath: set.set("start-path", startpath)
         if dbhost: set.set("database-host", dbhost)      
+        if dbname: set.set("database", dbname)      
         if dbuser: set.set("database-user", dbuser)      
         if not set.exists_key("database-word") and dbword is None:
             if dbuser is None: dbuser = set.get("database-user")
@@ -122,6 +124,7 @@ direct = False
 confpath = ""
 module = "Adresse"
 dbhost= None
+dbname= None
 dbuser = None
 dbword = None
 config = None
@@ -136,6 +139,9 @@ for i in range(1,lgh):
     if sys.argv[i] == "-s" or sys.argv[i] == "--server": 
         ev_indices.append(i+1)
         if i < lgh-1 and sys.argv[i+1][0] != "-": dbhost= sys.argv[i+1]
+    if sys.argv[i] == "-d" or sys.argv[i] == "--database": 
+        ev_indices.append(i+1)
+        if i < lgh-1 and sys.argv[i+1][0] != "-": dbname = sys.argv[i+1] 
     if sys.argv[i] == "-u" or sys.argv[i] == "--user": 
         ev_indices.append(i+1)
         if i < lgh-1 and sys.argv[i+1][0] != "-": dbuser = sys.argv[i+1] 
@@ -152,7 +158,7 @@ for i in range(1,lgh):
     if sys.argv[i] == "-h" or sys.argv[i] == "--help": execute = False
 if execute:
     BusAfp = BusAfp(0)
-    BusAfp.initialize(debug, startpath, confpath, dbhost, dbuser, dbword, config)
+    BusAfp.initialize(debug, startpath, confpath, dbhost, dbname, dbuser, dbword, config)
     if lgh > 1 and sys.argv[lgh-1][0] != "-"  and not lgh-1 in ev_indices:
         routine = sys.argv[lgh-1] 
         protocol = False
@@ -182,12 +188,14 @@ else:
     print "-m,--module    module to be started follows"
     print "               Default: module \"Adresse\" will be invoked"
     print "-c,--config    configuration for AfpBase follows in a python script file"
-    print "-p,--password  plain text password for mysql authentification follows"
-    print "               Default: password has to be entered during program start"
     print "-s,--server    database servername or IP-address follows"
     print "               Default: loclahost (127.0.0.1) will be used"
+    print "-d,--database  database name or schema follows"
+    print "               Default: 'BusAfp' will be used"
     print "-u,--user      user for mysql authentification follows"
     print "               Default: user \"server\" will be used"
+    print "-p,--password  plain text password for mysql authentification follows"
+    print "               Default: password has to be entered during program start"
     print "-o,--option    manuel setting of different configuration settings follows"
     print "               Usage: [modulename.]variablename=value[, ...]"
     print "-v,--verbose   display comments on all actions (debug-information)"

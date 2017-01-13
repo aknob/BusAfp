@@ -374,7 +374,7 @@ class AfpSbIndex(object):
             if self.debug: print "AfpSbIndex.gen_first_indexwert:", Befehl
             self.db_cursor.execute (Befehl)
             row = self.db_cursor.fetchone()
-            values.append(row[0])
+            if row: values.append(row[0])
         self.indexwert =  Afp_extractValues(None, values)
         #print "AfpSbIndex.gen_first_indexwert:", self.indexwert
     def gen_next_indexwert(self, order):
@@ -626,10 +626,10 @@ class AfpSbIndex(object):
         # print "AfpSbIndex SELECT CURRENT", self.date, self.name
         self.select_step(0)
     def select_next(self):
-        # print "AfpSbIndex SELECT NEXT", self.date, self.name
+        if self.debug: print "AfpSbIndex SELECT NEXT", self.datei, self.name
         self.select_step(1)
     def select_previous(self):
-        # print "AfpSbIndex SELECT PREVIOUS", self.date, self.name
+        if self.debug: print "AfpSbIndex SELECT PREVIOUS", self.datei, self.name
         self.select_step(-1)
     def select_key(self, wert):
         # print "AfpSbIndex SELECT KEY",wert, self.date, self.name

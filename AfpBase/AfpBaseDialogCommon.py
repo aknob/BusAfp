@@ -213,7 +213,7 @@ def Afp_autoEingabe(value, index, sort_list, name, text = None):
             for entry in sort_list:
                 if sort_list[entry] and sort_list[entry] == format:
                     index = entry
-        print "index:", index, value
+        print "Afp_autoEingabe index:", index, value
         if sort_list[index] is None:
             Ok = None
     return value, index, Ok
@@ -369,7 +369,7 @@ class AfpDialog_DiReport(wx.Dialog):
     def generate_Ausgabe(self):
         empty = Afp_addRootpath(self.globals.get_value("templatedir"), "empty.odt")
         fname, fresult = self.generate_names()
-        print "generate_Ausgabe:", fname, fresult
+        print "AfpDialog_DiReport.generate_Ausgabe:", fname, fresult
         if fresult:
             out = AfpAusgabe(self.debug, self.data)
             out.inflate(fname)

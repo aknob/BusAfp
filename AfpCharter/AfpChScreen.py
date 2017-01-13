@@ -348,7 +348,7 @@ class AfpChScreen(AfpScreen):
         #self.sb.set_debug()      
         if self.debug: print "AfpChScreen Event handler `On_Fahrt_aendern'"
         changed = AfpLoad_DiChEin_fromSb(self.globals, self.sb)
-        print"On_Fahrt_aendern", changed
+        #print "AfpChScreen.On_Fahrt_aendern", changed
         if changed: 
             self.Reload()
             self.On_Fahrt_Ausgabe(None)

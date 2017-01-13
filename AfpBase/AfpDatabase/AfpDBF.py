@@ -80,7 +80,7 @@ def Afp_writeToDBFFile(data, filename, template, parameter = None, debug = False
                 for j in range(len(cols)):
                     if j < lgh:
                         rec[cols[j]] = Afp_toDbfFormat(daten[i][j])
-                if debug: print"Afp_writeToDBFFile Recording:", rec
+                if debug: print "Afp_writeToDBFFile Recording:", rec
                 rec.store()
         file.close()
 ## create a new dbf-file and return handle

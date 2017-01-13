@@ -519,7 +519,7 @@ def Afp_compareSql(v1, v2, debug = False):
         return True
     v1 = Afp_replaceUml(v1.lower())
     v2 = Afp_replaceUml(v2.lower())
-    if debug: print v1,v2
+    if debug: print "Afp_compareSql:", v1,v2
     return (v1 == v2)
 ## replace special german letters to compare words
 # @param string - string to be manipulated

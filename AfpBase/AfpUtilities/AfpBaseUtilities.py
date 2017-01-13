@@ -405,6 +405,11 @@ def Afp_sortSimultan(master, slave):
 # @param file - name of file
 def Afp_addPath(path, file):
     return os.path.join(path, file)
+## extract path from complete filname
+# @param path - path
+# @param file - name of file
+def Afp_extractPath(file):
+    return os.path.dirname(file)
 ## return home directory
 def Afp_genHomeDir():
     if 'HOME' in os.environ:
@@ -472,7 +477,7 @@ def Afp_startProgramFile(programname, debug, filename, parameter = None):
     befehl += filename  
     if parameter:
         befehl += " " + parameter
-    if debug: print befehl
+    if debug: print "Afp_startProgramFile:", befehl
     os.system(befehl)
     #subprocess.call("soffice -pt HP_Color_LaserJet *", shell=True)
     #subprocess.call("soffice --invisible --convert-to pdf filename)

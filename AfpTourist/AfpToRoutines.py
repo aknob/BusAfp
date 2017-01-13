@@ -120,18 +120,6 @@ def AfpTourist_checkVehicle(mysql, route):
 # @param index  -  name sort criterium initially selected
 # @param datei  -  name table to be used as primary
 def AfpTourist_getOrderlistOfTable(mysql, index, datei = "REISEN"):
-    if datei == "ANMELD":
-        keep = ["RechNr"]
-        indirect = None
-    else:
-        keep = ["Abfahrt"]
-        if index == "Anmeldung":
-            keep.append("RechNr")
-        else:
-            keep.append("Kennung")
-        keep.append("Zielort")
-        indirect = ["Zielort","Abfahrt"]
-    #liste = Afp_getOrderlistOfTable(mysql, datei, keep, indirect)
     if index == "Kennung":
         liste = {'Abfahrt':'date', 'Kennung':'string','RechNr':'float'}
     else:

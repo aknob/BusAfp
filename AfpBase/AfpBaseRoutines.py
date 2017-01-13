@@ -491,7 +491,26 @@ def Afp_getOrderlistOfTable(mysql, datei, keep = None, indirect = None, special 
     return liste
 
 ##   base class of all Afp-database objects
-# common class to hold and manipulate the data for a given afp-module 
+# common class to hold and manipulate the data for a given afp-module \ņ
+# self.selects holds the information how the database tables are connected \n
+# The syntax is as follows: \n
+# self.selects["selectionname"] = ["tablename","select criterium","unique key"] \n
+# - selectionname - string with name of this selection
+# - tablename - string with name of table in database
+# - select criterium - string holding criterium for selection, references to earlier created selections (mostly mainselection) are possible
+# - unique key - (optional) string holding name of unique key in slave-table (tablename), to be refilled into mainselection during storage \n
+# Example: \n
+# self.selects["ADRESSE"] = ["ADRESSE","KundenNr = KundenNr.Main","KundenNr"] \n
+# this will fill the selection ADRESSE with the data of the address with the same id (KundenNr) as in table Main, 
+# in case new address data is created, this data gets the internal id during storage. As 'KundenNr' is written in the third place,
+# this new created value will be written into the 'Main' table before storing it.
+# \n the 'select criterium'  (KundenNr = KundenNr.Main) evaluates as follows: \n
+# - if the criterium starts with a '!' the rest of the entry will be taken as select clause as it is written
+# - if there is a '.' in the righthand side, this string will be replaced by the appropriate value string (in this case 'KundenNr' in the selection 'Main') and the result is taken as select clause
+# -  if there is a '+' in the righthand side, all evaluated value strings will be concatinated to one value string
+# - instead of '=' , '>=' and '<=' can be used also
+# - more of those criteria can be added using the 'AND' keyword \n\n
+# self.selections holds the data retrieved from or to be returned to the table \n
 class AfpSelectionList(object):
     ## initialize AfpSelectionList class
     # @param globals - global values including the mysql connection - this input is mandatory
@@ -592,13 +611,18 @@ class AfpSelectionList(object):
                     # fixed fromula, no evaluation
                     select_clause = select[1:]
                 else:
-                    sels = select.split("=")
-                    feld = sels[1].lstrip()
-                    #print feld
-                    if "." in feld: value = self.get_string_value(feld, True)
-                    else: value = feld
-                    if value:
-                        select_clause = sels[0] + "= " + value
+                    select_clause = ""
+                    clauses = select.split("AND")
+                    for clause in clauses:
+                        sels = clause.split("=")
+                        feld = sels[1].strip()
+                        if "." in feld: value = self.get_string_value(feld, True)
+                        else: value = feld
+                        if value:
+                            if select_clause: select_clause += " AND "
+                            # <=, >= work also, as < and > are kept on the left (not evaluated) side
+                            select_clause += sels[0] + "= " + value
+        #print "AfpSelectionList.evaluate_selects:", selname, "CLAUSE:", select_clause
         return select_clause
     ## set the customised select_clause for the main selection
     def set_main_selects_entry(self):  
